@@ -19,6 +19,11 @@
     "packages/blendx": {
       "name": "blendx",
       "version": "0.0.0",
+      "dependencies": {
+        "@blendx/core": "workspace:*",
+        "@blendx/hono": "workspace:*",
+        "zod": "4.6.2",
+      },
     },
     "packages/cli": {
       "name": "@blendx/cli",
@@ -28,6 +33,8 @@
       },
       "devDependencies": {
         "@typescript/typescript6": "6.0.2",
+        "blendx": "workspace:*",
+        "hono": "4.13.7",
       },
     },
     "packages/conformance": {

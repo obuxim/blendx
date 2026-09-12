@@ -6,5 +6,10 @@
   "description": "blendx facade: the only package app code imports.",
   "exports": {
     ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@blendx/core": "workspace:*",
+    "@blendx/hono": "workspace:*",
+    "zod": "4.6.2"
   }
 }

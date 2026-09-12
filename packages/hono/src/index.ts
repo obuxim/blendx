@@ -7,5 +7,6 @@ export {
   createServer,
   problemResponse,
   readJson,
+  router,
   type ServerOptions,
 } from './server.ts';

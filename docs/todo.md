@@ -63,7 +63,7 @@ One item ≈ one focused session. Work top to bottom (see "Todo loop" in `CLAUDE
 - [x] P6.4 Node smoke test: @hono/node-server + pg driver. Done: script exits 0.
 
 ## P7 Generators & CLI
-- [ ] P7.1 routes.gen.ts emitter (thin, sorted, collection customs before `/:id`, exports AppType). Done: golden + tsc.
+- [x] P7.1 routes.gen.ts emitter (thin, sorted, collection customs before `/:id`, exports AppType). Done: golden + tsc.
 - [ ] P7.2 register.gen.ts + drizzle.config.gen.ts emitters. Done: goldens.
 - [ ] P7.3 CLI shell (util.parseArgs, help, exit codes). Done: `blendx --help` works.
 - [ ] P7.4 `blendx generate`, two-phase (DBML → schema; then blends → routes/register/openapi). Done: fixture output equals goldens.

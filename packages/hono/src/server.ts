@@ -51,6 +51,11 @@ export async function readJson(c: Context, typeBase?: string): Promise<unknown> 
   }
 }
 
+/** An empty route group for blendx routes. routes.gen.ts chains every endpoint onto one. */
+export function router(): Hono<BlendxEnv> {
+  return new Hono<BlendxEnv>();
+}
+
 export function createServer(options: ServerOptions): Hono<BlendxEnv> {
   const { app, db } = options;
   const typeBase = app.spec.problems?.typeBase;

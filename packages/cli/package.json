@@ -8,7 +8,9 @@
     ".": "./src/index.ts"
   },
   "devDependencies": {
-    "@typescript/typescript6": "6.0.2"
+    "@typescript/typescript6": "6.0.2",
+    "blendx": "workspace:*",
+    "hono": "4.13.7"
   },
   "dependencies": {
     "@blendx/core": "workspace:*"
