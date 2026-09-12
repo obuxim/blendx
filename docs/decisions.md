@@ -29,6 +29,20 @@ Order: authenticate → validate → load → authorize → calculate → save �
 drizzle-orm 0.45.2, drizzle-kit 0.31.10, drizzle-zod 0.8.3. Drizzle 1.0 is still a release candidate. All drizzle-zod imports stay in one module. Don't generate `relations()`.
 **Revisit:** todo P12.6.
 
+### D6 note: P1.3 spike result (2026-09-13)
+drizzle-zod 0.8.3 schemas are plain zod 4 objects: `instanceof z.ZodObject`, and `.strict()` / `.extend()` work with the app's `z`. Confirmed mapping:
+
+| Column | Rule |
+|---|---|
+| `varchar(n)` | `.max(n)` |
+| `integer` | int32 |
+| `doublePrecision` | number |
+| `pgEnum` | enum |
+| string-mode `timestamp` | string |
+
+`generatedAlwaysAsIdentity` columns are left out of insert and update. Defaulted columns become optional on insert.
+**Finding:** drizzle-zod's types reference Node's `Buffer`. Without it, the portable check silently loses schema precision. `types/portable-globals.d.ts` declares a type-only `interface Buffer` for tsconfig.portable.json only. There is still no `Buffer` value, so the gate holds. Regression test: `packages/core/test/spikes/p1-3-drizzle-zod.test.ts`.
+
 ## D7: Default DB driver `pg` (2026-09-13)
 node-postgres on Bun and Node. PGlite in tests. `bun-sql` is opt-in because of open Drizzle issues (JSON serialization, timezones). drizzle-kit is never bundled into the compiled CLI.
 

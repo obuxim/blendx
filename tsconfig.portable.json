@@ -4,5 +4,5 @@
   "compilerOptions": {
     "types": []
   },
-  "include": ["packages/core/src", "packages/dbml/src"]
+  "include": ["packages/core/src", "packages/dbml/src", "types/portable-globals.d.ts"]
 }

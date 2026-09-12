@@ -6,5 +6,10 @@
   "description": "Portable blendx core: endpoint definitions, cascade, rules derivation, pipeline engine.",
   "exports": {
     ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "drizzle-orm": "0.45.2",
+    "drizzle-zod": "0.8.3",
+    "zod": "4.6.2"
   }
 }
