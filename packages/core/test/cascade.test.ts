@@ -11,6 +11,7 @@ import {
   type EffectDefaults,
   type Reply,
   type Resource,
+  type Row,
   resolveEndpoint,
   toEndpoints,
 } from '@blendx/core';
@@ -22,7 +23,20 @@ beforeEach(() => {
   calls.length = 0;
 });
 
-const loaded = { id: 7, user_id: 42, status: 'paid', quantity: 1 };
+const loaded: Row<typeof shop.orders> = {
+  id: 7,
+  user_id: 42,
+  status: 'paid',
+  total: '10.00',
+  quantity: 1,
+  tags: null,
+  meta: null,
+  public_id: '00000000-0000-0000-0000-000000000007',
+  placed_on: null,
+  created_at: '2026-09-13 00:00:00',
+  updated_at: '2026-09-13 00:00:00',
+  deleted_at: null,
+};
 const defaults: EffectDefaults = {
   load: async () => {
     calls.push('default load');
