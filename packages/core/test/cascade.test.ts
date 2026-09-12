@@ -48,7 +48,7 @@ const defaults: EffectDefaults = {
   },
 };
 
-const loadInput = { db: {} as never, params: { id: '7' }, query: {}, auth: null };
+const loadInput = { db: {} as never, params: { id: '7' }, query: {}, input: {}, auth: null };
 const saveInput = { tx: {} as never, writes: { quantity: 2 }, record: loaded, auth: null };
 const reply: Reply = { status: 200, body: { id: 7 } };
 

@@ -10,6 +10,8 @@ import type {
   AuthorizeContext,
   CalculateContext,
   CollectionSpec,
+  IndexPage,
+  IndexSpec,
   LoadContext,
   MemberSpec,
   RecordSpec,
@@ -50,6 +52,8 @@ export interface ActionDefinition<Name extends string = string, Rules = unknown,
   readonly path: string;
   readonly builtin: boolean;
   readonly hooks: ActionHooks;
+  /** Action options: `trashed` lets index accept ?trashed=with|only. */
+  readonly options: { readonly trashed?: boolean };
   /** Type only: the resolved rules schema, for route and RPC types. */
   readonly [rulesType]?: Rules;
   /** Type only: the reply (default or from respond), for route and RPC types. */
@@ -63,13 +67,16 @@ export type ActionReply<A> = A extends ActionDefinition<string, unknown, infer O
 
 type Public<M extends Model, Hidden extends string> = PublicRow<M, Extract<Hidden, Column<M>>>;
 
-export interface IndexPage<Row> {
-  data: Row[];
-  meta: { page: number; per_page: number; total: number };
-}
+export type { IndexPage } from './hooks.ts';
 
 export type ActionBuilder<M extends Model, Hidden extends string = never> = {
-  index(): ActionDefinition<'index', IndexRules, Reply<200, IndexPage<Public<M, Hidden>>>>;
+  index<const R extends Reply>(
+    spec?: IndexSpec<M, R, Hidden>,
+  ): ActionDefinition<
+    'index',
+    IndexRules,
+    ResolvedReply<R, Reply<200, IndexPage<Public<M, Hidden>>>>
+  >;
   show<const R extends Reply>(
     spec?: RecordSpec<M, 'show', R, Reply<200, Public<M, Hidden>>, Hidden>,
   ): ActionDefinition<'show', EmptyRules, ResolvedReply<R, Reply<200, Public<M, Hidden>>>>;
@@ -185,6 +192,7 @@ const HOOK_NAMES = ['rules', 'load', 'authorize', 'calculate', 'save', 'respond'
 type AnySpec = { [K in (typeof HOOK_NAMES)[number]]?: ActionHooks[K] } & {
   method?: HttpMethod;
   path?: string;
+  trashed?: boolean;
 };
 
 function define(
@@ -206,6 +214,7 @@ function define(
     path,
     builtin,
     hooks: Object.freeze(hooks) as ActionHooks,
+    options: Object.freeze(spec.trashed ? { trashed: true } : {}),
   });
 }
 
@@ -232,7 +241,12 @@ function builderFor(model: Model) {
     );
   };
   return {
-    index: () => define('index', 'collection', 'get', '', true),
+    index: (spec?: AnySpec) => {
+      if (spec?.trashed && model.meta.softDelete === null) {
+        fail('trashed needs a soft-delete table (a nullable deleted_at timestamp)');
+      }
+      return define('index', 'collection', 'get', '', true, spec);
+    },
     show: (spec?: AnySpec) => define('show', 'member', 'get', '/:id', true, spec),
     store: (spec?: AnySpec) => define('store', 'collection', 'post', '', true, spec),
     update: (spec?: AnySpec) => define('update', 'member', 'patch', '/:id', true, spec),

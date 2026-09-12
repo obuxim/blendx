@@ -48,6 +48,7 @@ export {
 export { type DeriveOptions, defaultRules } from './derive-rules.ts';
 export { type EndpointDefinition, toEndpoints } from './endpoints.ts';
 export {
+  type DefaultEffectOptions,
   defaultEffects,
   type ExecuteDeps,
   type ExecuteRequest,
@@ -60,6 +61,7 @@ export type {
   CalculateContext,
   CollectionSpec,
   Db,
+  IndexSpec,
   Input,
   LoadContext,
   MemberSpec,

@@ -28,6 +28,8 @@ export interface LoadInput {
   db: Db;
   params: Readonly<Record<string, string>>;
   query: Readonly<Record<string, string>>;
+  /** The validated input (for index: the parsed query). */
+  input: unknown;
   auth: Auth;
 }
 
@@ -96,7 +98,7 @@ export function resolveEndpoint(
   let rules: z.ZodType = defaultRules(
     model,
     { name: action, builtin: endpoint.builtin },
-    { hidden: endpoint.hidden, maxPerPage: app.index.maxPerPage },
+    { hidden: endpoint.hidden, maxPerPage: app.index.maxPerPage, trashed: endpoint.trashed },
   );
   if (appHooks.rules) rules = appHooks.rules({ prev: rules, model, action });
   if (resourceHooks.rules) rules = resourceHooks.rules({ prev: rules, action });

@@ -26,6 +26,8 @@ export interface EndpointDefinition {
   readonly model: Model;
   readonly policy: Policy;
   readonly hidden: readonly string[];
+  /** index only: accepts ?trashed=with|only. */
+  readonly trashed: boolean;
   /** The action's own hooks. */
   readonly hooks: ActionHooks;
   /** The resource-level hooks, shared by every action of the resource. */
@@ -66,6 +68,7 @@ export function toEndpoints(resource: Resource): EndpointDefinition[] {
       model,
       policy,
       hidden,
+      trashed: action.options?.trashed === true,
       hooks: action.hooks,
       resourceHooks: resource.hooks as ResourceHooks,
     });

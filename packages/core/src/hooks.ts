@@ -29,11 +29,13 @@ export type Input<M extends Model, Action extends string, S> = z.output<
 >;
 
 export interface LoadContext<Rec> {
-  /** Runs the default load (findOrFail for member actions). */
+  /** Runs the default load (findOrFail for member actions, a page for index). */
   runDefault: () => Promise<Rec>;
   db: Db;
   params: Readonly<Record<string, string>>;
   query: Readonly<Record<string, string>>;
+  /** The validated input (for index: the parsed query). */
+  input: unknown;
   auth: RegisteredAuth | null;
 }
 
@@ -187,3 +189,27 @@ export type CollectionSpec<
   Result,
   R,
 > = ValueHooks<M, Name, S, undefined, Result, Reply<200, Result>, undefined, R> & RouteOptions;
+
+export interface IndexPage<Row> {
+  data: Row[];
+  meta: { page: number; per_page: number; total: number };
+}
+
+/** index: opt in to ?trashed, and override load (to scope the listing) or respond. */
+export type IndexSpec<M extends Model, R, Hidden extends string> = {
+  /** Accept ?trashed=with|only. Soft-delete tables only. */
+  trashed?: boolean;
+} & Pick<
+  ValueHooks<
+    M,
+    'index',
+    z.ZodType,
+    undefined,
+    undefined,
+    Reply<200, IndexPage<PublicRow<M, Extract<Hidden, keyof Row<M>>>>>,
+    IndexPage<PublicRow<M, Extract<Hidden, keyof Row<M>>>>,
+    R
+  >,
+  'authorize' | 'respond'
+> &
+  LoadHook<IndexPage<Row<M>>>;

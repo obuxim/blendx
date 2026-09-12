@@ -49,7 +49,7 @@ One item ≈ one focused session. Work top to bottom (see "Todo loop" in `CLAUDE
 ## P5 Engine
 - [x] P5.1 ProblemDetails model + builders (400/401/403/404/409/422/500) + zod issues → JSON pointers. Done: unit tests.
 - [x] P5.2 `execute()` skeleton + early 401 + walking skeleton: addition store on PGlite. Done: 201 with the saved record (`result: 7`).
-- [ ] P5.3 Default load: findOrFail, soft-delete scope, restore loads trashed rows, index list with pagination/sort/filter. Done: tests.
+- [x] P5.3 Default load: findOrFail, soft-delete scope, restore loads trashed rows, index list with pagination/sort/filter. Done: tests.
 - [ ] P5.4 Default save: insert/patch/delete/soft delete/restore, timestamps, returning, writable-key guard. Done: tests.
 - [ ] P5.5 Default respond: 201/200/204, index envelope, hidden fields stripped. Done: tests.
 - [ ] P5.6 Transactions + `FOR UPDATE` on member mutations; respond after commit. Done: rollback test (lock test on real PG).

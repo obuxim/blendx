@@ -3,7 +3,7 @@
  * authenticate, validate, load, authorize, calculate, save, respond. Every failure is a
  * Problem Details response; the order decides precedence (401, 422, 404, 403).
  */
-import { eq, getTableColumns, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, getTableColumns, isNotNull, isNull, sql } from 'drizzle-orm';
 import type { RegisteredAuth } from './app.ts';
 import type { EffectDefaults, ResolvedEndpoint } from './cascade.ts';
 import type { EndpointDefinition } from './endpoints.ts';
@@ -15,6 +15,7 @@ import {
   problem,
   validationProblem,
 } from './problems.ts';
+import type { IndexQuery } from './rules.ts';
 
 export interface ExecuteRequest {
   params: Readonly<Record<string, string>>;
@@ -86,13 +87,16 @@ function publicRow(row: unknown, hidden: readonly string[]): unknown {
   return Object.fromEntries(Object.entries(row).filter(([key]) => !hidden.includes(key)));
 }
 
-function defaultReply(endpoint: EndpointDefinition, record: unknown, result: unknown): Reply {
+function publicPage(page: unknown, hidden: readonly string[]): unknown {
+  if (!isObject(page) || !Array.isArray(page.data)) return page;
+  return { ...page, data: page.data.map((row) => publicRow(row, hidden)) };
+}
+
+/** The schema-default reply, built from the already public record or page. */
+function defaultReply(endpoint: EndpointDefinition, out: unknown, result: unknown): Reply {
   if (endpoint.on === 'collection' && !endpoint.builtin) return { status: 200, body: result };
   if (endpoint.action === 'destroy') return { status: 204, body: null };
-  return {
-    status: endpoint.action === 'store' ? 201 : 200,
-    body: publicRow(record, endpoint.hidden),
-  };
+  return { status: endpoint.action === 'store' ? 201 : 200, body: out };
 }
 
 /** Runs one request through the endpoint's pipeline. */
@@ -119,14 +123,15 @@ export async function execute(
     }
     const input = parsed.data;
 
-    // load
-    const record =
-      endpoint.on === 'member'
-        ? await endpoint.load({ db: deps.db, params, query, auth })
-        : undefined;
-    if (endpoint.on === 'member' && record === undefined) {
+    // load: the record for member actions, a page for index
+    const loads = endpoint.on === 'member' || endpoint.action === 'index';
+    const loaded = loads
+      ? await endpoint.load({ db: deps.db, params, query, input, auth })
+      : undefined;
+    if (endpoint.on === 'member' && loaded === undefined) {
       throw new HttpProblem(problem(404, { typeBase, detail: `${endpoint.resource} not found` }));
     }
+    const record = endpoint.on === 'member' ? loaded : undefined;
 
     // authorize
     if (!(await endpoint.authorize({ auth, record, input }))) {
@@ -151,9 +156,13 @@ export async function execute(
       : record;
 
     // respond
+    const out =
+      endpoint.action === 'index'
+        ? publicPage(loaded, endpoint.hidden)
+        : publicRow(saved, endpoint.hidden);
     const reply = endpoint.respond({
-      prev: defaultReply(endpoint, saved, result),
-      record: publicRow(saved, endpoint.hidden),
+      prev: defaultReply(endpoint, out, result),
+      record: out,
       result,
     });
     return { status: reply.status, body: reply.body, headers: { ...reply.headers } };
@@ -167,25 +176,85 @@ export async function execute(
   }
 }
 
+export interface DefaultEffectOptions {
+  /** Rows per index page when the request does not say (the app's perPage). */
+  perPage?: number;
+}
+
+/** Index query keys that are not column filters. */
+const INDEX_CONTROLS = new Set(['page', 'per_page', 'sort', 'trashed']);
+
 /**
- * The schema-level load and save for an endpoint. P5.2 covers loading a member by its
- * primary key and inserting on store; P5.3 and P5.4 complete the rest.
+ * The schema-level load and save for an endpoint. Load: a member by primary key, never a
+ * soft-deleted one (restore loads only those), or a filtered, sorted page for index.
+ * Save: the store insert; P5.4 completes the rest.
  */
-export function defaultEffects(endpoint: EndpointDefinition): EffectDefaults {
+export function defaultEffects(
+  endpoint: EndpointDefinition,
+  options: DefaultEffectOptions = {},
+): EffectDefaults {
   const { model, action } = endpoint;
   const table = model.table as never;
   const columns = getTableColumns(model.table);
-  const primaryKey = model.meta.primaryKey ? columns[model.meta.primaryKey] : undefined;
+  const deletedAt = model.meta.softDelete ? columns[model.meta.softDelete] : undefined;
   const { createdAt, updatedAt } = model.meta.timestamps;
   const stamps = (keys: (string | null)[]) =>
     Object.fromEntries(keys.filter((key) => key !== null).map((key) => [key, sql`now()`]));
+  const primaryKey = () => {
+    const column = model.meta.primaryKey ? columns[model.meta.primaryKey] : undefined;
+    if (!column) throw new Error(`${model.name} has no primary key`);
+    return column;
+  };
+
+  /** Live rows by default; `only` for trashed rows; `with` for both. */
+  const trashScope = (trashed: 'with' | 'only' | undefined) => {
+    if (!deletedAt || trashed === 'with') return undefined;
+    return trashed === 'only' ? isNotNull(deletedAt) : isNull(deletedAt);
+  };
+
+  async function loadMember(db: Db, id: string | undefined): Promise<unknown> {
+    const scope = trashScope(action === 'restore' ? 'only' : undefined);
+    const rows: unknown[] = await db
+      .select()
+      .from(table)
+      .where(and(eq(primaryKey(), id), scope))
+      .limit(1);
+    return rows[0];
+  }
+
+  async function loadPage(db: Db, input: unknown): Promise<unknown> {
+    const query = (input ?? {}) as IndexQuery;
+    const page = query.page ?? 1;
+    const perPage = query.per_page ?? options.perPage ?? 25;
+    const filters = Object.entries(query)
+      .filter(([key, value]) => !INDEX_CONTROLS.has(key) && value !== undefined && columns[key])
+      .map(([key, value]) => eq(columns[key] as never, value));
+    const where = and(...filters, trashScope(query.trashed));
+    const pk = primaryKey();
+    const sort = query.sort ?? model.meta.primaryKey ?? '';
+    const column = columns[sort.replace(/^-/, '')] ?? pk;
+    const order = [
+      sort.startsWith('-') ? desc(column) : asc(column),
+      ...(column === pk ? [] : [asc(pk)]),
+    ];
+
+    const [data, totals] = await Promise.all([
+      db
+        .select()
+        .from(table)
+        .where(where)
+        .orderBy(...order)
+        .limit(perPage)
+        .offset((page - 1) * perPage),
+      db.select({ total: count() }).from(table).where(where),
+    ]);
+    const total = (totals as { total: number }[])[0]?.total ?? 0;
+    return { data, meta: { page, per_page: perPage, total } };
+  }
 
   return {
-    async load({ db, params }) {
-      if (!primaryKey) throw new Error(`${model.name} has no primary key`);
-      const [row] = await db.select().from(table).where(eq(primaryKey, params.id)).limit(1);
-      return row;
-    },
+    load: ({ db, params, input }) =>
+      action === 'index' ? loadPage(db, input) : loadMember(db, params.id),
     async save({ tx, writes }) {
       if (action !== 'store') {
         throw new Error(`${model.name}.${action}: the default save arrives with P5.4`);
