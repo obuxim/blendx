@@ -26,6 +26,7 @@
         "@blendx/cli": "workspace:*",
         "@blendx/core": "workspace:*",
         "@blendx/hono": "workspace:*",
+        "drizzle-orm": "0.45.2",
         "zod": "4.6.2",
       },
     },
@@ -34,6 +35,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@blendx/core": "workspace:*",
+        "@blendx/dbml": "workspace:*",
       },
       "devDependencies": {
         "@typescript/typescript6": "6.0.2",

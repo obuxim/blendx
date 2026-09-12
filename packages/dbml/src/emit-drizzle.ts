@@ -78,8 +78,16 @@ function options(entries: Record<string, string | number | boolean | undefined>)
   return parts.length > 0 ? `{ ${parts.join(', ')} }` : '';
 }
 
+export interface EmitDrizzleOptions {
+  /**
+   * Import every builder and `sql` from this one module instead of drizzle-orm. The CLI
+   * passes 'blendx/drizzle', so an app shares the drizzle-orm that blendx is built on.
+   */
+  importFrom?: string;
+}
+
 /** Emits schema.gen.ts for a validated schema IR. Output is deterministic. */
-export function emitDrizzle(schema: SchemaIR): string {
+export function emitDrizzle(schema: SchemaIR, settings: EmitDrizzleOptions = {}): string {
   const pgCore = new Set<string>();
   let usesSql = false;
   const use = (name: string) => {
@@ -232,12 +240,18 @@ export function emitDrizzle(schema: SchemaIR): string {
     ].join('\n');
   });
 
-  const imports = [
-    ...(usesSql ? ['import { sql } from "drizzle-orm";'] : []),
-    ...(pgCore.size > 0
-      ? [`import { ${[...pgCore].sort().join(', ')} } from "drizzle-orm/pg-core";`]
-      : []),
-  ];
+  const imports: string[] = [];
+  if (settings.importFrom) {
+    const names = [...pgCore, ...(usesSql ? ['sql'] : [])].sort();
+    if (names.length > 0) {
+      imports.push(`import { ${names.join(', ')} } from ${str(settings.importFrom)};`);
+    }
+  } else {
+    if (usesSql) imports.push('import { sql } from "drizzle-orm";');
+    if (pgCore.size > 0) {
+      imports.push(`import { ${[...pgCore].sort().join(', ')} } from "drizzle-orm/pg-core";`);
+    }
+  }
   const models =
     modelEntries.length > 0
       ? `export const models = {\n${modelEntries.join('\n')}\n} as const;`

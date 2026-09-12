@@ -38,6 +38,15 @@ describe('emitDrizzle', () => {
     expect(output).not.toContain('from "drizzle-orm";');
   });
 
+  test('importFrom: every builder and sql from one module, no drizzle-orm imports', async () => {
+    const schema = await loadSchema(
+      "Table codes {\n  id int [pk]\n  code text [default: `upper('x')`]\n}\n",
+    );
+    const output = emitDrizzle(schema, { importFrom: 'blendx/drizzle' });
+    expect(output).toContain('import { integer, pgTable, sql, text } from "blendx/drizzle";');
+    expect(output).not.toContain('drizzle-orm');
+  });
+
   test('output is deterministic', async () => {
     const schema = await loadSchema(await fixture('shop.dbml'));
     expect(emitDrizzle(schema)).toBe(emitDrizzle(schema));

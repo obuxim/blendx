@@ -4,5 +4,10 @@
     "types": ["bun"]
   },
   "include": ["packages/*/src", "packages/*/test", "examples/*"],
-  "exclude": ["**/node_modules", "packages/core/test/register", "packages/cli/test/register"]
+  "exclude": [
+    "**/node_modules",
+    "packages/core/test/register",
+    "packages/cli/test/register",
+    "packages/cli/test/fixtures/shop-app"
+  ]
 }

@@ -13,6 +13,7 @@
     "hono": "4.13.7"
   },
   "dependencies": {
-    "@blendx/core": "workspace:*"
+    "@blendx/core": "workspace:*",
+    "@blendx/dbml": "workspace:*"
   }
 }
