@@ -84,6 +84,16 @@ export {
   type PolicyContext,
   type PolicyKind,
 } from './policy.ts';
+export {
+  jsonPointer,
+  PROBLEM_CONTENT_TYPE,
+  type ProblemDetails,
+  type ProblemError,
+  type ProblemOptions,
+  type ProblemStatus,
+  problem,
+  validationProblem,
+} from './problems.ts';
 export type {
   DefaultRules,
   EmptyRules,

@@ -47,7 +47,7 @@ One item ≈ one focused session. Work top to bottom (see "Todo loop" in `CLAUDE
 - [x] P4.4 Policy → authorize hook, schema-level deny. Done: tests.
 
 ## P5 Engine
-- [ ] P5.1 ProblemDetails model + builders (400/401/403/404/409/422/500) + zod issues → JSON pointers. Done: unit tests.
+- [x] P5.1 ProblemDetails model + builders (400/401/403/404/409/422/500) + zod issues → JSON pointers. Done: unit tests.
 - [ ] P5.2 `execute()` skeleton + early 401 + walking skeleton: addition store on PGlite. Done: 201 with the saved record (`result: 7`).
 - [ ] P5.3 Default load: findOrFail, soft-delete scope, restore loads trashed rows, index list with pagination/sort/filter. Done: tests.
 - [ ] P5.4 Default save: insert/patch/delete/soft delete/restore, timestamps, returning, writable-key guard. Done: tests.
