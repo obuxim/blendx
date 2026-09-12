@@ -9,9 +9,7 @@
   },
   "dependencies": {
     "@blendx/core": "workspace:*",
-    "hono": "4.13.7"
-  },
-  "devDependencies": {
+    "hono": "4.13.7",
     "zod": "4.6.2"
   }
 }

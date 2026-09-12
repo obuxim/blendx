@@ -67,8 +67,6 @@
       "dependencies": {
         "@blendx/core": "workspace:*",
         "hono": "4.13.7",
-      },
-      "devDependencies": {
         "zod": "4.6.2",
       },
     },
