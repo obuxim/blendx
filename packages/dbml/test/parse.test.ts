@@ -64,7 +64,13 @@ describe('parseDbml', () => {
     const orders = tableNamed(tables, 'orders');
     const orderItems = tableNamed(tables, 'order_items');
 
-    expect(enums).toEqual([{ name: 'order_status', values: ['pending', 'paid', 'refunded'] }]);
+    expect(enums).toEqual([
+      {
+        name: 'order_status',
+        values: ['pending', 'paid', 'refunded'],
+        loc: { line: 3, column: 1 },
+      },
+    ]);
 
     expect(columnNamed(users, 'email')).toMatchObject({
       type: { kind: 'varchar', length: 255 },

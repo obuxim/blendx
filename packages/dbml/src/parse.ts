@@ -1,4 +1,5 @@
 import { loadDbmlCore } from './dbml-core.ts';
+import { type DbmlDiagnostic, DbmlError } from './errors.ts';
 import type {
   ColumnIR,
   DefaultValue,
@@ -20,23 +21,6 @@ type Field = Table['fields'][number];
 type Ref = Schema['refs'][number];
 type Endpoint = Ref['endpoints'][number];
 type Token = Table['token'];
-
-export interface DbmlDiagnostic extends SourceLocation {
-  message: string;
-}
-
-/** Every problem found in schema.dbml, each with its line and column. */
-export class DbmlError extends Error {
-  readonly filename: string;
-  readonly diagnostics: DbmlDiagnostic[];
-
-  constructor(filename: string, diagnostics: DbmlDiagnostic[]) {
-    super(diagnostics.map((d) => `${filename}:${d.line}:${d.column} ${d.message}`).join('\n'));
-    this.name = 'DbmlError';
-    this.filename = filename;
-    this.diagnostics = diagnostics;
-  }
-}
 
 const REF_ACTIONS: ReadonlySet<string> = new Set<RefAction>([
   'cascade',
@@ -88,7 +72,13 @@ function toIR(db: Database, report: Report): SchemaIR {
       }
       continue;
     }
-    enums.push(...schema.enums.map((e) => ({ name: e.name, values: e.values.map((v) => v.name) })));
+    enums.push(
+      ...schema.enums.map((e) => ({
+        name: e.name,
+        values: e.values.map((v) => v.name),
+        loc: loc(e.token),
+      })),
+    );
     const enumNames = new Set(schema.enums.map((e) => e.name));
     const foreignKeys = foreignKeysByTable(schema, report);
     for (const table of schema.tables) {

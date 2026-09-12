@@ -4,6 +4,10 @@ exports[`parseDbml kitchen-sink fixture: types, defaults, keys, indexes, refs, e
 {
   "enums": [
     {
+      "loc": {
+        "column": 1,
+        "line": 3,
+      },
       "name": "order_status",
       "values": [
         "pending",

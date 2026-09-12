@@ -66,6 +66,7 @@ export interface TableIR {
 export interface EnumIR {
   name: string;
   values: string[];
+  loc?: SourceLocation;
 }
 
 export interface SchemaIR {
