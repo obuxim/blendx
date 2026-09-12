@@ -47,6 +47,14 @@ export {
 } from './config.ts';
 export { type DeriveOptions, defaultRules } from './derive-rules.ts';
 export { type EndpointDefinition, toEndpoints } from './endpoints.ts';
+export {
+  defaultEffects,
+  type ExecuteDeps,
+  type ExecuteRequest,
+  type ExecuteResult,
+  execute,
+  HttpProblem,
+} from './engine.ts';
 export type {
   AuthorizeContext,
   CalculateContext,
