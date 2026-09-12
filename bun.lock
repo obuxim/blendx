@@ -65,6 +65,7 @@
       "name": "@blendx/hono",
       "version": "0.0.0",
       "dependencies": {
+        "@blendx/core": "workspace:*",
         "hono": "4.13.7",
       },
       "devDependencies": {
