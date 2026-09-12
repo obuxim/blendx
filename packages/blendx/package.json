@@ -3,11 +3,15 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "blendx facade: the only package app code imports.",
+  "description": "blendx facade: the only package app code imports, and the blendx CLI.",
+  "bin": {
+    "blendx": "./src/bin.ts"
+  },
   "exports": {
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@blendx/cli": "workspace:*",
     "@blendx/core": "workspace:*",
     "@blendx/hono": "workspace:*",
     "zod": "4.6.2"

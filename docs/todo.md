@@ -65,7 +65,7 @@ One item ≈ one focused session. Work top to bottom (see "Todo loop" in `CLAUDE
 ## P7 Generators & CLI
 - [x] P7.1 routes.gen.ts emitter (thin, sorted, collection customs before `/:id`, exports AppType). Done: golden + tsc.
 - [x] P7.2 register.gen.ts + drizzle.config.gen.ts emitters. Done: goldens.
-- [ ] P7.3 CLI shell (util.parseArgs, help, exit codes). Done: `blendx --help` works.
+- [x] P7.3 CLI shell (util.parseArgs, help, exit codes). Done: `blendx --help` works.
 - [ ] P7.4 `blendx generate`, two-phase (DBML → schema; then blends → routes/register/openapi). Done: fixture output equals goldens.
 - [ ] P7.5 `generate --check` with unified diff. Done: drift exits 1.
 - [ ] P7.6 `blendx migrate generate` (drizzle-kit subprocess) + `migrate up` (per-driver migrator). Done: applies on PGlite + local PG.
@@ -111,6 +111,7 @@ Discovered work goes here. Triage it into a phase before starting it.
 - [ ] Remove the postMessage workaround in `packages/dbml/src/dbml-core.ts` once `packages/dbml/test/bun-42512.test.ts` fails (Bun fixed oven-sh/bun#42512).
 - [x] P4.1: decide whether to drop drizzle-zod's ±2^47 bounds on `doublePrecision` columns (real doubles like 1e20 are rejected today). Decided in D13: dropped.
 - [ ] P9.1: add `format: date-time` / `date` to string-mode timestamp and date columns in OpenAPI output. See D8 note.
+- [ ] P12.5: the `blendx` facade depends on `@blendx/cli` for its bin (D9 note), so production installs also get the CLI's dependencies (drizzle-kit, typescript6 once review lands). Decide before publishing whether to make them optional or lazy.
 
 ## Next: React adapter (not in current scope; don't start until asked)
 - [ ] N.1 `@blendx/react`: `createBlendxClient<AppType>()` → TanStack Query hooks per resource/action over `hc`.

@@ -112,6 +112,7 @@ Confirmed with hono 4.13.7: an explicitly typed `readonly [MiddlewareHandler, Ha
 - `routes.gen.ts` imports only from `blendx` (`router()` and `run()`), so an app needs no direct hono dependency. Tables sort by name, and endpoints keep the `toEndpoints()` order. A table named like a JS reserved word, `router` or `run` gets a `_` suffix on its import binding.
 - `register.gen.ts` augments `declare module "blendx"`. The augmentation reaches `Register` in `@blendx/core` through the facade's re-export, so apps never import `@blendx/core`. `packages/cli/test/register` is its own tsconfig project and fails without the golden.
 - `drizzle.config.gen.ts` is a plain object (no drizzle-kit import) with paths relative to the app root, where drizzle-kit runs. It holds no credentials: `migrate generate` is offline and `migrate up` uses blendx's own migrator, so no database URL lands in a committed file.
+- The `blendx` bin lives in the facade package, because `bunx blendx` resolves the package named `blendx`. It is a two-line file calling `main()` from `@blendx/cli`, so the facade depends on the CLI. `@blendx/cli` keeps `src/bin.ts` as the `bun build --compile` entry (P12.4) but declares no bin of its own.
 
 ## D10: Out of scope for v1 (2026-09-13)
 Composite PKs, `?include=` relations, force-delete, PUT, and a post-commit side-effect stage (future: outbox or an `after` stage). The React adapter is the next phase.

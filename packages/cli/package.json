@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "blendx CLI: generate, review, migrate.",
+  "description": "blendx CLI: generate, review, migrate. The blendx package exposes it as its bin.",
   "exports": {
     ".": "./src/index.ts"
   },

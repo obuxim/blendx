@@ -19,7 +19,11 @@
     "packages/blendx": {
       "name": "blendx",
       "version": "0.0.0",
+      "bin": {
+        "blendx": "./src/bin.ts",
+      },
       "dependencies": {
+        "@blendx/cli": "workspace:*",
         "@blendx/core": "workspace:*",
         "@blendx/hono": "workspace:*",
         "zod": "4.6.2",
