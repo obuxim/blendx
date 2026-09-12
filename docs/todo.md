@@ -17,7 +17,7 @@ One item ≈ one focused session. Work top to bottom (see "Todo loop" in `CLAUDE
 - [x] P1.3 drizzle-zod 0.8.3 + zod 4.6.2 on a pgTable (varchar(n), pgEnum, identity, string-mode timestamp, double). Done: a max-length error test and a z.infer type test pass, and the schemas unify with the `zod` import.
 - [x] P1.4 @dbml/core parses the addition DBML + a kitchen-sink DBML. Done: a snapshot of fields/refs/enums/indexes is committed.
 - [x] P1.5 PGlite + drizzle-orm/pglite migrator applies a drizzle-kit-generated migration inside bun test. Done: test passes.
-- [ ] P1.6 `z.toJSONSchema` on drizzle-zod schemas (io input/output, draft 2020-12). Done: snapshot committed, no unrepresentable-type errors.
+- [x] P1.6 `z.toJSONSchema` on drizzle-zod schemas (io input/output, draft 2020-12). Done: snapshot committed, no unrepresentable-type errors.
 - [ ] P1.7 @typescript/typescript6 extracts `calculate` source + return-type keys (literal, spread, conditional). Done: test returns the expected keys.
 - [ ] P1.8 Confirm or amend ADRs D5–D8 with spike results. Done: decisions.md updated.
 
@@ -108,6 +108,8 @@ One item ≈ one focused session. Work top to bottom (see "Todo loop" in `CLAUDE
 ## Inbox
 Discovered work goes here. Triage it into a phase before starting it.
 - [ ] Remove the postMessage workaround in `packages/dbml/src/dbml-core.ts` once `packages/dbml/test/bun-42512.test.ts` fails (Bun fixed oven-sh/bun#42512).
+- [ ] P4.1: decide whether to drop drizzle-zod's ±2^47 bounds on `doublePrecision` columns (real doubles like 1e20 are rejected today). See D8 note.
+- [ ] P9.1: add `format: date-time` / `date` to string-mode timestamp and date columns in OpenAPI output. See D8 note.
 
 ## Next: React adapter (not in current scope; don't start until asked)
 - [ ] N.1 `@blendx/react`: `createBlendxClient<AppType>()` → TanStack Query hooks per resource/action over `hc`.

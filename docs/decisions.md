@@ -70,6 +70,26 @@ P5.7 therefore also maps 22001 to 422. Regression test: `packages/core/test/spik
 ## D8: Own OpenAPI generator (2026-09-13)
 Walk the endpoint definitions and use `z.toJSONSchema` (draft 2020-12, which is OpenAPI 3.1). `@hono/zod-openapi` is rejected: it needs a hand-written spec per route and would bloat `routes.gen.ts`.
 
+### D8 note: P1.6 spike result (2026-09-13)
+zod 4.6.2 converts drizzle-zod schemas and hand-written rules to draft 2020-12 JSON Schema with no unrepresentable types, in both directions.
+
+**What the OpenAPI builder must handle:**
+- **`~standard` is safe.** The result carries zod's Standard Schema payload as a non-enumerable own property. `JSON.stringify` and spread skip it, so nothing leaks into openapi.json. Bun's snapshot printer does show it, so snapshot JSON-serialized data.
+- **Mappings as observed:**
+
+  | Zod / column | JSON Schema |
+  |---|---|
+  | nullable | `anyOf [..., { type: 'null' }]` |
+  | enum | `{ type: 'string', enum }` |
+  | int | `integer` with int32 bounds |
+  | strict objects and select schemas | `additionalProperties: false` |
+
+**Quirks to decide on in P4.1 / P9.1:**
+- **double bounds.** drizzle-zod gives `doublePrecision` bounds of ±2^47, so `1e20` is rejected.
+- **timestamp format.** String-mode timestamps are plain `type: string`, with no `format: date-time`.
+
+Regression test: `packages/core/test/spikes/p1-6-json-schema.test.ts`.
+
 ## D9: Generation and review (2026-09-13)
 `blendx generate` writes `src/generated/` (`schema.gen.ts`, thin `routes.gen.ts` exporting `AppType`, `register.gen.ts`, `drizzle.config.gen.ts`, `openapi.json`). `run()` declares its return type explicitly (hono#4498 history). There is no YAML input; `blendx review` writes `review/*.yaml` (mechanically derived, with provenance), while `*.examples.yaml` is human-owned and runs as tests.
 
