@@ -185,9 +185,12 @@ export interface DefaultEffectOptions {
 const INDEX_CONTROLS = new Set(['page', 'per_page', 'sort', 'trashed']);
 
 /**
- * The schema-level load and save for an endpoint. Load: a member by primary key, never a
- * soft-deleted one (restore loads only those), or a filtered, sorted page for index.
- * Save: the store insert; P5.4 completes the rest.
+ * The schema-level load and save for an endpoint.
+ * Load: a member by primary key, never a soft-deleted one (restore loads only those), or
+ * a filtered, sorted page for index.
+ * Save: store inserts with both timestamps; update and custom member actions update and
+ * touch updated_at (no query when there is nothing to write); destroy sets deleted_at, or
+ * deletes on tables without it; restore clears deleted_at.
  */
 export function defaultEffects(
   endpoint: EndpointDefinition,
@@ -252,18 +255,51 @@ export function defaultEffects(
     return { data, meta: { page, per_page: perPage, total } };
   }
 
-  return {
-    load: ({ db, params, input }) =>
-      action === 'index' ? loadPage(db, input) : loadMember(db, params.id),
-    async save({ tx, writes }) {
-      if (action !== 'store') {
-        throw new Error(`${model.name}.${action}: the default save arrives with P5.4`);
-      }
+  async function saveRow(
+    tx: Db,
+    writes: Record<string, unknown>,
+    record: unknown,
+  ): Promise<unknown> {
+    if (action === 'store') {
       const rows: unknown[] = await tx
         .insert(table)
         .values({ ...writes, ...stamps([createdAt, updatedAt]) } as never)
         .returning();
       return rows[0];
-    },
+    }
+
+    const key = model.meta.primaryKey;
+    const id = isObject(record) && key ? record[key] : undefined;
+    if (id === undefined) {
+      throw new Error(`${model.name}.${action}: there is no loaded record to save`);
+    }
+    const where = eq(primaryKey(), id);
+
+    if (action === 'destroy' && !deletedAt) {
+      const rows: unknown[] = await tx.delete(table).where(where).returning();
+      return rows[0];
+    }
+
+    const softDelete = model.meta.softDelete;
+    const changes: Record<string, unknown> =
+      action === 'destroy' && softDelete
+        ? { [softDelete]: sql`now()` }
+        : action === 'restore' && softDelete
+          ? { [softDelete]: null }
+          : writes;
+    if (Object.keys(changes).length === 0) return record;
+
+    const rows: unknown[] = await tx
+      .update(table)
+      .set({ ...changes, ...stamps([updatedAt]) } as never)
+      .where(where)
+      .returning();
+    return rows[0];
+  }
+
+  return {
+    load: ({ db, params, input }) =>
+      action === 'index' ? loadPage(db, input) : loadMember(db, params.id),
+    save: ({ tx, writes, record }) => saveRow(tx, writes, record),
   };
 }
