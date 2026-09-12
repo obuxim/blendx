@@ -11,5 +11,12 @@
     "@blendx/core": "workspace:*",
     "hono": "4.13.7",
     "zod": "4.6.2"
+  },
+  "devDependencies": {
+    "@hono/node-server": "2.1.1",
+    "@types/pg": "8.23.1",
+    "drizzle-kit": "0.31.10",
+    "drizzle-orm": "0.45.2",
+    "pg": "8.23.0"
   }
 }

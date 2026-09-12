@@ -60,7 +60,7 @@ One item ≈ one focused session. Work top to bottom (see "Todo loop" in `CLAUDE
 - [x] P6.1 BlendxEnv + `createServer` (db/auth injection, onError/notFound → problem, malformed JSON → 400). Done: app.request tests.
 - [x] P6.2 `run()` with explicit tuple types delegating to `execute`. Done: all addition actions work over hand-written routes.
 - [x] P6.3 RPC type tests (per-action input, status narrowing, problem type, 204). Done: tsc.
-- [ ] P6.4 Node smoke test: @hono/node-server + pg driver. Done: script exits 0.
+- [x] P6.4 Node smoke test: @hono/node-server + pg driver. Done: script exits 0.
 
 ## P7 Generators & CLI
 - [ ] P7.1 routes.gen.ts emitter (thin, sorted, collection customs before `/:id`, exports AppType). Done: golden + tsc.
