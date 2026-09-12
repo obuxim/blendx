@@ -56,6 +56,8 @@ Status: the framework is under construction. Work is driven by `docs/todo.md` (s
 - Generators are deterministic and covered by golden tests.
 - Every derivation rule has a test id, an entry in `packages/spec/derivation-rules.md`, and (from P11) a conformance case.
 - Type-level guarantees live in `packages/*/test/types/*.types.test.ts` (`expectTypeOf` + `@ts-expect-error`) and are enforced by `tsc`.
+- Relative imports use explicit `.ts` extensions (Node's type stripping needs them).
+- Load `@dbml/core` only through `loadDbmlCore()` in `packages/dbml/src/dbml-core.ts`. It works around oven-sh/bun#42512.
 - Dependency versions are exact pins. Changing one needs a `docs/decisions.md` entry.
 - Record design decisions in `docs/decisions.md`.
 

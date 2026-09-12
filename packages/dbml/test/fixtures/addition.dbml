@@ -1,0 +1,7 @@
+Table addition_results {
+  id int [pk, increment]
+  result double
+  created_at timestamp
+  updated_at timestamp
+  deleted_at timestamp
+}

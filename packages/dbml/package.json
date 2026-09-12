@@ -6,5 +6,8 @@
   "description": "DBML → schema IR → generated Drizzle schema.",
   "exports": {
     ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@dbml/core": "10.1.1"
   }
 }

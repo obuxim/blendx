@@ -11,6 +11,16 @@ TypeScript · Bun (runtime, test runner, workspaces) · Hono (+ RPC) · Drizzle 
 `schema.dbml` → generated Drizzle schema → drizzle-kit migrations + inferred types. Nothing inspects the database at runtime.
 **Consequence:** DBML can't express hidden fields or exposure. Those live in blends.
 
+### D2 note: P1.4 spike result (2026-09-13)
+We keep @dbml/core 10.1.1. Under Bun a process that imports it never exits (oven-sh/bun#42512): VS Code code bundled in @dbml/parse adds a `message` listener to globalThis. `loadDbmlCore()` hides `postMessage` during the import, and `test/bun-42512.test.ts` fails once Bun fixes it. Behavior the adapter must handle (snapshot: `packages/dbml/test/spikes/__snapshots__/`):
+
+- **PK columns:** they report `not_null: undefined`, so treat pk as not null. Absent settings are `undefined`, not `false`.
+- **Type names:** `type_name` is verbatim and includes its arguments (`varchar(255)` with `args: '255'`, `numeric(10,2)` with `args: '10,2'`). Arrays appear as `text[]`, and `double` stays `double`. Enum columns carry the enum name as the type plus an `_enum` link.
+- **Defaults:** `dbdefault` is `{ type: 'number' | 'string' | 'boolean' | 'expression', value }`. Boolean values arrive as the strings `'true'` / `'false'`.
+- **Refs:** inline refs are listed with the `1` side first; standalone refs keep the order they were written in. `onDelete` / `onUpdate` are `undefined` when not set.
+- **Composite PKs:** these are an index with `pk: true`. `unique`, `pk` and `type` are `undefined` when not set.
+- **Syntax errors:** they throw `CompilerError` with `diags[]`, each `{ message, location: { start: { line, column } } }`.
+
 ## D3: Pipeline and hooks (2026-09-13)
 Order: authenticate → validate → load → authorize → calculate → save → respond. One hook per stage. Cascade: schema → app → resource → action.
 **Why load comes before authorize:** ownership policies need the record. 401 is still decided first, via the policy's `requiresAuth`.

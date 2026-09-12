@@ -1,0 +1,588 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`P1.4 @dbml/core 10.1.1 model addition fixture keeps the type names verbatim (double stays double) 1`] = `
+{
+  "enums": [],
+  "refs": [],
+  "schema": "public",
+  "tables": [
+    {
+      "fields": [
+        {
+          "dbdefault": undefined,
+          "enum": undefined,
+          "increment": true,
+          "name": "id",
+          "not_null": undefined,
+          "note": null,
+          "pk": true,
+          "type": {
+            "args": null,
+            "schemaName": null,
+            "type_name": "int",
+          },
+          "unique": false,
+        },
+        {
+          "dbdefault": undefined,
+          "enum": undefined,
+          "increment": undefined,
+          "name": "result",
+          "not_null": undefined,
+          "note": null,
+          "pk": false,
+          "type": {
+            "args": null,
+            "schemaName": null,
+            "type_name": "double",
+          },
+          "unique": false,
+        },
+        {
+          "dbdefault": undefined,
+          "enum": undefined,
+          "increment": undefined,
+          "name": "created_at",
+          "not_null": undefined,
+          "note": null,
+          "pk": false,
+          "type": {
+            "args": null,
+            "schemaName": null,
+            "type_name": "timestamp",
+          },
+          "unique": false,
+        },
+        {
+          "dbdefault": undefined,
+          "enum": undefined,
+          "increment": undefined,
+          "name": "updated_at",
+          "not_null": undefined,
+          "note": null,
+          "pk": false,
+          "type": {
+            "args": null,
+            "schemaName": null,
+            "type_name": "timestamp",
+          },
+          "unique": false,
+        },
+        {
+          "dbdefault": undefined,
+          "enum": undefined,
+          "increment": undefined,
+          "name": "deleted_at",
+          "not_null": undefined,
+          "note": null,
+          "pk": false,
+          "type": {
+            "args": null,
+            "schemaName": null,
+            "type_name": "timestamp",
+          },
+          "unique": false,
+        },
+      ],
+      "indexes": [],
+      "name": "addition_results",
+      "note": null,
+    },
+  ],
+}
+`;
+
+exports[`P1.4 @dbml/core 10.1.1 model kitchen-sink fixture: fields, indexes, refs, enums, notes 1`] = `
+[
+  {
+    "enums": [
+      {
+        "name": "order_status",
+        "values": [
+          {
+            "name": "pending",
+            "note": null,
+          },
+          {
+            "name": "paid",
+            "note": "money received",
+          },
+          {
+            "name": "refunded",
+            "note": null,
+          },
+        ],
+      },
+    ],
+    "refs": [
+      {
+        "endpoints": [
+          {
+            "fieldNames": [
+              "id",
+            ],
+            "relation": "1",
+            "schemaName": null,
+            "tableName": "users",
+          },
+          {
+            "fieldNames": [
+              "user_id",
+            ],
+            "relation": "*",
+            "schemaName": null,
+            "tableName": "orders",
+          },
+        ],
+        "name": undefined,
+        "onDelete": undefined,
+        "onUpdate": undefined,
+      },
+      {
+        "endpoints": [
+          {
+            "fieldNames": [
+              "order_id",
+            ],
+            "relation": "*",
+            "schemaName": null,
+            "tableName": "order_items",
+          },
+          {
+            "fieldNames": [
+              "id",
+            ],
+            "relation": "1",
+            "schemaName": null,
+            "tableName": "orders",
+          },
+        ],
+        "name": null,
+        "onDelete": "cascade",
+        "onUpdate": "no action",
+      },
+    ],
+    "schema": "public",
+    "tables": [
+      {
+        "fields": [
+          {
+            "dbdefault": undefined,
+            "enum": undefined,
+            "increment": true,
+            "name": "id",
+            "not_null": undefined,
+            "note": null,
+            "pk": true,
+            "type": {
+              "args": null,
+              "schemaName": null,
+              "type_name": "int",
+            },
+            "unique": false,
+          },
+          {
+            "dbdefault": undefined,
+            "enum": undefined,
+            "increment": undefined,
+            "name": "email",
+            "not_null": true,
+            "note": null,
+            "pk": false,
+            "type": {
+              "args": "255",
+              "schemaName": null,
+              "type_name": "varchar(255)",
+            },
+            "unique": true,
+          },
+          {
+            "dbdefault": undefined,
+            "enum": undefined,
+            "increment": undefined,
+            "name": "password",
+            "not_null": true,
+            "note": "hidden in blends, not in DBML",
+            "pk": false,
+            "type": {
+              "args": "255",
+              "schemaName": null,
+              "type_name": "varchar(255)",
+            },
+            "unique": false,
+          },
+          {
+            "dbdefault": undefined,
+            "enum": undefined,
+            "increment": undefined,
+            "name": "display_name",
+            "not_null": undefined,
+            "note": null,
+            "pk": false,
+            "type": {
+              "args": "80",
+              "schemaName": null,
+              "type_name": "varchar(80)",
+            },
+            "unique": false,
+          },
+          {
+            "dbdefault": {
+              "type": "boolean",
+              "value": "true",
+            },
+            "enum": undefined,
+            "increment": undefined,
+            "name": "is_active",
+            "not_null": true,
+            "note": null,
+            "pk": false,
+            "type": {
+              "args": null,
+              "schemaName": null,
+              "type_name": "boolean",
+            },
+            "unique": false,
+          },
+          {
+            "dbdefault": {
+              "type": "expression",
+              "value": "now()",
+            },
+            "enum": undefined,
+            "increment": undefined,
+            "name": "created_at",
+            "not_null": true,
+            "note": null,
+            "pk": false,
+            "type": {
+              "args": null,
+              "schemaName": null,
+              "type_name": "timestamptz",
+            },
+            "unique": false,
+          },
+          {
+            "dbdefault": {
+              "type": "expression",
+              "value": "now()",
+            },
+            "enum": undefined,
+            "increment": undefined,
+            "name": "updated_at",
+            "not_null": true,
+            "note": null,
+            "pk": false,
+            "type": {
+              "args": null,
+              "schemaName": null,
+              "type_name": "timestamptz",
+            },
+            "unique": false,
+          },
+        ],
+        "indexes": [],
+        "name": "users",
+        "note": null,
+      },
+      {
+        "fields": [
+          {
+            "dbdefault": undefined,
+            "enum": undefined,
+            "increment": true,
+            "name": "id",
+            "not_null": undefined,
+            "note": null,
+            "pk": true,
+            "type": {
+              "args": null,
+              "schemaName": null,
+              "type_name": "bigint",
+            },
+            "unique": false,
+          },
+          {
+            "dbdefault": undefined,
+            "enum": undefined,
+            "increment": undefined,
+            "name": "user_id",
+            "not_null": true,
+            "note": null,
+            "pk": false,
+            "type": {
+              "args": null,
+              "schemaName": null,
+              "type_name": "int",
+            },
+            "unique": false,
+          },
+          {
+            "dbdefault": {
+              "type": "string",
+              "value": "pending",
+            },
+            "enum": "order_status",
+            "increment": undefined,
+            "name": "status",
+            "not_null": true,
+            "note": null,
+            "pk": false,
+            "type": {
+              "args": null,
+              "schemaName": null,
+              "type_name": "order_status",
+            },
+            "unique": false,
+          },
+          {
+            "dbdefault": undefined,
+            "enum": undefined,
+            "increment": undefined,
+            "name": "total",
+            "not_null": true,
+            "note": null,
+            "pk": false,
+            "type": {
+              "args": "10,2",
+              "schemaName": null,
+              "type_name": "numeric(10,2)",
+            },
+            "unique": false,
+          },
+          {
+            "dbdefault": {
+              "type": "number",
+              "value": 1,
+            },
+            "enum": undefined,
+            "increment": undefined,
+            "name": "quantity",
+            "not_null": true,
+            "note": null,
+            "pk": false,
+            "type": {
+              "args": null,
+              "schemaName": null,
+              "type_name": "int",
+            },
+            "unique": false,
+          },
+          {
+            "dbdefault": undefined,
+            "enum": undefined,
+            "increment": undefined,
+            "name": "tags",
+            "not_null": undefined,
+            "note": null,
+            "pk": false,
+            "type": {
+              "args": null,
+              "schemaName": null,
+              "type_name": "text[]",
+            },
+            "unique": false,
+          },
+          {
+            "dbdefault": undefined,
+            "enum": undefined,
+            "increment": undefined,
+            "name": "meta",
+            "not_null": undefined,
+            "note": null,
+            "pk": false,
+            "type": {
+              "args": null,
+              "schemaName": null,
+              "type_name": "jsonb",
+            },
+            "unique": false,
+          },
+          {
+            "dbdefault": {
+              "type": "expression",
+              "value": "gen_random_uuid()",
+            },
+            "enum": undefined,
+            "increment": undefined,
+            "name": "public_id",
+            "not_null": true,
+            "note": null,
+            "pk": false,
+            "type": {
+              "args": null,
+              "schemaName": null,
+              "type_name": "uuid",
+            },
+            "unique": true,
+          },
+          {
+            "dbdefault": {
+              "type": "expression",
+              "value": "now()",
+            },
+            "enum": undefined,
+            "increment": undefined,
+            "name": "created_at",
+            "not_null": true,
+            "note": null,
+            "pk": false,
+            "type": {
+              "args": null,
+              "schemaName": null,
+              "type_name": "timestamp",
+            },
+            "unique": false,
+          },
+          {
+            "dbdefault": {
+              "type": "expression",
+              "value": "now()",
+            },
+            "enum": undefined,
+            "increment": undefined,
+            "name": "updated_at",
+            "not_null": true,
+            "note": null,
+            "pk": false,
+            "type": {
+              "args": null,
+              "schemaName": null,
+              "type_name": "timestamp",
+            },
+            "unique": false,
+          },
+          {
+            "dbdefault": undefined,
+            "enum": undefined,
+            "increment": undefined,
+            "name": "deleted_at",
+            "not_null": undefined,
+            "note": null,
+            "pk": false,
+            "type": {
+              "args": null,
+              "schemaName": null,
+              "type_name": "timestamp",
+            },
+            "unique": false,
+          },
+        ],
+        "indexes": [
+          {
+            "columns": [
+              {
+                "type": "column",
+                "value": "user_id",
+              },
+              {
+                "type": "column",
+                "value": "status",
+              },
+            ],
+            "name": "orders_user_status_idx",
+            "pk": undefined,
+            "type": undefined,
+            "unique": undefined,
+          },
+          {
+            "columns": [
+              {
+                "type": "column",
+                "value": "created_at",
+              },
+            ],
+            "name": undefined,
+            "pk": undefined,
+            "type": undefined,
+            "unique": undefined,
+          },
+        ],
+        "name": "orders",
+        "note": "Kitchen-sink table for parser coverage",
+      },
+      {
+        "fields": [
+          {
+            "dbdefault": undefined,
+            "enum": undefined,
+            "increment": undefined,
+            "name": "order_id",
+            "not_null": true,
+            "note": null,
+            "pk": false,
+            "type": {
+              "args": null,
+              "schemaName": null,
+              "type_name": "bigint",
+            },
+            "unique": false,
+          },
+          {
+            "dbdefault": undefined,
+            "enum": undefined,
+            "increment": undefined,
+            "name": "line",
+            "not_null": true,
+            "note": null,
+            "pk": false,
+            "type": {
+              "args": null,
+              "schemaName": null,
+              "type_name": "int",
+            },
+            "unique": false,
+          },
+          {
+            "dbdefault": undefined,
+            "enum": undefined,
+            "increment": undefined,
+            "name": "sku",
+            "not_null": true,
+            "note": null,
+            "pk": false,
+            "type": {
+              "args": "32",
+              "schemaName": null,
+              "type_name": "varchar(32)",
+            },
+            "unique": false,
+          },
+        ],
+        "indexes": [
+          {
+            "columns": [
+              {
+                "type": "column",
+                "value": "order_id",
+              },
+              {
+                "type": "column",
+                "value": "line",
+              },
+            ],
+            "name": undefined,
+            "pk": true,
+            "type": undefined,
+            "unique": undefined,
+          },
+        ],
+        "name": "order_items",
+        "note": null,
+      },
+    ],
+  },
+]
+`;
+
+exports[`P1.4 @dbml/core 10.1.1 model syntax errors are CompilerError diagnostics with a line and column 1`] = `
+[
+  {
+    "message": "Expect an identifier",
+    "start": {
+      "column": 1,
+      "line": 3,
+    },
+  },
+]
+`;
