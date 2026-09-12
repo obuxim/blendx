@@ -1,0 +1,424 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`parseDbml kitchen-sink fixture: types, defaults, keys, indexes, refs, enums 1`] = `
+{
+  "enums": [
+    {
+      "name": "order_status",
+      "values": [
+        "pending",
+        "paid",
+        "refunded",
+      ],
+    },
+  ],
+  "tables": [
+    {
+      "columns": [
+        {
+          "increment": true,
+          "loc": {
+            "column": 3,
+            "line": 10,
+          },
+          "name": "id",
+          "nullable": false,
+          "type": {
+            "kind": "integer",
+          },
+          "unique": false,
+        },
+        {
+          "increment": false,
+          "loc": {
+            "column": 3,
+            "line": 11,
+          },
+          "name": "email",
+          "nullable": false,
+          "type": {
+            "kind": "varchar",
+            "length": 255,
+          },
+          "unique": true,
+        },
+        {
+          "increment": false,
+          "loc": {
+            "column": 3,
+            "line": 12,
+          },
+          "name": "password",
+          "note": "hidden in blends, not in DBML",
+          "nullable": false,
+          "type": {
+            "kind": "varchar",
+            "length": 255,
+          },
+          "unique": false,
+        },
+        {
+          "increment": false,
+          "loc": {
+            "column": 3,
+            "line": 13,
+          },
+          "name": "display_name",
+          "nullable": true,
+          "type": {
+            "kind": "varchar",
+            "length": 80,
+          },
+          "unique": false,
+        },
+        {
+          "default": {
+            "kind": "literal",
+            "value": true,
+          },
+          "increment": false,
+          "loc": {
+            "column": 3,
+            "line": 14,
+          },
+          "name": "is_active",
+          "nullable": false,
+          "type": {
+            "kind": "boolean",
+          },
+          "unique": false,
+        },
+        {
+          "default": {
+            "kind": "expression",
+            "sql": "now()",
+          },
+          "increment": false,
+          "loc": {
+            "column": 3,
+            "line": 15,
+          },
+          "name": "created_at",
+          "nullable": false,
+          "type": {
+            "kind": "timestamp",
+            "withTimezone": true,
+          },
+          "unique": false,
+        },
+        {
+          "default": {
+            "kind": "expression",
+            "sql": "now()",
+          },
+          "increment": false,
+          "loc": {
+            "column": 3,
+            "line": 16,
+          },
+          "name": "updated_at",
+          "nullable": false,
+          "type": {
+            "kind": "timestamp",
+            "withTimezone": true,
+          },
+          "unique": false,
+        },
+      ],
+      "foreignKeys": [],
+      "indexes": [],
+      "loc": {
+        "column": 1,
+        "line": 9,
+      },
+      "name": "users",
+      "primaryKey": [
+        "id",
+      ],
+    },
+    {
+      "columns": [
+        {
+          "increment": true,
+          "loc": {
+            "column": 3,
+            "line": 20,
+          },
+          "name": "id",
+          "nullable": false,
+          "type": {
+            "kind": "bigint",
+          },
+          "unique": false,
+        },
+        {
+          "increment": false,
+          "loc": {
+            "column": 3,
+            "line": 21,
+          },
+          "name": "user_id",
+          "nullable": false,
+          "type": {
+            "kind": "integer",
+          },
+          "unique": false,
+        },
+        {
+          "default": {
+            "kind": "literal",
+            "value": "pending",
+          },
+          "increment": false,
+          "loc": {
+            "column": 3,
+            "line": 22,
+          },
+          "name": "status",
+          "nullable": false,
+          "type": {
+            "kind": "enum",
+            "name": "order_status",
+          },
+          "unique": false,
+        },
+        {
+          "increment": false,
+          "loc": {
+            "column": 3,
+            "line": 23,
+          },
+          "name": "total",
+          "nullable": false,
+          "type": {
+            "kind": "numeric",
+            "precision": 10,
+            "scale": 2,
+          },
+          "unique": false,
+        },
+        {
+          "default": {
+            "kind": "literal",
+            "value": 1,
+          },
+          "increment": false,
+          "loc": {
+            "column": 3,
+            "line": 24,
+          },
+          "name": "quantity",
+          "nullable": false,
+          "type": {
+            "kind": "integer",
+          },
+          "unique": false,
+        },
+        {
+          "increment": false,
+          "loc": {
+            "column": 3,
+            "line": 25,
+          },
+          "name": "tags",
+          "nullable": true,
+          "type": {
+            "kind": "array",
+            "of": {
+              "kind": "text",
+            },
+          },
+          "unique": false,
+        },
+        {
+          "increment": false,
+          "loc": {
+            "column": 3,
+            "line": 26,
+          },
+          "name": "meta",
+          "nullable": true,
+          "type": {
+            "kind": "jsonb",
+          },
+          "unique": false,
+        },
+        {
+          "default": {
+            "kind": "expression",
+            "sql": "gen_random_uuid()",
+          },
+          "increment": false,
+          "loc": {
+            "column": 3,
+            "line": 27,
+          },
+          "name": "public_id",
+          "nullable": false,
+          "type": {
+            "kind": "uuid",
+          },
+          "unique": true,
+        },
+        {
+          "default": {
+            "kind": "expression",
+            "sql": "now()",
+          },
+          "increment": false,
+          "loc": {
+            "column": 3,
+            "line": 28,
+          },
+          "name": "created_at",
+          "nullable": false,
+          "type": {
+            "kind": "timestamp",
+            "withTimezone": false,
+          },
+          "unique": false,
+        },
+        {
+          "default": {
+            "kind": "expression",
+            "sql": "now()",
+          },
+          "increment": false,
+          "loc": {
+            "column": 3,
+            "line": 29,
+          },
+          "name": "updated_at",
+          "nullable": false,
+          "type": {
+            "kind": "timestamp",
+            "withTimezone": false,
+          },
+          "unique": false,
+        },
+        {
+          "increment": false,
+          "loc": {
+            "column": 3,
+            "line": 30,
+          },
+          "name": "deleted_at",
+          "nullable": true,
+          "type": {
+            "kind": "timestamp",
+            "withTimezone": false,
+          },
+          "unique": false,
+        },
+      ],
+      "foreignKeys": [
+        {
+          "columns": [
+            "user_id",
+          ],
+          "references": {
+            "columns": [
+              "id",
+            ],
+            "table": "users",
+          },
+        },
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "user_id",
+            "status",
+          ],
+          "name": "orders_user_status_idx",
+          "unique": false,
+        },
+        {
+          "columns": [
+            "created_at",
+          ],
+          "unique": false,
+        },
+      ],
+      "loc": {
+        "column": 1,
+        "line": 19,
+      },
+      "name": "orders",
+      "note": "Kitchen-sink table for parser coverage",
+      "primaryKey": [
+        "id",
+      ],
+    },
+    {
+      "columns": [
+        {
+          "increment": false,
+          "loc": {
+            "column": 3,
+            "line": 41,
+          },
+          "name": "order_id",
+          "nullable": false,
+          "type": {
+            "kind": "bigint",
+          },
+          "unique": false,
+        },
+        {
+          "increment": false,
+          "loc": {
+            "column": 3,
+            "line": 42,
+          },
+          "name": "line",
+          "nullable": false,
+          "type": {
+            "kind": "integer",
+          },
+          "unique": false,
+        },
+        {
+          "increment": false,
+          "loc": {
+            "column": 3,
+            "line": 43,
+          },
+          "name": "sku",
+          "nullable": false,
+          "type": {
+            "kind": "varchar",
+            "length": 32,
+          },
+          "unique": false,
+        },
+      ],
+      "foreignKeys": [
+        {
+          "columns": [
+            "order_id",
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action",
+          "references": {
+            "columns": [
+              "id",
+            ],
+            "table": "orders",
+          },
+        },
+      ],
+      "indexes": [],
+      "loc": {
+        "column": 1,
+        "line": 40,
+      },
+      "name": "order_items",
+      "primaryKey": [
+        "order_id",
+        "line",
+      ],
+    },
+  ],
+}
+`;
