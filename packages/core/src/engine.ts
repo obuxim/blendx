@@ -10,6 +10,7 @@ import type { EndpointDefinition } from './endpoints.ts';
 import type { Db, Reply } from './hooks.ts';
 import type { Model } from './model.ts';
 import {
+  jsonPointer,
   PROBLEM_CONTENT_TYPE,
   type ProblemDetails,
   problem,
@@ -99,6 +100,82 @@ function defaultReply(endpoint: EndpointDefinition, out: unknown, result: unknow
   return { status: endpoint.action === 'store' ? 201 : 200, body: out };
 }
 
+interface DatabaseErrorFields {
+  code?: string;
+  constraint?: string;
+  column?: string;
+}
+
+/** The Postgres error behind a failed query, wherever drizzle or the driver put it. */
+function databaseError(error: unknown): DatabaseErrorFields | undefined {
+  for (let e: unknown = error; e instanceof Object; e = (e as { cause?: unknown }).cause) {
+    const code = (e as DatabaseErrorFields).code;
+    if (typeof code === 'string' && /^[0-9A-Z]{5}$/.test(code)) return e as DatabaseErrorFields;
+  }
+  return undefined;
+}
+
+/**
+ * Constraint violations as problems (D4, D11): 23505 unique is 409; 23503 foreign key is
+ * 422, or 409 when a destroy is still referenced; 23502 not null, 22P02 invalid value and
+ * 22001 too long are 422. Pointers come from the constraint's columns in the model meta.
+ * Other database errors stay errors.
+ */
+function databaseProblem(
+  error: unknown,
+  endpoint: EndpointDefinition,
+  typeBase: string | undefined,
+): ProblemDetails | undefined {
+  const pg = databaseError(error);
+  if (!pg) return undefined;
+  const columns =
+    (pg.constraint && endpoint.model.meta.constraints[pg.constraint]?.columns) ||
+    (pg.column ? [pg.column] : []);
+  const invalid = (detail: string) => {
+    const errors = columns.map((column) => ({ pointer: jsonPointer([column]), detail }));
+    return errors.length > 0 ? errors : undefined;
+  };
+  switch (pg.code) {
+    case '23505':
+      return problem(409, {
+        typeBase,
+        detail: 'A record with the same value already exists.',
+        errors: invalid('is already taken'),
+      });
+    case '23503':
+      return endpoint.action === 'destroy'
+        ? problem(409, {
+            typeBase,
+            detail: `${endpoint.resource} is still referenced by other records.`,
+          })
+        : problem(422, {
+            typeBase,
+            detail: 'The request refers to a record that does not exist.',
+            errors: invalid('refers to a record that does not exist'),
+          });
+    case '23502':
+      return problem(422, {
+        typeBase,
+        detail: 'A required value is missing.',
+        errors: invalid('is required'),
+      });
+    case '22P02':
+      return problem(422, {
+        typeBase,
+        detail: 'A value is not valid for its column.',
+        errors: invalid('is not a valid value'),
+      });
+    case '22001':
+      return problem(422, {
+        typeBase,
+        detail: 'A value is too long for its column.',
+        errors: invalid('is too long'),
+      });
+    default:
+      return undefined;
+  }
+}
+
 /** Runs one request through the endpoint's pipeline. */
 export async function execute(
   endpoint: ResolvedEndpoint,
@@ -129,9 +206,20 @@ export async function execute(
     const stages = async (db: Db) => {
       const loads = endpoint.on === 'member' || endpoint.action === 'index';
       const lock = mutates && endpoint.on === 'member';
-      const loaded = loads
-        ? await endpoint.load({ db, params, query, input, auth, lock })
-        : undefined;
+      let loaded: unknown;
+      if (loads) {
+        try {
+          loaded = await endpoint.load({ db, params, query, input, auth, lock });
+        } catch (error) {
+          // An id that cannot be the primary key's type (e.g. /orders/abc) names no record.
+          if (endpoint.on === 'member' && databaseError(error)?.code === '22P02') {
+            throw new HttpProblem(
+              problem(404, { typeBase, detail: `${endpoint.resource} not found` }),
+            );
+          }
+          throw error;
+        }
+      }
       if (endpoint.on === 'member' && loaded === undefined) {
         throw new HttpProblem(problem(404, { typeBase, detail: `${endpoint.resource} not found` }));
       }
@@ -173,10 +261,12 @@ export async function execute(
     });
     return { status: reply.status, body: reply.body, headers: { ...reply.headers } };
   } catch (error) {
-    if (!(error instanceof HttpProblem)) throw error;
+    const details =
+      error instanceof HttpProblem ? error.problem : databaseProblem(error, endpoint, typeBase);
+    if (!details) throw error;
     return {
-      status: error.problem.status,
-      body: error.problem,
+      status: details.status,
+      body: details,
       headers: { 'content-type': PROBLEM_CONTENT_TYPE },
     };
   }
