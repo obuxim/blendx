@@ -29,6 +29,21 @@
         "drizzle-orm": "0.45.2",
         "zod": "4.6.2",
       },
+      "devDependencies": {
+        "@electric-sql/pglite": "0.5.8",
+        "@types/pg": "8.23.1",
+        "pg": "8.23.0",
+      },
+      "peerDependencies": {
+        "@electric-sql/pglite": "^0.5.8",
+        "pg": "^8.23.0",
+        "postgres": "^3.4.9",
+      },
+      "optionalPeers": [
+        "@electric-sql/pglite",
+        "pg",
+        "postgres",
+      ],
     },
     "packages/cli": {
       "name": "@blendx/cli",

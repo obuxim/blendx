@@ -31,3 +31,4 @@ export {
 } from '@blendx/core';
 export { type BlendxEnv, createServer, router, run, type ServerOptions } from '@blendx/hono';
 export { z } from 'zod';
+export { createDatabase, type Database, type DatabaseConfig } from './database.ts';

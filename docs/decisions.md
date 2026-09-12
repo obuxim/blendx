@@ -79,6 +79,9 @@ drizzle-kit 0.31.10 runs on Bun with `bun x --bun drizzle-kit generate` (about 0
 
 P5.7 therefore also maps 22001 to 422. Regression test: `packages/core/test/spikes/p1-5-pglite-migrate.test.ts`.
 
+### D7 note: P7.7 createDatabase (2026-09-13)
+`createDatabase(config)` lives in the `blendx` facade, not in core: drivers are runtime-specific (bun-sql needs Bun) and core stays portable. Each driver package is imported only when chosen and is an optional peer dependency of `blendx`, so an app installs only its own driver; a missing one is a `BlendxConfigError` that names the package. Server drivers read `config.database.url`, then `DATABASE_URL`. PGlite reads only `config.database.url`: none or `memory://` is in memory, anything else is a data folder.
+
 ## D8: Own OpenAPI generator (2026-09-13)
 Walk the endpoint definitions and use `z.toJSONSchema` (draft 2020-12, which is OpenAPI 3.1). `@hono/zod-openapi` is rejected: it needs a hand-written spec per route and would bloat `routes.gen.ts`.
 

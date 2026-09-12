@@ -17,5 +17,26 @@
     "@blendx/hono": "workspace:*",
     "drizzle-orm": "0.45.2",
     "zod": "4.6.2"
+  },
+  "peerDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "pg": "^8.23.0",
+    "postgres": "^3.4.9"
+  },
+  "peerDependenciesMeta": {
+    "@electric-sql/pglite": {
+      "optional": true
+    },
+    "pg": {
+      "optional": true
+    },
+    "postgres": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.8",
+    "@types/pg": "8.23.1",
+    "pg": "8.23.0"
   }
 }
