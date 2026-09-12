@@ -75,7 +75,7 @@ One item ≈ one focused session. Work top to bottom (see "Todo loop" in `CLAUDE
 - [x] P8.1 schema.dbml, blendx.config.ts, src/app.ts, blends/addition_results.ts, server.ts; generated artifacts committed. Done: `generate --check` passes.
 - [x] P8.2 E2E on PGlite: `{a:4,b:3}` → 201 `result: 7`; 422 bad type; 422 unknown key; 404 show; soft delete hides from index; restore. Done: bun test.
 - [x] P8.3 `hc<AppType>` typed + runtime client test. Done: tsc + test.
-- [ ] P8.4 Same suite on local PostgreSQL 18 (`BLENDX_TEST_DB=pg`). Done: passes.
+- [x] P8.4 Same suite on local PostgreSQL 18 (`BLENDX_TEST_DB=pg`). Done: passes.
 
 ## P9 OpenAPI
 - [ ] P9.1 OpenAPI 3.1 builder (paths, params, request bodies io:input, responses per status, Problem component, public-record components, sorted keys). Done: snapshot.
