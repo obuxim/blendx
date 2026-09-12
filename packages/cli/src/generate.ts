@@ -1,15 +1,16 @@
 /**
  * `blendx generate` writes the generated folder in two phases. Phase one turns schema.dbml
- * into schema.gen.ts. Phase two imports the blends, which import that schema, and emits
- * routes.gen.ts, register.gen.ts and drizzle.config.gen.ts. A file is only rewritten when
- * its content changes. With --check nothing is written: each drifted file prints a unified
- * diff, and the command exits 1.
+ * into schema.gen.ts. Phase two imports the blends, which import that schema, and the app
+ * module, and emits routes.gen.ts, register.gen.ts, drizzle.config.gen.ts and openapi.json.
+ * A file is only rewritten when its content changes. With --check nothing is written: each
+ * drifted file prints a unified diff, and the command exits 1. Replies that openapi.json
+ * cannot describe print as warnings, which never fail the command.
  */
 import { existsSync } from 'node:fs';
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import type { Resource } from '@blendx/core';
+import { type App, buildOpenApi, type Resource, stringifyOpenApi } from '@blendx/core';
 import { emitDrizzle, loadSchema } from '@blendx/dbml';
 import { CliError, type Command } from './command.ts';
 import { loadConfig, type ResolvedConfig } from './config.ts';
@@ -25,6 +26,7 @@ export const GENERATED_FILES = [
   'routes.gen.ts',
   'register.gen.ts',
   'drizzle.config.gen.ts',
+  'openapi.json',
 ] as const;
 
 export type GeneratedFile = (typeof GENERATED_FILES)[number];
@@ -42,6 +44,9 @@ export async function emitSchemaFile(config: ResolvedConfig): Promise<string> {
 
 const isResource = (value: unknown): value is Resource =>
   typeof value === 'object' && value !== null && (value as Resource).kind === 'blendx/resource';
+
+const isApp = (value: unknown): value is App =>
+  typeof value === 'object' && value !== null && (value as App).kind === 'blendx/app';
 
 /** Imports every blends/<table>.ts. Each must default-export blend() of its own table. */
 export async function loadBlends(config: ResolvedConfig): Promise<BlendModule[]> {
@@ -65,18 +70,37 @@ export async function loadBlends(config: ResolvedConfig): Promise<BlendModule[]>
   return blends;
 }
 
-/** Phase two: the files that need the blends. */
+/** Imports the app module, which must default-export defineApp(...). */
+export async function loadApp(config: ResolvedConfig): Promise<App> {
+  const app: unknown = (await import(pathToFileURL(config.app).href)).default;
+  if (!isApp(app)) {
+    throw new CliError(`${shown(config, config.app)} must default-export defineApp(...)`);
+  }
+  return app;
+}
+
+/** Phase two: the files that need the blends and the app, and the OpenAPI warnings. */
 export function emitAppFiles(
   config: ResolvedConfig,
   blends: readonly BlendModule[],
-): Record<Exclude<GeneratedFile, 'schema.gen.ts'>, string> {
+  app: App,
+): { files: Record<Exclude<GeneratedFile, 'schema.gen.ts'>, string>; warnings: string[] } {
+  const openapi = buildOpenApi({
+    app,
+    resources: blends.map((blend) => blend.resource),
+    info: config.openapi,
+  });
   return {
-    'routes.gen.ts': emitRoutes(blends),
-    'register.gen.ts': emitRegister(relativeTo(config.generated, config.app)),
-    'drizzle.config.gen.ts': emitDrizzleConfig({
-      schema: relativeTo(config.root, join(config.generated, 'schema.gen.ts')),
-      out: relativeTo(config.root, config.migrations),
-    }),
+    files: {
+      'routes.gen.ts': emitRoutes(blends),
+      'register.gen.ts': emitRegister(relativeTo(config.generated, config.app)),
+      'drizzle.config.gen.ts': emitDrizzleConfig({
+        schema: relativeTo(config.root, join(config.generated, 'schema.gen.ts')),
+        out: relativeTo(config.root, config.migrations),
+      }),
+      'openapi.json': stringifyOpenApi(openapi.document),
+    },
+    warnings: openapi.warnings,
   };
 }
 
@@ -133,7 +157,9 @@ export const generate: Command = {
         `${shown(config, schemaFile)} is missing, and the blends import it; run \`blendx generate\``,
       );
     }
-    const files = emitAppFiles(config, await loadBlends(config));
+    const blends = await loadBlends(config);
+    const { files, warnings } = emitAppFiles(config, blends, await loadApp(config));
+    for (const warning of warnings) io.err(`warning: ${warning}\n`);
     for (const name of GENERATED_FILES) {
       if (name !== 'schema.gen.ts') await settle(name, files[name]);
     }

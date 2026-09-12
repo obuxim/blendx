@@ -80,7 +80,8 @@ One item ≈ one focused session. Work top to bottom (see "Todo loop" in `CLAUDE
 ## P9 OpenAPI
 - [x] P9.1 OpenAPI 3.1 builder (paths, params, request bodies io:input, responses per status, Problem component, public-record components, sorted keys). Done: snapshot.
 - [x] P9.2 Validate the output with @readme/openapi-parser. Done: test.
-- [ ] P9.3 Wire into generate / --check; `respond` schema override; untyped warning. Done: golden.
+- [x] P9.3 Wire openapi.json into generate / --check; replies it cannot describe print warnings. Done: golden.
+- [ ] P9.4 `respond` schema override, so a custom reply is described instead of warned about. Needs a decision first: a static `reply` schema on the action spec, or reading `Reply.schema` by calling respond at generate time. Done: golden.
 
 ## P10 Review
 - [ ] P10.1 Review model: resolved stages + provenance + compact rules from JSON Schema. Done: unit test.
