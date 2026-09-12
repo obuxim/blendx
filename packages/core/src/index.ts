@@ -26,6 +26,7 @@ export {
   type Resource,
   type ResourceSpec,
 } from './blend.ts';
+export { type EndpointDefinition, toEndpoints } from './endpoints.ts';
 export type {
   AuthorizeContext,
   CalculateContext,
