@@ -123,39 +123,45 @@ export async function execute(
     }
     const input = parsed.data;
 
-    // load: the record for member actions, a page for index
-    const loads = endpoint.on === 'member' || endpoint.action === 'index';
-    const loaded = loads
-      ? await endpoint.load({ db: deps.db, params, query, input, auth })
-      : undefined;
-    if (endpoint.on === 'member' && loaded === undefined) {
-      throw new HttpProblem(problem(404, { typeBase, detail: `${endpoint.resource} not found` }));
-    }
-    const record = endpoint.on === 'member' ? loaded : undefined;
+    // load, authorize, calculate, save. A mutation runs them in one transaction with its
+    // member row locked FOR UPDATE, so calculate's read-modify-write cannot race.
+    const mutates = saves(endpoint);
+    const stages = async (db: Db) => {
+      const loads = endpoint.on === 'member' || endpoint.action === 'index';
+      const lock = mutates && endpoint.on === 'member';
+      const loaded = loads
+        ? await endpoint.load({ db, params, query, input, auth, lock })
+        : undefined;
+      if (endpoint.on === 'member' && loaded === undefined) {
+        throw new HttpProblem(problem(404, { typeBase, detail: `${endpoint.resource} not found` }));
+      }
+      const record = endpoint.on === 'member' ? loaded : undefined;
 
-    // authorize
-    if (!(await endpoint.authorize({ auth, record, input }))) {
-      throw new HttpProblem(problem(403, { typeBase }));
-    }
+      if (!(await endpoint.authorize({ auth, record, input }))) {
+        throw new HttpProblem(problem(403, { typeBase }));
+      }
 
-    // calculate
-    const result = endpoint.calculate({
-      prev: defaultWrites(endpoint.model, input),
-      input,
-      record,
-    });
+      const result = endpoint.calculate({
+        prev: defaultWrites(endpoint.model, input),
+        input,
+        record,
+      });
 
-    // save
-    const saved = saves(endpoint)
-      ? await endpoint.save({
-          tx: deps.db,
-          writes: assertWritable(endpoint.model, endpoint.action, result),
-          record,
-          auth,
-        })
-      : record;
+      const saved = mutates
+        ? await endpoint.save({
+            tx: db,
+            writes: assertWritable(endpoint.model, endpoint.action, result),
+            record,
+            auth,
+          })
+        : record;
+      return { loaded, result, saved };
+    };
+    const { loaded, result, saved } = mutates
+      ? await deps.db.transaction((tx) => stages(tx as unknown as Db))
+      : await stages(deps.db);
 
-    // respond
+    // respond, after the commit
     const out =
       endpoint.action === 'index'
         ? publicPage(loaded, endpoint.hidden)
@@ -215,13 +221,14 @@ export function defaultEffects(
     return trashed === 'only' ? isNotNull(deletedAt) : isNull(deletedAt);
   };
 
-  async function loadMember(db: Db, id: string | undefined): Promise<unknown> {
+  async function loadMember(db: Db, id: string | undefined, lock: boolean): Promise<unknown> {
     const scope = trashScope(action === 'restore' ? 'only' : undefined);
-    const rows: unknown[] = await db
+    const select = db
       .select()
       .from(table)
       .where(and(eq(primaryKey(), id), scope))
       .limit(1);
+    const rows: unknown[] = await (lock ? select.for('update') : select);
     return rows[0];
   }
 
@@ -298,8 +305,8 @@ export function defaultEffects(
   }
 
   return {
-    load: ({ db, params, input }) =>
-      action === 'index' ? loadPage(db, input) : loadMember(db, params.id),
+    load: ({ db, params, input, lock }) =>
+      action === 'index' ? loadPage(db, input) : loadMember(db, params.id, lock === true),
     save: ({ tx, writes, record }) => saveRow(tx, writes, record),
   };
 }

@@ -31,6 +31,8 @@ export interface LoadInput {
   /** The validated input (for index: the parsed query). */
   input: unknown;
   auth: Auth;
+  /** True when the action will write: load the row FOR UPDATE. */
+  lock?: boolean;
 }
 
 export interface SaveInput {
@@ -113,7 +115,9 @@ export function resolveEndpoint(
 
     load: (context: LoadInput) => {
       const runDefault = () => defaults.load(context);
-      return actionHooks.load ? actionHooks.load({ ...context, runDefault }) : runDefault();
+      return actionHooks.load
+        ? actionHooks.load({ ...context, lock: context.lock === true, runDefault })
+        : runDefault();
     },
 
     authorize: async ({ auth, record, input }: { auth: Auth; record: unknown; input: unknown }) => {

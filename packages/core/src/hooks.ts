@@ -37,6 +37,8 @@ export interface LoadContext<Rec> {
   /** The validated input (for index: the parsed query). */
   input: unknown;
   auth: RegisteredAuth | null;
+  /** True when the action will write, inside a transaction: load the row FOR UPDATE. */
+  lock: boolean;
 }
 
 export interface AuthorizeContext<Action extends string, In, Rec> {

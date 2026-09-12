@@ -9,7 +9,7 @@ Status: the framework is under construction. Work is driven by `docs/todo.md` (s
 - `bun install`
 - `bun run check`: Biome, then `tsc --noEmit` (root, `tsconfig.portable.json`, and the isolated Register project in `packages/core/test/register`), then `bun test`. Must pass before ticking any todo item.
 - `bun run fix`: Biome autofix and format.
-- `bun test <path>`: run a subset. `BLENDX_TEST_DB=pg bun test` uses local PostgreSQL instead of PGlite.
+- `bun test <path>`: run a subset. Tests use in-process PGlite. `BLENDX_TEST_DB=pg DATABASE_URL=postgres://postgres@localhost:5432/blendx_test bun test` also runs the real-PostgreSQL tests (`*.pg.test.ts`); they reset that database's public schema, so use a scratch database.
 - From P7 on: `bunx blendx generate [--check]`, `bunx blendx review [--check]`, `bunx blendx migrate generate|up`.
 
 ## Layout
