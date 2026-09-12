@@ -13,3 +13,10 @@ export type {
   WritableColumn,
   Writes,
 } from './model.ts';
+export {
+  allow,
+  deny,
+  type Policy,
+  type PolicyContext,
+  type PolicyKind,
+} from './policy.ts';

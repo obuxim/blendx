@@ -32,7 +32,7 @@ One item ≈ one focused session. Work top to bottom (see "Todo loop" in `CLAUDE
 
 ## P3 Authoring API & types (highest risk: type inference)
 - [x] P3.1 Model / Row / Insert / Writes / Column / PublicRow helpers. Done: type tests against the P2 golden.
-- [ ] P3.2 Policies `allow.public | authenticated | owner(col) | when(fn)`, `deny`, `requiresAuth`. Done: unit + type tests.
+- [x] P3.2 Policies `allow.public | authenticated | owner(col) | when(fn)`, `deny`, `requiresAuth`. Done: unit + type tests.
 - [ ] P3.3 `blend()` + ResourceSpec + ValidateSpec (required policy, explicit actions, restore only with soft delete, real hidden columns, custom actions need `on`). Done: positive + @ts-expect-error tests.
 - [ ] P3.4 Hook signatures: rules → calculate input inference (`() => z.object()` and `({prev}) => prev.extend()`), no db/request in calculate, unknown write key is an error, respond keeps its status literal. Done: type tests.
 - [ ] P3.5 `defineApp` (type-preserving app hooks, auth) + `Register` module augmentation. Done: type tests with a hand-written register.
