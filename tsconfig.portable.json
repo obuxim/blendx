@@ -1,0 +1,8 @@
+{
+  "//": "Portability gate: core and dbml must type-check with no runtime globals (no Bun, no Node).",
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "types": []
+  },
+  "include": ["packages/core/src", "packages/dbml/src"]
+}

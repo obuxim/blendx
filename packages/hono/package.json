@@ -1,0 +1,10 @@
+{
+  "name": "@blendx/hono",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Hono adapter for blendx: createServer and the generic run() controller.",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

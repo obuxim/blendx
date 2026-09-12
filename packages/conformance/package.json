@@ -1,0 +1,10 @@
+{
+  "name": "@blendx/conformance",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Runtime-agnostic conformance suite: request → expected response cases.",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

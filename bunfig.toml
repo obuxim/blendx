@@ -1,0 +1,3 @@
+[install]
+# Pinned versions are part of the design (see docs/decisions.md).
+exact = true

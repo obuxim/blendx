@@ -1,0 +1,10 @@
+{
+  "name": "@blendx/cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "blendx CLI: generate, review, migrate.",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "@blendx/dbml",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "DBML → schema IR → generated Drizzle schema.",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}
