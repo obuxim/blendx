@@ -121,3 +121,42 @@ All seven spikes passed and stay as regression tests (`packages/*/test/spikes/`)
 - **D7:** the CLI runs drizzle-kit as `bun x --bun drizzle-kit`, so Node is not required. drizzle-kit stays external to the compiled CLI.
 
 Open questions carried forward are in the todo Inbox (double bounds, timestamp format, removing the Bun workaround).
+
+## D12: Authoring shape, one call per action (2026-09-13)
+Supersedes the plan's keyed form (`actions: { index: true, store: { rules, calculate } }`). A resource lists its actions as calls on a typed builder:
+
+```ts
+export default blend(models.addition_results, {
+  policy: allow.public,
+  actions: (a) => [
+    a.index(),
+    a.show(),
+    a.store({
+      rules: () => z.object({ a: z.number(), b: z.number() }),
+      calculate: ({ input }) => ({ result: input.a + input.b }),
+    }),
+    a.destroy(),
+    a.restore(),
+  ],
+});
+```
+
+**Why:** the P3.0 spike (`packages/core/test/types/inference.spike.types.test.ts`). The keyed form relies on reverse mapped type inference, which is fragile:
+- `index: true`, or `index: {}` next to a spec that has `rules`, turns every `input` into `unknown`.
+- An action-specific `prev` can't be typed, because the key isn't a literal during inference.
+
+One generic call per action infers correctly in every case tested:
+- replacing the rules
+- extending `prev`
+- omitting `rules` (so the defaults apply)
+- mixed action lists
+- custom member actions
+- rejecting unknown columns
+
+**Consequences:**
+- The array is the explicit exposure list (default-deny).
+- Each action name is written once.
+- `a.restore()` exists only on soft-delete models.
+- Custom actions are `a.member(name, spec)` and `a.collection(name, spec)`.
+- When `rules` is omitted, TS falls back to the type parameter's constraint, not to a generic default. The types therefore swap in the action's defaults with a conditional (`Resolved<S, Defaults>`).
+- Inside one spec, `rules` still comes before `calculate`.
