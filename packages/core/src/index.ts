@@ -1,5 +1,19 @@
 export const PACKAGE = '@blendx/core';
 
+export {
+  type ActionBuilder,
+  type ActionDefinition,
+  type ActionHooks,
+  BlendxDefinitionError,
+  type BuiltinAction,
+  blend,
+  type CustomSpec,
+  type HookSpec,
+  type HttpMethod,
+  type PolicySpec,
+  type Resource,
+  type ResourceSpec,
+} from './blend.ts';
 export type {
   Column,
   ConstraintKind,
@@ -20,3 +34,10 @@ export {
   type PolicyContext,
   type PolicyKind,
 } from './policy.ts';
+export type {
+  DefaultRules,
+  EmptyRules,
+  ResolvedRules,
+  StoreRules,
+  UpdateRules,
+} from './rules.ts';

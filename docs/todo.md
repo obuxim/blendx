@@ -34,7 +34,7 @@ One item ≈ one focused session. Work top to bottom (see "Todo loop" in `CLAUDE
 - [x] P3.0 Inference spike: choose the blend() authoring shape. Done: one call per action (`actions: (a) => [a.index(), a.store({ rules, calculate })]`) infers in every case; recorded as D12.
 - [x] P3.1 Model / Row / Insert / Writes / Column / PublicRow helpers. Done: type tests against the P2 golden.
 - [x] P3.2 Policies `allow.public | authenticated | owner(col) | when(fn)`, `deny`, `requiresAuth`. Done: unit + type tests.
-- [ ] P3.3 `blend()` + ResourceSpec with the D12 action builder (required policy, the actions array as the exposure list, `a.restore()` only with soft delete, real hidden columns, custom actions via `a.member` / `a.collection`). Done: positive + @ts-expect-error tests.
+- [x] P3.3 `blend()` + ResourceSpec with the D12 action builder (required policy, the actions array as the exposure list, `a.restore()` only with soft delete, real hidden columns, custom actions via `a.member` / `a.collection`). Done: positive + @ts-expect-error tests.
 - [ ] P3.4 Hook signatures: rules → calculate input inference (`() => z.object()` and `({prev}) => prev.extend()`), no db/request in calculate, unknown write key is an error, respond keeps its status literal. Done: type tests.
 - [ ] P3.5 `defineApp` (type-preserving app hooks, auth) + `Register` module augmentation. Done: type tests with a hand-written register.
 - [ ] P3.6 EndpointDefinition + `toEndpoints(resource)`, deterministic order. Done: unit test.
