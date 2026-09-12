@@ -26,6 +26,14 @@ export {
   type Resource,
   type ResourceSpec,
 } from './blend.ts';
+export {
+  CONFIG_DEFAULTS,
+  type Config,
+  type ConfigInput,
+  DATABASE_DRIVERS,
+  type DatabaseDriver,
+  defineConfig,
+} from './config.ts';
 export { type EndpointDefinition, toEndpoints } from './endpoints.ts';
 export type {
   AuthorizeContext,

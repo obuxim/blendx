@@ -38,7 +38,7 @@ One item ≈ one focused session. Work top to bottom (see "Todo loop" in `CLAUDE
 - [x] P3.4 Hook signatures: rules → calculate input inference (`() => z.object()` and `({prev}) => prev.extend()`), no db/request in calculate, unknown write key is an error, respond keeps its status literal. Done: type tests.
 - [x] P3.5 `defineApp` (type-preserving app hooks, auth) + `Register` module augmentation. Done: type tests with a hand-written register.
 - [x] P3.6 EndpointDefinition + `toEndpoints(resource)`, deterministic order. Done: unit test.
-- [ ] P3.7 `defineConfig` + config loader/validation. Done: tests.
+- [x] P3.7 `defineConfig` + config loader/validation. Done: tests.
 
 ## P4 Rules & cascade
 - [ ] P4.1 Default rules per action (store: strict insert minus generated; update: partial; index: query; member: none; custom: empty). Done: one test per derivation rule id.

@@ -9,5 +9,8 @@
   },
   "devDependencies": {
     "@typescript/typescript6": "6.0.2"
+  },
+  "dependencies": {
+    "@blendx/core": "workspace:*"
   }
 }

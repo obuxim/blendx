@@ -23,6 +23,9 @@
     "packages/cli": {
       "name": "@blendx/cli",
       "version": "0.0.0",
+      "dependencies": {
+        "@blendx/core": "workspace:*",
+      },
       "devDependencies": {
         "@typescript/typescript6": "6.0.2",
       },
