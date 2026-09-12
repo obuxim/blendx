@@ -1,11 +1,12 @@
 /**
- * Default validation rules per action, derived from the generated model at runtime.
- * The only module that imports drizzle-zod (docs/decisions.md D6). Each rule has an id
- * (DR-...) shared with its test and its entry in packages/spec/derivation-rules.md.
+ * Default validation rules per action, and the public record a reply holds, derived from the
+ * generated model at runtime. The only module that imports drizzle-zod (docs/decisions.md
+ * D6). Each rule has an id (DR-...) shared with its test and its entry in
+ * packages/spec/derivation-rules.md.
  */
 import { getTableColumns } from 'drizzle-orm';
 import { getTableConfig } from 'drizzle-orm/pg-core';
-import { createInsertSchema } from 'drizzle-zod';
+import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
 import type { ActionDefinition } from './blend.ts';
 import type { Model } from './model.ts';
@@ -19,19 +20,23 @@ export interface DeriveOptions {
   trashed?: boolean;
 }
 
-/** DR-STORE-INSERT, DR-STORE-GENERATED, DR-STORE-STRICT, DR-DOUBLE-UNBOUNDED. */
-function storeRules(model: Model): z.ZodObject {
-  const columns = getTableColumns(model.table);
-  // drizzle-zod bounds double precision to plus or minus 2^47 (D13). The callback form
-  // keeps drizzle-zod's null and optional handling; a plain schema would drop it.
-  const refine = Object.fromEntries(
-    Object.entries(columns)
+/**
+ * drizzle-zod bounds double precision to plus or minus 2^47 (D13). The callback form keeps
+ * drizzle-zod's null and optional handling; a plain schema would drop it.
+ */
+function unboundedDoubles(model: Model): Record<string, () => z.ZodNumber> {
+  return Object.fromEntries(
+    Object.entries(getTableColumns(model.table))
       .filter(([, column]) => column.columnType === 'PgDoublePrecision')
       .map(([name]) => [name, () => z.number()]),
   );
+}
+
+/** DR-STORE-INSERT, DR-STORE-GENERATED, DR-STORE-STRICT, DR-DOUBLE-UNBOUNDED. */
+function storeRules(model: Model): z.ZodObject {
   const insert = createInsertSchema(
     model.table as never,
-    refine as never,
+    unboundedDoubles(model) as never,
   ) as unknown as z.ZodObject;
   // .omit() throws on keys the shape lacks, and identity columns are never in it.
   const generated = Object.fromEntries(
@@ -97,4 +102,19 @@ export function defaultRules(
     if (action.name === 'index') return indexRules(model, options);
   }
   return z.object({}).strict();
+}
+
+/**
+ * DR-RECORD-PUBLIC: what a reply holds for one row. Every column as the database returns
+ * it, minus the resource's hidden columns, with doubles unbounded as in DR-DOUBLE-UNBOUNDED.
+ */
+export function recordSchema(model: Model, hidden: readonly string[] = []): z.ZodObject {
+  const select = createSelectSchema(
+    model.table as never,
+    unboundedDoubles(model) as never,
+  ) as unknown as z.ZodObject;
+  const omit = Object.fromEntries(
+    hidden.filter((name) => name in select.shape).map((name) => [name, true]),
+  );
+  return select.omit(omit as never);
 }

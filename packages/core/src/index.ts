@@ -45,7 +45,7 @@ export {
   type DatabaseDriver,
   defineConfig,
 } from './config.ts';
-export { type DeriveOptions, defaultRules } from './derive-rules.ts';
+export { type DeriveOptions, defaultRules, recordSchema } from './derive-rules.ts';
 export { type EndpointDefinition, toEndpoints } from './endpoints.ts';
 export {
   type DefaultEffectOptions,
@@ -87,6 +87,13 @@ export type {
   WritableColumn,
   Writes,
 } from './model.ts';
+export {
+  buildOpenApi,
+  type JsonObject,
+  type OpenApiOptions,
+  type OpenApiResult,
+  stringifyOpenApi,
+} from './openapi.ts';
 export {
   allow,
   deny,

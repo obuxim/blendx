@@ -51,3 +51,9 @@ Query values arrive as strings and are parsed.
 |---|---|
 | DR-MEMBER-EMPTY | `show`, `destroy` and `restore` accept only an empty object. |
 | DR-CUSTOM-EMPTY | Custom actions start from an empty object; their `rules` hook adds the fields they need. |
+
+## Replies
+
+| Id | Rule |
+|---|---|
+| DR-RECORD-PUBLIC | A reply holds a row's columns as the database returns them, minus the resource's hidden columns, with doubles unbounded. OpenAPI describes it as the table's component. |

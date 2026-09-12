@@ -3,7 +3,7 @@
  * packages/spec/derivation-rules.md.
  */
 import { describe, expect, test } from 'bun:test';
-import { defaultRules } from '@blendx/core';
+import { defaultRules, recordSchema } from '@blendx/core';
 import type { z } from 'zod';
 import { models as addition } from '../../dbml/test/golden/addition.schema.gen.ts';
 import { models as shop } from '../../dbml/test/golden/shop.schema.gen.ts';
@@ -187,5 +187,23 @@ describe('actions without a body', () => {
     const refund = defaultRules(shop.orders, { name: 'refund', builtin: false });
     expect(ok(refund, {})).toBe(true);
     expect(issues(refund, { reason: 'x' })).toEqual(unknownKeys);
+  });
+});
+
+describe('replies', () => {
+  test('DR-RECORD-PUBLIC: every column minus the hidden ones, with doubles unbounded', () => {
+    const user = recordSchema(shop.users, ['password']);
+    expect(Object.keys(user.shape).sort()).toEqual([
+      'created_at',
+      'display_name',
+      'email',
+      'id',
+      'is_active',
+      'updated_at',
+    ]);
+    const result = recordSchema(addition.addition_results);
+    const row = { id: 1, created_at: null, updated_at: null, deleted_at: null };
+    expect(ok(result, { ...row, result: 1e20 })).toBe(true);
+    expect(ok(result, { ...row, result: null })).toBe(true);
   });
 });

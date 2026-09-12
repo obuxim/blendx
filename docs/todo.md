@@ -78,7 +78,7 @@ One item ≈ one focused session. Work top to bottom (see "Todo loop" in `CLAUDE
 - [x] P8.4 Same suite on local PostgreSQL 18 (`BLENDX_TEST_DB=pg`). Done: passes.
 
 ## P9 OpenAPI
-- [ ] P9.1 OpenAPI 3.1 builder (paths, params, request bodies io:input, responses per status, Problem component, public-record components, sorted keys). Done: snapshot.
+- [x] P9.1 OpenAPI 3.1 builder (paths, params, request bodies io:input, responses per status, Problem component, public-record components, sorted keys). Done: snapshot.
 - [ ] P9.2 Validate the output with @readme/openapi-parser. Done: test.
 - [ ] P9.3 Wire into generate / --check; `respond` schema override; untyped warning. Done: golden.
 
@@ -110,7 +110,7 @@ One item ≈ one focused session. Work top to bottom (see "Todo loop" in `CLAUDE
 Discovered work goes here. Triage it into a phase before starting it.
 - [ ] Remove the postMessage workaround in `packages/dbml/src/dbml-core.ts` once `packages/dbml/test/bun-42512.test.ts` fails (Bun fixed oven-sh/bun#42512).
 - [x] P4.1: decide whether to drop drizzle-zod's ±2^47 bounds on `doublePrecision` columns (real doubles like 1e20 are rejected today). Decided in D13: dropped.
-- [ ] P9.1: add `format: date-time` / `date` to string-mode timestamp and date columns in OpenAPI output. See D8 note.
+- [x] P9.1: add `format: date-time` / `date` to string-mode timestamp and date columns in OpenAPI output. Decided in the D8 P9.1 note: `format: date` on date columns only; Postgres timestamps are not RFC 3339, so they stay plain strings.
 - [ ] P12.5: the `blendx` facade depends on `@blendx/cli` for its bin (D9 note), so production installs also get the CLI's dependencies (drizzle-kit, typescript6 once review lands). Decide before publishing whether to make them optional or lazy.
 
 ## Next: React adapter (not in current scope; don't start until asked)

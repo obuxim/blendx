@@ -105,6 +105,12 @@ zod 4.6.2 converts drizzle-zod schemas and hand-written rules to draft 2020-12 J
 
 Regression test: `packages/core/test/spikes/p1-6-json-schema.test.ts`.
 
+### D8 note: P9.1 builder (2026-09-13)
+- Request bodies and query parameters come from each endpoint's resolved rules (zod's input side). Replies use one public-record component per table (`recordSchema`, the output side), minus hidden columns.
+- Date columns get `format: date`. String-mode timestamps stay plain strings: Postgres returns them as `2026-09-13 04:35:38.784` (a space, and no offset without a time zone), which is not an RFC 3339 date-time, so `format: date-time` would promise a shape the API does not send.
+- A reply blendx can't describe gets an empty schema and a warning: the result of a collection action's calculate, and any reply an action's own respond hook builds. P9.3 adds the respond `schema` override.
+- Problem replies are listed by rule: 400 with a body, 401 when the policy needs an identity, 403 when the policy or an authorize hook can refuse, 404 on member routes, 409 on writes, 422 everywhere (input is strict).
+
 ## D9: Generation and review (2026-09-13)
 `blendx generate` writes `src/generated/` (`schema.gen.ts`, thin `routes.gen.ts` exporting `AppType`, `register.gen.ts`, `drizzle.config.gen.ts`, `openapi.json`). `run()` declares its return type explicitly (hono#4498 history). There is no YAML input; `blendx review` writes `review/*.yaml` (mechanically derived, with provenance), while `*.examples.yaml` is human-owned and runs as tests.
 
