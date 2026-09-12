@@ -49,6 +49,8 @@ export interface ResolvedEndpoint extends EndpointDefinition {
   readonly rules: z.ZodType;
   /** Which levels shaped each stage, in cascade order. */
   readonly provenance: Readonly<Record<Stage, readonly Level[]>>;
+  /** From the policy: a request without an identity gets 401 before validation. */
+  readonly requiresAuth: boolean;
   load(context: LoadInput): Promise<unknown>;
   authorize(context: { auth: Auth; record: unknown; input: unknown }): Promise<boolean>;
   /** `prev` is the schema default: the validated input's writable columns. */
@@ -105,6 +107,7 @@ export function resolveEndpoint(
     ...endpoint,
     rules,
     provenance: Object.freeze(provenance),
+    requiresAuth: endpoint.policy.requiresAuth,
 
     load: (context: LoadInput) => {
       const runDefault = () => defaults.load(context);
