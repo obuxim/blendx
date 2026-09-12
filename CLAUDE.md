@@ -65,7 +65,7 @@ Status: the framework is under construction. Work is driven by `docs/todo.md` (s
 2. If an item is too big for one session, split it in the todo first.
 3. Write tests first, then implement.
 4. `bun run check` passes **and** the item's done-criterion is verified.
-5. Tick the box and commit locally with the message `P5.3: <summary>`. One item per commit. Push only when the user asks.
+5. Tick the box and commit locally with the message `P5.3: <summary>`. One item per commit, then `git push` (origin is SSH: `git@github.com:obuxim/blendx.git`).
 6. Put discovered work in Inbox, not into the current item. Stop and ask when an item raises a design question that `docs/decisions.md` doesn't settle.
 
 Definition of done (once the commands exist): `bun run check`, `blendx generate --check` and `blendx review --check` all pass.
