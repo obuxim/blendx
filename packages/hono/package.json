@@ -6,5 +6,11 @@
   "description": "Hono adapter for blendx: createServer and the generic run() controller.",
   "exports": {
     ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "hono": "4.13.7"
+  },
+  "devDependencies": {
+    "zod": "4.6.2"
   }
 }

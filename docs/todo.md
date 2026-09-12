@@ -12,7 +12,7 @@ One item ≈ one focused session. Work top to bottom (see "Todo loop" in `CLAUDE
 - [x] P0.7 CLAUDE.md, docs/todo.md, docs/decisions.md. Done: committed.
 
 ## P1 Spikes (kept as permanent regression tests)
-- [ ] P1.1 Explicitly typed `[validator, handler]` tuple + chained routes → `hc` types: json input, 201 body, 422 union. Done: expectTypeOf + @ts-expect-error pass under tsc, and a runtime call through `hc` works.
+- [x] P1.1 Explicitly typed `[validator, handler]` tuple + chained routes → `hc` types: json input, 201 body, 422 union. Done: expectTypeOf + @ts-expect-error pass under tsc, and a runtime call through `hc` works.
 - [ ] P1.2 `c.json(problem, 422, { 'Content-Type': 'application/problem+json' })` keeps its TypedResponse and the header. Done: runtime + type test.
 - [ ] P1.3 drizzle-zod 0.8.3 + zod 4.6.2 on a pgTable (varchar(n), pgEnum, identity, string-mode timestamp, double). Done: a max-length error test and a z.infer type test pass, and the schemas unify with the `zod` import.
 - [ ] P1.4 @dbml/core parses the addition DBML + a kitchen-sink DBML. Done: a snapshot of fields/refs/enums/indexes is committed.
