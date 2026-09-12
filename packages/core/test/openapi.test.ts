@@ -3,51 +3,11 @@
  * openapi.json will hold it; the other tests pin the rules it follows.
  */
 import { describe, expect, test } from 'bun:test';
-import { allow, blend, defineApp } from '@blendx/core';
-import { z } from 'zod';
-import { models } from '../../dbml/test/golden/shop.schema.gen.ts';
+import { defineApp } from '@blendx/core';
 import { buildOpenApi, type JsonObject, stringifyOpenApi } from '../src/openapi.ts';
+import { info, resources } from './support/shop-openapi.ts';
 
-const users = blend(models.users, {
-  policy: allow.public,
-  hidden: ['password'],
-  actions: (a) => [a.store(), a.show()],
-});
-
-const orders = blend(models.orders, {
-  policy: {
-    default: allow.authenticated,
-    index: allow.public,
-    quote: allow.public,
-    refund: allow.when(({ auth }) => auth !== null),
-  },
-  actions: (a) => [
-    a.index({ trashed: true }),
-    a.store(),
-    a.show(),
-    a.update(),
-    a.destroy(),
-    a.restore(),
-    a.collection('quote', {
-      method: 'get',
-      rules: () => z.object({ quantity: z.string() }),
-      calculate: ({ input }) => ({ total: Number(input.quantity) * 10 }),
-    }),
-    a.member('refund', { rules: () => z.object({ reason: z.string() }) }),
-  ],
-});
-
-const notes = blend(models.order_notes, {
-  policy: allow.authenticated,
-  actions: (a) => [a.index(), a.store()],
-});
-
-const info = { title: 'Shop API', version: '1.0.0' };
-const { document, warnings } = buildOpenApi({
-  app: defineApp({}),
-  resources: [users, orders, notes],
-  info,
-});
+const { document, warnings } = buildOpenApi({ app: defineApp({}), resources, info });
 
 const at = (value: unknown, ...keys: string[]): JsonObject =>
   keys.reduce((node, key) => (node as JsonObject)[key], value) as JsonObject;
@@ -143,7 +103,11 @@ describe('buildOpenApi', () => {
   });
 
   test('the output does not depend on the order of the resources', () => {
-    const reversed = buildOpenApi({ app: defineApp({}), resources: [notes, orders, users], info });
+    const reversed = buildOpenApi({
+      app: defineApp({}),
+      resources: [...resources].reverse(),
+      info,
+    });
     expect(stringifyOpenApi(reversed.document)).toBe(stringifyOpenApi(document));
   });
 });
