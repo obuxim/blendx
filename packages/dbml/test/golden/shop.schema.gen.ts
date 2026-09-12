@@ -51,6 +51,10 @@ export const models = {
       timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
       softDelete: null,
       generated: ["id", "created_at", "updated_at"],
+      constraints: {
+        "users_pkey": { kind: "primaryKey", columns: ["id"] },
+        "users_email_key": { kind: "unique", columns: ["email"] },
+      },
     },
   },
   orders: {
@@ -61,6 +65,11 @@ export const models = {
       timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
       softDelete: "deleted_at",
       generated: ["id", "created_at", "updated_at", "deleted_at"],
+      constraints: {
+        "orders_pkey": { kind: "primaryKey", columns: ["id"] },
+        "orders_public_id_key": { kind: "unique", columns: ["public_id"] },
+        "orders_user_id_fkey": { kind: "foreignKey", columns: ["user_id"], references: { table: "users", columns: ["id"] } },
+      },
     },
   },
   order_notes: {
@@ -71,6 +80,10 @@ export const models = {
       timestamps: { createdAt: "created_at", updatedAt: null },
       softDelete: null,
       generated: ["id", "created_at"],
+      constraints: {
+        "order_notes_pkey": { kind: "primaryKey", columns: ["id"] },
+        "order_notes_order_id_fkey": { kind: "foreignKey", columns: ["order_id"], references: { table: "orders", columns: ["id"] } },
+      },
     },
   },
 } as const;

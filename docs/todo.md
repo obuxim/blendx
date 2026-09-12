@@ -28,7 +28,7 @@ One item ≈ one focused session. Work top to bottom (see "Todo loop" in `CLAUDE
 - [x] P2.4 IR validation (missing PK, composite PK, reserved query-name columns, identifier collisions). Done: tests.
 - [x] P2.5 `emitDrizzle` → schema.gen.ts (pgEnum, pgTable, identity, references + onDelete, named uniques/indexes, `models` const + meta). Done: golden test.
 - [x] P2.6 Generated schema passes tsc; drizzle-kit generates SQL; PGlite migrates. Done: integration test.
-- [ ] P2.7 `meta.constraints` (constraint name → kind, columns). Done: golden + test.
+- [x] P2.7 `meta.constraints` (constraint name → kind, columns). Done: golden + test.
 
 ## P3 Authoring API & types (highest risk: type inference)
 - [ ] P3.1 Model / Row / Insert / Writes / Column / PublicRow helpers. Done: type tests against the P2 golden.

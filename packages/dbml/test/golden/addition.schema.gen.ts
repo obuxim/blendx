@@ -19,6 +19,9 @@ export const models = {
       timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
       softDelete: "deleted_at",
       generated: ["id", "created_at", "updated_at", "deleted_at"],
+      constraints: {
+        "addition_results_pkey": { kind: "primaryKey", columns: ["id"] },
+      },
     },
   },
 } as const;

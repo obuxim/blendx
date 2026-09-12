@@ -14,7 +14,7 @@ import { PGlite } from '@electric-sql/pglite';
 import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/pglite';
 import { migrate } from 'drizzle-orm/pglite/migrator';
-import { order_notes, orders, users } from './golden/shop.schema.gen.ts';
+import { models, order_notes, orders, users } from './golden/shop.schema.gen.ts';
 
 const dbmlDir = join(import.meta.dir, '..');
 const schemaPath = join(import.meta.dir, 'golden', 'shop.schema.gen.ts');
@@ -97,6 +97,16 @@ describe('P2.6 generated schema applied to PGlite', () => {
         'orders_user_status_idx',
       ].sort(),
     );
+  });
+
+  test('models meta lists exactly the constraints Postgres holds', async () => {
+    for (const table of ['users', 'orders', 'order_notes'] as const) {
+      expect(Object.keys(models[table].meta.constraints).sort()).toEqual(
+        await names(
+          `select conname as name from pg_constraint where conrelid = '${table}'::regclass and contype in ('p', 'u', 'f')`,
+        ),
+      );
+    }
   });
 
   test('inserts fill identity keys, defaults and timestamps', async () => {

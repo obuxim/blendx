@@ -19,6 +19,55 @@ export const constraintNames = {
   index: (table: string, columns: string[]) => `${table}_${columns.join('_')}_idx`,
 };
 
+export type ConstraintKind = 'primaryKey' | 'unique' | 'foreignKey';
+
+export interface ConstraintInfo {
+  kind: ConstraintKind;
+  columns: string[];
+  references?: { table: string; columns: string[] };
+}
+
+/**
+ * Every constraint name Postgres can report for a table, in a stable order. Unique
+ * indexes are included: a 23505 error names the index as its constraint.
+ */
+export function tableConstraints(table: TableIR): [name: string, info: ConstraintInfo][] {
+  const constraints: [string, ConstraintInfo][] = [];
+  if (table.primaryKey.length > 0) {
+    constraints.push([
+      constraintNames.primaryKey(table.name),
+      { kind: 'primaryKey', columns: [...table.primaryKey] },
+    ]);
+  }
+  const singlePk = table.primaryKey.length === 1 ? table.primaryKey[0] : undefined;
+  for (const column of table.columns) {
+    if (column.unique && column.name !== singlePk) {
+      constraints.push([
+        constraintNames.unique(table.name, [column.name]),
+        { kind: 'unique', columns: [column.name] },
+      ]);
+    }
+  }
+  for (const index of table.indexes) {
+    if (!index.unique) continue;
+    constraints.push([
+      index.name ?? constraintNames.unique(table.name, index.columns),
+      { kind: 'unique', columns: [...index.columns] },
+    ]);
+  }
+  for (const fk of table.foreignKeys) {
+    constraints.push([
+      constraintNames.foreignKey(table.name, fk.columns),
+      {
+        kind: 'foreignKey',
+        columns: [...fk.columns],
+        references: { table: fk.references.table, columns: [...fk.references.columns] },
+      },
+    ]);
+  }
+  return constraints;
+}
+
 const str = (value: string) => JSON.stringify(value);
 
 /** `{ a: 1, b: 2 }` for the defined entries, or an empty string when there are none. */
@@ -152,6 +201,19 @@ export function emitDrizzle(schema: SchemaIR): string {
     return `export const ${table.name} = ${use('pgTable')}(${str(table.name)}, {\n${columns.replace(/^ {2}/gm, '')}\n}${extraConfig});`;
   });
 
+  const constraintLines = (table: TableIR): string[] => {
+    const entries = tableConstraints(table).map(([name, info]) => {
+      const columns = `[${info.columns.map(str).join(', ')}]`;
+      const references = info.references
+        ? `, references: { table: ${str(info.references.table)}, columns: [${info.references.columns.map(str).join(', ')}] }`
+        : '';
+      return `        ${str(name)}: { kind: ${str(info.kind)}, columns: ${columns}${references} },`;
+    });
+    return entries.length > 0
+      ? ['      constraints: {', ...entries, '      },']
+      : ['      constraints: {},'];
+  };
+
   const modelEntries = schema.tables.map((table) => {
     const conventions = deriveConventions(table);
     const nullable = (value: string | undefined) => (value === undefined ? 'null' : str(value));
@@ -164,6 +226,7 @@ export function emitDrizzle(schema: SchemaIR): string {
       `      timestamps: { createdAt: ${nullable(conventions.timestamps.createdAt)}, updatedAt: ${nullable(conventions.timestamps.updatedAt)} },`,
       `      softDelete: ${nullable(conventions.softDelete?.column)},`,
       `      generated: [${conventions.generated.map(str).join(', ')}],`,
+      ...constraintLines(table),
       '    },',
       '  },',
     ].join('\n');

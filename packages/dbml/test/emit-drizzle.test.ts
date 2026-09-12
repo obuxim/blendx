@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
-import { loadSchema } from '@blendx/dbml';
+import { loadSchema, tableConstraints } from '@blendx/dbml';
 import { emitDrizzle } from '../src/emit-drizzle.ts';
 
 const fixture = (name: string) => Bun.file(join(import.meta.dir, 'fixtures', name)).text();
@@ -41,6 +41,41 @@ describe('emitDrizzle', () => {
   test('output is deterministic', async () => {
     const schema = await loadSchema(await fixture('shop.dbml'));
     expect(emitDrizzle(schema)).toBe(emitDrizzle(schema));
+  });
+
+  test('tableConstraints lists every name Postgres can report, with its columns', async () => {
+    const { tables } = await loadSchema(await fixture('shop.dbml'));
+    const byName = Object.fromEntries(tables.map((t) => [t.name, t]));
+    if (!byName.users || !byName.orders) throw new Error('shop fixture changed');
+
+    expect(tableConstraints(byName.users)).toEqual([
+      ['users_pkey', { kind: 'primaryKey', columns: ['id'] }],
+      ['users_email_key', { kind: 'unique', columns: ['email'] }],
+    ]);
+    expect(tableConstraints(byName.orders)).toEqual([
+      ['orders_pkey', { kind: 'primaryKey', columns: ['id'] }],
+      ['orders_public_id_key', { kind: 'unique', columns: ['public_id'] }],
+      [
+        'orders_user_id_fkey',
+        {
+          kind: 'foreignKey',
+          columns: ['user_id'],
+          references: { table: 'users', columns: ['id'] },
+        },
+      ],
+    ]);
+  });
+
+  test('unique indexes count as constraints (a 23505 error names the index)', async () => {
+    const { tables } = await loadSchema(
+      'Table pairs {\n  id int [pk]\n  a int\n  b int\n  indexes {\n    (a, b) [unique]\n  }\n}\n',
+    );
+    const pairs = tables[0];
+    if (!pairs) throw new Error('no table');
+    expect(tableConstraints(pairs)).toEqual([
+      ['pairs_pkey', { kind: 'primaryKey', columns: ['id'] }],
+      ['pairs_a_b_key', { kind: 'unique', columns: ['a', 'b'] }],
+    ]);
   });
 
   test('an empty schema still exports models', () => {
