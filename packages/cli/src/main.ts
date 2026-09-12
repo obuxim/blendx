@@ -15,6 +15,7 @@ import {
   type Io,
 } from './command.ts';
 import { generate } from './generate.ts';
+import { migrate } from './migrate.ts';
 
 export {
   CliError,
@@ -25,7 +26,7 @@ export {
 } from './command.ts';
 
 /** The commands `blendx` ships. */
-export const COMMANDS: readonly Command[] = [generate];
+export const COMMANDS: readonly Command[] = [generate, migrate];
 
 /** Options every command accepts. */
 const COMMON: Record<string, CommandOption> = {
@@ -43,6 +44,7 @@ const processIo: Io = {
   out: (text) => process.stdout.write(text),
   err: (text) => process.stderr.write(text),
   cwd: process.cwd(),
+  interactive: process.stdin.isTTY === true && process.stdout.isTTY === true,
 };
 
 function table(rows: readonly (readonly [string, string])[]): string[] {
@@ -72,7 +74,8 @@ function topHelp(commands: readonly Command[]): string {
 }
 
 function commandHelp(command: Command): string {
-  const lines = [`Usage: blendx ${command.name} [options]`, '', command.summary, ''];
+  const usage = command.usage ?? `${command.name} [options]`;
+  const lines = [`Usage: blendx ${usage}`, '', command.summary, ''];
   lines.push('Options:', ...optionRows({ ...command.options, ...COMMON }));
   return `${lines.join('\n')}\n`;
 }

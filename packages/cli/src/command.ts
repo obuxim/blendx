@@ -5,6 +5,8 @@ export interface Io {
   err(text: string): void;
   /** The folder that --cwd resolves against. */
   cwd: string;
+  /** A real terminal: child processes (drizzle-kit) may inherit it and prompt. */
+  interactive?: boolean;
 }
 
 export interface CommandOption {
@@ -28,6 +30,8 @@ export interface Command {
   name: string;
   /** One line for the command list. */
   summary: string;
+  /** The usage line after `blendx`, when it is more than `<name> [options]`. */
+  usage?: string;
   options?: Record<string, CommandOption>;
   /** Resolves to the exit code. Throw CliError for an expected failure. */
   run(context: CommandContext): Promise<number>;

@@ -69,7 +69,7 @@ One item ≈ one focused session. Work top to bottom (see "Todo loop" in `CLAUDE
 - [x] P7.4 `blendx generate`, two-phase (DBML → schema; then blends → routes/register/openapi). Done: fixture output equals goldens.
 - [x] P7.5 `generate --check` with unified diff. Done: drift exits 1.
 - [x] P7.7 `createDatabase(config)` with dynamic driver imports (pg, postgres-js, bun-sql, pglite). Done: pglite + pg tests. (Before P7.6: `migrate up` opens the database through it.)
-- [ ] P7.6 `blendx migrate generate` (drizzle-kit subprocess) + `migrate up` (per-driver migrator). Done: applies on PGlite + local PG.
+- [x] P7.6 `blendx migrate generate` (drizzle-kit subprocess) + `migrate up` (per-driver migrator). Done: applies on PGlite + local PG.
 
 ## P8 examples/addition
 - [ ] P8.1 schema.dbml, blendx.config.ts, src/app.ts, blends/addition_results.ts, server.ts; generated artifacts committed. Done: `generate --check` passes.

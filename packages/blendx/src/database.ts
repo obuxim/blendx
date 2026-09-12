@@ -4,10 +4,16 @@
  * its own. It lives in the facade because drivers are runtime-specific; core stays portable.
  */
 import { BlendxConfigError, type Config, type DatabaseDriver, type Db } from '@blendx/core';
+import { sql } from 'drizzle-orm';
 
 export interface Database {
   readonly driver: DatabaseDriver;
   readonly db: Db;
+  /**
+   * Applies the pending migrations in `folder` (drizzle-kit's format) with the driver's own
+   * migrator. Resolves to how many ran.
+   */
+  migrate(folder: string): Promise<number>;
   /** Ends the connection pool, or closes the PGlite instance. */
   close(): Promise<void>;
 }
@@ -38,13 +44,38 @@ async function load<T>(driver: DatabaseDriver, specifier: string): Promise<T> {
   }
 }
 
-const opened = (driver: DatabaseDriver, db: unknown, close: () => Promise<unknown>): Database => ({
-  driver,
-  db: db as Db,
-  async close() {
-    await close();
-  },
-});
+/** Rows recorded by drizzle's migrator; 0 before the first migration creates its table. */
+async function appliedCount(db: Db): Promise<number> {
+  try {
+    const result: unknown = await db.execute(
+      sql.raw('select count(*)::int as n from drizzle.__drizzle_migrations'),
+    );
+    const rows = Array.isArray(result) ? result : (result as { rows: unknown[] }).rows;
+    return Number((rows[0] as { n?: unknown } | undefined)?.n ?? 0);
+  } catch {
+    return 0;
+  }
+}
+
+function opened(
+  driver: DatabaseDriver,
+  db: unknown,
+  runMigrations: (folder: string) => Promise<void>,
+  close: () => Promise<unknown>,
+): Database {
+  return {
+    driver,
+    db: db as Db,
+    async migrate(folder) {
+      const before = await appliedCount(db as Db);
+      await runMigrations(folder);
+      return (await appliedCount(db as Db)) - before;
+    },
+    async close() {
+      await close();
+    },
+  };
+}
 
 /**
  * Opens the database. Server drivers read `database.url`, then DATABASE_URL. PGlite reads
@@ -60,7 +91,12 @@ export async function createDatabase(config: DatabaseConfig): Promise<Database> 
     const { drizzle } = await import('drizzle-orm/pglite');
     const location = config.database.url;
     const client = location && location !== 'memory://' ? new PGlite(location) : new PGlite();
-    return opened(driver, drizzle({ client }), () => client.close());
+    const db = drizzle({ client });
+    const migrate = async (folder: string) => {
+      const { migrate } = await import('drizzle-orm/pglite/migrator');
+      await migrate(db, { migrationsFolder: folder });
+    };
+    return opened(driver, db, migrate, () => client.close());
   }
 
   const url = config.database.url ?? process.env.DATABASE_URL;
@@ -73,19 +109,34 @@ export async function createDatabase(config: DatabaseConfig): Promise<Database> 
       const { Pool } = await load<typeof import('pg')>(driver, 'pg');
       const { drizzle } = await import('drizzle-orm/node-postgres');
       const pool = new Pool({ connectionString: url });
-      return opened(driver, drizzle({ client: pool }), () => pool.end());
+      const db = drizzle({ client: pool });
+      const migrate = async (folder: string) => {
+        const { migrate } = await import('drizzle-orm/node-postgres/migrator');
+        await migrate(db, { migrationsFolder: folder });
+      };
+      return opened(driver, db, migrate, () => pool.end());
     }
     case 'postgres-js': {
       const postgres = (await load<PostgresJs>(driver, 'postgres')).default;
       const { drizzle } = await import('drizzle-orm/postgres-js');
       const client = postgres(url);
-      return opened(driver, drizzle({ client: client as never }), () => client.end());
+      const db = drizzle({ client: client as never });
+      const migrate = async (folder: string) => {
+        const { migrate } = await import('drizzle-orm/postgres-js/migrator');
+        await migrate(db, { migrationsFolder: folder });
+      };
+      return opened(driver, db, migrate, () => client.end());
     }
     case 'bun-sql': {
       const { SQL } = await load<typeof import('bun')>(driver, 'bun');
       const { drizzle } = await import('drizzle-orm/bun-sql');
       const client = new SQL(url);
-      return opened(driver, drizzle({ client }), () => client.close());
+      const db = drizzle({ client });
+      const migrate = async (folder: string) => {
+        const { migrate } = await import('drizzle-orm/bun-sql/migrator');
+        await migrate(db, { migrationsFolder: folder });
+      };
+      return opened(driver, db, migrate, () => client.close());
     }
   }
   throw new BlendxConfigError(`unknown database driver "${String(driver)}"`);

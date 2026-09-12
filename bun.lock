@@ -51,10 +51,11 @@
       "dependencies": {
         "@blendx/core": "workspace:*",
         "@blendx/dbml": "workspace:*",
+        "blendx": "workspace:*",
+        "drizzle-kit": "0.31.10",
       },
       "devDependencies": {
         "@typescript/typescript6": "6.0.2",
-        "blendx": "workspace:*",
         "hono": "4.13.7",
       },
     },
