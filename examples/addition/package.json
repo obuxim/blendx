@@ -1,0 +1,17 @@
+{
+  "name": "@blendx/example-addition",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The addition example: POST {a, b} and blendx stores result = a + b.",
+  "scripts": {
+    "generate": "blendx generate",
+    "migrate": "blendx migrate up",
+    "start": "bun server.ts"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "0.5.8",
+    "blendx": "workspace:*",
+    "pg": "8.23.0"
+  }
+}

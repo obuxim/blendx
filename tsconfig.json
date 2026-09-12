@@ -3,7 +3,7 @@
   "compilerOptions": {
     "types": ["bun"]
   },
-  "include": ["packages/*/src", "packages/*/test", "examples/*"],
+  "include": ["packages/*/src", "packages/*/test"],
   "exclude": [
     "**/node_modules",
     "packages/core/test/register",

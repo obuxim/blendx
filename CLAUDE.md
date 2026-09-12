@@ -7,7 +7,7 @@ Status: the framework is under construction. Work is driven by `docs/todo.md` (s
 ## Commands
 
 - `bun install`
-- `bun run check`: Biome, then `tsc --noEmit` (root, `tsconfig.portable.json`, and the isolated Register project in `packages/core/test/register`), then `bun test`. Must pass before ticking any todo item.
+- `bun run check`: Biome, then `tsc --noEmit` (root, `tsconfig.portable.json`, and each project that augments `Register` and so needs a program of its own: `packages/core/test/register`, `packages/cli/test/register`, `packages/cli/test/fixtures/shop-app`, `examples/addition`), then `blendx generate --check` on the example, then `bun test`. Must pass before ticking any todo item.
 - `bun run fix`: Biome autofix and format.
 - `bun test <path>`: run a subset. Tests use in-process PGlite. `BLENDX_TEST_DB=pg DATABASE_URL=postgres://postgres@localhost:5432/blendx_test bun test` also runs the real-PostgreSQL tests (`*.pg.test.ts`); they reset that database's public schema, so use a scratch database.
 - `DATABASE_URL=... bun run smoke:node`: the Node smoke test (Node 24, @hono/node-server, pg). It resets the same scratch database.

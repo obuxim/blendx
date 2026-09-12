@@ -16,6 +16,15 @@
         "typescript": "7.0.2",
       },
     },
+    "examples/addition": {
+      "name": "@blendx/example-addition",
+      "version": "0.0.0",
+      "dependencies": {
+        "@electric-sql/pglite": "0.5.8",
+        "blendx": "workspace:*",
+        "pg": "8.23.0",
+      },
+    },
     "packages/blendx": {
       "name": "blendx",
       "version": "0.0.0",
@@ -137,6 +146,8 @@
     "@blendx/core": ["@blendx/core@workspace:packages/core"],
 
     "@blendx/dbml": ["@blendx/dbml@workspace:packages/dbml"],
+
+    "@blendx/example-addition": ["@blendx/example-addition@workspace:examples/addition"],
 
     "@blendx/hono": ["@blendx/hono@workspace:packages/hono"],
 
