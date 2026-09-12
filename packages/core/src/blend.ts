@@ -44,10 +44,15 @@ export interface ActionHooks {
 declare const rulesType: unique symbol;
 declare const replyType: unique symbol;
 
-export interface ActionDefinition<Name extends string = string, Rules = unknown, Out = unknown> {
+export interface ActionDefinition<
+  Name extends string = string,
+  Rules = unknown,
+  Out = unknown,
+  Method extends HttpMethod = HttpMethod,
+> {
   readonly name: Name;
   readonly on: 'collection' | 'member';
-  readonly method: HttpMethod;
+  readonly method: Method;
   /** Path below the resource: '', '/:id', '/:id/restore', '/:id/refund', '/quote'. */
   readonly path: string;
   readonly builtin: boolean;
@@ -69,58 +74,87 @@ type Public<M extends Model, Hidden extends string> = PublicRow<M, Extract<Hidde
 
 export type { IndexPage } from './hooks.ts';
 
+/**
+ * A custom action's HTTP method: what its spec says, or POST. When `method` is omitted TS
+ * falls back to the constraint rather than a generic default (D12), hence the conditional.
+ */
+type MethodOf<Method> = HttpMethod extends Method ? 'post' : Method;
+
 export type ActionBuilder<M extends Model, Hidden extends string = never> = {
   index<const R extends Reply>(
     spec?: IndexSpec<M, R, Hidden>,
   ): ActionDefinition<
     'index',
     IndexRules,
-    ResolvedReply<R, Reply<200, IndexPage<Public<M, Hidden>>>>
+    ResolvedReply<R, Reply<200, IndexPage<Public<M, Hidden>>>>,
+    'get'
   >;
   show<const R extends Reply>(
     spec?: RecordSpec<M, 'show', R, Reply<200, Public<M, Hidden>>, Hidden>,
-  ): ActionDefinition<'show', EmptyRules, ResolvedReply<R, Reply<200, Public<M, Hidden>>>>;
+  ): ActionDefinition<'show', EmptyRules, ResolvedReply<R, Reply<200, Public<M, Hidden>>>, 'get'>;
   store<S extends z.ZodType, const R extends Reply>(
     spec?: StoreSpec<M, S, R, Hidden>,
   ): ActionDefinition<
     'store',
     ResolvedRules<S, DefaultRules<M, 'store'>>,
-    ResolvedReply<R, Reply<201, Public<M, Hidden>>>
+    ResolvedReply<R, Reply<201, Public<M, Hidden>>>,
+    'post'
   >;
   update<S extends z.ZodType, const R extends Reply>(
     spec?: UpdateSpec<M, S, R, Hidden>,
   ): ActionDefinition<
     'update',
     ResolvedRules<S, DefaultRules<M, 'update'>>,
-    ResolvedReply<R, Reply<200, Public<M, Hidden>>>
+    ResolvedReply<R, Reply<200, Public<M, Hidden>>>,
+    'patch'
   >;
   destroy<const R extends Reply>(
     spec?: RecordSpec<M, 'destroy', R, Reply<204, null>, Hidden>,
-  ): ActionDefinition<'destroy', EmptyRules, ResolvedReply<R, Reply<204, null>>>;
-  /** A custom action on one record: `POST /:id/<name>` by default. */
-  member<const N extends string, S extends z.ZodType, const R extends Reply>(
+  ): ActionDefinition<'destroy', EmptyRules, ResolvedReply<R, Reply<204, null>>, 'delete'>;
+  /** A custom action on one record: `POST /:id/<name>` unless `method` says otherwise. */
+  member<
+    const N extends string,
+    S extends z.ZodType,
+    const R extends Reply,
+    const Method extends HttpMethod,
+  >(
     name: N,
-    spec?: MemberSpec<M, N, S, R, Hidden>,
+    spec?: MemberSpec<M, N, S, R, Hidden> & { method?: Method },
   ): ActionDefinition<
     N,
     ResolvedRules<S, EmptyRules>,
-    ResolvedReply<R, Reply<200, Public<M, Hidden>>>
+    ResolvedReply<R, Reply<200, Public<M, Hidden>>>,
+    MethodOf<Method>
   >;
-  /** A custom action on the collection: `POST /<name>` by default. Nothing is loaded or saved. */
+  /**
+   * A custom action on the collection: `POST /<name>` unless `method` says otherwise.
+   * Nothing is loaded or saved.
+   */
   collection<
     const N extends string,
     S extends z.ZodType,
     Result extends Record<string, unknown>,
     const R extends Reply,
+    const Method extends HttpMethod,
   >(
     name: N,
-    spec?: CollectionSpec<M, N, S, Result, R>,
-  ): ActionDefinition<N, ResolvedRules<S, EmptyRules>, ResolvedReply<R, Reply<200, Result>>>;
+    spec?: CollectionSpec<M, N, S, Result, R> & { method?: Method },
+  ): ActionDefinition<
+    N,
+    ResolvedRules<S, EmptyRules>,
+    ResolvedReply<R, Reply<200, Result>>,
+    MethodOf<Method>
+  >;
 } & (SoftDeletes<M> extends true
   ? {
       restore<const R extends Reply>(
         spec?: RecordSpec<M, 'restore', R, Reply<200, Public<M, Hidden>>, Hidden>,
-      ): ActionDefinition<'restore', EmptyRules, ResolvedReply<R, Reply<200, Public<M, Hidden>>>>;
+      ): ActionDefinition<
+        'restore',
+        EmptyRules,
+        ResolvedReply<R, Reply<200, Public<M, Hidden>>>,
+        'post'
+      >;
     }
   : unknown);
 

@@ -37,14 +37,26 @@ type QueryInput = {
   out: { query: Record<string, string> };
 };
 
-/** What a request sends: a JSON body from the rules, a query for index, nothing otherwise. */
+type QueryFromRules<Rules> = Rules extends z.ZodType
+  ? { in: { query: z.input<Rules> }; out: { query: z.output<Rules> } }
+  : BlankInput;
+
+/**
+ * What a request sends. index takes its filters and paging as a query; show, destroy and
+ * restore take nothing; other GET actions take their rules as a query, DELETE ones
+ * nothing, and the rest a JSON body.
+ */
 export type InputOf<A> =
-  A extends ActionDefinition<infer Name, infer Rules, unknown>
+  A extends ActionDefinition<infer Name, infer Rules, unknown, infer Method>
     ? Name extends 'index'
       ? QueryInput
       : Name extends 'show' | 'destroy' | 'restore'
         ? BlankInput
-        : JsonInput<Rules>
+        : Method extends 'get'
+          ? QueryFromRules<Rules>
+          : Method extends 'delete'
+            ? BlankInput
+            : JsonInput<Rules>
     : BlankInput;
 
 type ReplyResponse<R> =
