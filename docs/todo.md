@@ -19,7 +19,7 @@ One item ≈ one focused session. Work top to bottom (see "Todo loop" in `CLAUDE
 - [x] P1.5 PGlite + drizzle-orm/pglite migrator applies a drizzle-kit-generated migration inside bun test. Done: test passes.
 - [x] P1.6 `z.toJSONSchema` on drizzle-zod schemas (io input/output, draft 2020-12). Done: snapshot committed, no unrepresentable-type errors.
 - [x] P1.7 @typescript/typescript6 extracts `calculate` source + return-type keys (literal, spread, conditional). Done: test returns the expected keys.
-- [ ] P1.8 Confirm or amend ADRs D5–D8 with spike results. Done: decisions.md updated.
+- [x] P1.8 Confirm or amend ADRs D5 to D8 with spike results. Done: decisions.md updated.
 
 ## P2 DBML → IR → Drizzle
 - [ ] P2.1 SchemaIR types + conventions (timestamps, soft delete via `deleted_at`, generated columns). Done: types + IR unit test.

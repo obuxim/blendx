@@ -31,6 +31,9 @@ Order: authenticate → validate → load → authorize → calculate → save �
 `policy` is required and actions are listed explicitly. Input schemas are `.strict()`: unknown keys → 422. Generated columns are never input. Errors follow RFC 9457. PG errors are mapped rather than pre-queried: 23505 → 409; 23503/23502/22P02 → 422.
 **Why:** fixes larablend's mass assignment and open-by-default exposure.
 
+### D4 note: P1.2 spike result (2026-09-13)
+`c.json(problem, status, { 'Content-Type': 'application/problem+json' })` keeps its `TypedResponse`, so `hc` sees the Problem body under its status, and Hono sends our Content-Type instead of `application/json`. Regression test: `packages/hono/test/spikes/p1-2-problem-json.test.ts`.
+
 ## D5: TypeScript 7.0.2 + typescript6 compiler API (2026-09-13)
 `tsc` is TS 7.0.2 (native compiler). It needs `"types": ["bun"]` explicitly; `baseUrl` and `node10` resolution are gone. TS 7.0 has no programmatic compiler API, so the CLI's review step uses `@typescript/typescript6` to read `calculate`'s source and return type.
 **Revisit:** switch to TS 7.1's API when it ships. Fallback if a type test ever diverges: pin `typescript@6.0.3`.
@@ -105,8 +108,16 @@ Regression test: `packages/core/test/spikes/p1-6-json-schema.test.ts`.
 ### D9 note: P1.1 spike result (2026-09-13)
 Confirmed with hono 4.13.7: an explicitly typed `readonly [MiddlewareHandler, Handler]` tuple spread into a chained route keeps `hc` types (request input, 201 body, 422 Problem body, status narrowing). Status generics must be constrained to hono's `StatusCode`. Runtime tests use `testClient` from `hono/testing`, because `hc`'s `fetch` option is typed as `typeof fetch`, and Bun's `fetch` type carries an extra `preconnect` member. Regression test: `packages/hono/test/spikes/p1-1-rpc-tuple.test.ts`.
 
-### D4 note: P1.2 spike result (2026-09-13)
-`c.json(problem, status, { 'Content-Type': 'application/problem+json' })` keeps its `TypedResponse`, so `hc` sees the Problem body under its status, and Hono sends our Content-Type instead of `application/json`. Regression test: `packages/hono/test/spikes/p1-2-problem-json.test.ts`.
-
 ## D10: Out of scope for v1 (2026-09-13)
 Composite PKs, `?include=` relations, force-delete, PUT, and a post-commit side-effect stage (future: outbox or an `after` stage). The React adapter is the next phase.
+
+## D11: P1 spikes confirm the plan, with amendments (2026-09-13)
+All seven spikes passed and stay as regression tests (`packages/*/test/spikes/`). D1, D3, D8, D9 and D10 stand as written. These amendments supersede the original text:
+
+- **D2:** `@dbml/core` is loaded only through `loadDbmlCore()` (workaround for oven-sh/bun#42512, tracked by `packages/dbml/test/bun-42512.test.ts`).
+- **D4:** the Postgres error mapping also sends 22001 (value too long) to 422: 23505 → 409; 23503, 23502, 22P02 and 22001 → 422.
+- **D5:** `@typescript/typescript6` is a dev dependency of `@blendx/cli` for the spike. It becomes a runtime dependency when the review step lands (P10.2).
+- **D6:** the portability gate includes `types/portable-globals.d.ts` (type-only `Buffer`) so drizzle-zod types stay precise.
+- **D7:** the CLI runs drizzle-kit as `bun x --bun drizzle-kit`, so Node is not required. drizzle-kit stays external to the compiled CLI.
+
+Open questions carried forward are in the todo Inbox (double bounds, timestamp format, removing the Bun workaround).
