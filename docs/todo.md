@@ -54,7 +54,7 @@ One item ≈ one focused session. Work top to bottom (see "Todo loop" in `CLAUDE
 - [x] P5.5 Default respond: 201/200/204, index envelope, hidden fields stripped. Done: tests.
 - [x] P5.6 Transactions + `FOR UPDATE` on member mutations; respond after commit. Done: rollback test (lock test on real PG).
 - [x] P5.7 PG error mapping: 23505 → 409, 23503/23502/22P02/22001 → 422 with pointers. Done: tests.
-- [ ] P5.8 Custom member/collection action defaults. Done: tests.
+- [x] P5.8 Custom member/collection action defaults. Done: tests.
 
 ## P6 Hono adapter
 - [ ] P6.1 BlendxEnv + `createServer` (db/auth injection, onError/notFound → problem, malformed JSON → 400). Done: app.request tests.
