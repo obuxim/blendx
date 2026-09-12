@@ -48,7 +48,9 @@ describe('blend()', () => {
   test('hooks are kept, and calculate is the pure function that was written', () => {
     const [index, , store] = additionExample().actions;
     expect(store?.hooks.rules).toBeFunction();
-    expect(store?.hooks.calculate?.({ input: { a: 4, b: 3 }, record: undefined })).toEqual({
+    expect(
+      store?.hooks.calculate?.({ prev: {}, input: { a: 4, b: 3 }, record: undefined }),
+    ).toEqual({
       result: 7,
     });
     expect(index?.hooks).toEqual({});

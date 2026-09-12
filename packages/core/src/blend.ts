@@ -6,22 +6,43 @@
  */
 import { getTableColumns } from 'drizzle-orm';
 import type { z } from 'zod';
-import type { Column, Model, Row, SoftDeletes, Writes } from './model.ts';
+import type {
+  AuthorizeContext,
+  CalculateContext,
+  CollectionSpec,
+  LoadContext,
+  MemberSpec,
+  RecordSpec,
+  Reply,
+  ResolvedReply,
+  RespondContext,
+  SaveContext,
+  StoreSpec,
+  UpdateSpec,
+} from './hooks.ts';
+import type { Column, Model, PublicRow, SoftDeletes } from './model.ts';
 import type { Policy } from './policy.ts';
 import type { DefaultRules, EmptyRules, ResolvedRules } from './rules.ts';
 
 export type BuiltinAction = 'index' | 'show' | 'store' | 'update' | 'destroy' | 'restore';
 export type HttpMethod = 'get' | 'post' | 'patch' | 'delete';
 
-/** Hooks as stored at runtime. P3.4 adds load, authorize, save and respond. */
+/** Hooks as stored at runtime. The engine calls them with the contexts in hooks.ts. */
 export interface ActionHooks {
   readonly rules?: (context: { prev: z.ZodType }) => z.ZodType;
-  readonly calculate?: (context: { input: unknown; record: unknown }) => unknown;
+  readonly load?: (context: LoadContext<unknown>) => Promise<unknown>;
+  readonly authorize?: (
+    context: AuthorizeContext<string, unknown, unknown>,
+  ) => boolean | Promise<boolean>;
+  readonly calculate?: (context: CalculateContext<Model, unknown, unknown>) => unknown;
+  readonly save?: (context: SaveContext<Model, unknown>) => Promise<unknown>;
+  readonly respond?: (context: RespondContext<Reply, unknown, unknown>) => Reply;
 }
 
 declare const rulesType: unique symbol;
+declare const replyType: unique symbol;
 
-export interface ActionDefinition<Name extends string = string, Rules = unknown> {
+export interface ActionDefinition<Name extends string = string, Rules = unknown, Out = unknown> {
   readonly name: Name;
   readonly on: 'collection' | 'member';
   readonly method: HttpMethod;
@@ -29,56 +50,71 @@ export interface ActionDefinition<Name extends string = string, Rules = unknown>
   readonly path: string;
   readonly builtin: boolean;
   readonly hooks: ActionHooks;
-  /** Type only: the resolved rules schema, carried for route and RPC types. */
+  /** Type only: the resolved rules schema, for route and RPC types. */
   readonly [rulesType]?: Rules;
+  /** Type only: the reply (default or from respond), for route and RPC types. */
+  readonly [replyType]?: Out;
 }
 
-export interface HookSpec<
-  M extends Model,
-  Action extends string,
-  S extends z.ZodType,
-  Rec,
-  Result = Writes<M>,
-> {
-  /** Receives the action's default rules and returns the rules to validate with. */
-  rules?: (context: { prev: DefaultRules<M, Action> }) => S;
-  /** Pure and synchronous: validated input (and the loaded record) in, values out. */
-  calculate?: (context: {
-    input: z.output<ResolvedRules<S, DefaultRules<M, Action>>>;
-    record: Rec;
-  }) => Result;
+/** The resolved rules schema of an action definition. */
+export type ActionRules<A> = A extends ActionDefinition<string, infer R, unknown> ? R : never;
+/** The reply of an action definition: the default, or what its respond hook returns. */
+export type ActionReply<A> = A extends ActionDefinition<string, unknown, infer O> ? O : never;
+
+type Public<M extends Model, Hidden extends string> = PublicRow<M, Extract<Hidden, Column<M>>>;
+
+export interface IndexPage<Row> {
+  data: Row[];
+  meta: { page: number; per_page: number; total: number };
 }
 
-export interface CustomSpec<M extends Model, Name extends string, S extends z.ZodType, Rec, Result>
-  extends HookSpec<M, Name, S, Rec, Result> {
-  /** Defaults to 'post'. */
-  method?: HttpMethod;
-  /** Path segment; defaults to the action name. */
-  path?: string;
-}
-
-export type ActionBuilder<M extends Model> = {
-  index(): ActionDefinition<'index', EmptyRules>;
-  show(): ActionDefinition<'show', EmptyRules>;
-  store<S extends z.ZodType>(
-    spec?: HookSpec<M, 'store', S, undefined>,
-  ): ActionDefinition<'store', ResolvedRules<S, DefaultRules<M, 'store'>>>;
-  update<S extends z.ZodType>(
-    spec?: HookSpec<M, 'update', S, Row<M>>,
-  ): ActionDefinition<'update', ResolvedRules<S, DefaultRules<M, 'update'>>>;
-  destroy(): ActionDefinition<'destroy', EmptyRules>;
+export type ActionBuilder<M extends Model, Hidden extends string = never> = {
+  index(): ActionDefinition<'index', EmptyRules, Reply<200, IndexPage<Public<M, Hidden>>>>;
+  show<const R extends Reply>(
+    spec?: RecordSpec<M, 'show', R, Reply<200, Public<M, Hidden>>, Hidden>,
+  ): ActionDefinition<'show', EmptyRules, ResolvedReply<R, Reply<200, Public<M, Hidden>>>>;
+  store<S extends z.ZodType, const R extends Reply>(
+    spec?: StoreSpec<M, S, R, Hidden>,
+  ): ActionDefinition<
+    'store',
+    ResolvedRules<S, DefaultRules<M, 'store'>>,
+    ResolvedReply<R, Reply<201, Public<M, Hidden>>>
+  >;
+  update<S extends z.ZodType, const R extends Reply>(
+    spec?: UpdateSpec<M, S, R, Hidden>,
+  ): ActionDefinition<
+    'update',
+    ResolvedRules<S, DefaultRules<M, 'update'>>,
+    ResolvedReply<R, Reply<200, Public<M, Hidden>>>
+  >;
+  destroy<const R extends Reply>(
+    spec?: RecordSpec<M, 'destroy', R, Reply<204, null>, Hidden>,
+  ): ActionDefinition<'destroy', EmptyRules, ResolvedReply<R, Reply<204, null>>>;
   /** A custom action on one record: `POST /:id/<name>` by default. */
-  member<const N extends string, S extends z.ZodType>(
+  member<const N extends string, S extends z.ZodType, const R extends Reply>(
     name: N,
-    spec?: CustomSpec<M, N, S, Row<M>, Writes<M>>,
-  ): ActionDefinition<N, ResolvedRules<S, EmptyRules>>;
-  /** A custom action on the collection: `POST /<name>` by default. Nothing is saved. */
-  collection<const N extends string, S extends z.ZodType>(
+    spec?: MemberSpec<M, N, S, R, Hidden>,
+  ): ActionDefinition<
+    N,
+    ResolvedRules<S, EmptyRules>,
+    ResolvedReply<R, Reply<200, Public<M, Hidden>>>
+  >;
+  /** A custom action on the collection: `POST /<name>` by default. Nothing is loaded or saved. */
+  collection<
+    const N extends string,
+    S extends z.ZodType,
+    Result extends Record<string, unknown>,
+    const R extends Reply,
+  >(
     name: N,
-    spec?: CustomSpec<M, N, S, undefined, Record<string, unknown>>,
-  ): ActionDefinition<N, ResolvedRules<S, EmptyRules>>;
+    spec?: CollectionSpec<M, N, S, Result, R>,
+  ): ActionDefinition<N, ResolvedRules<S, EmptyRules>, ResolvedReply<R, Reply<200, Result>>>;
 } & (SoftDeletes<M> extends true
-  ? { restore(): ActionDefinition<'restore', EmptyRules> }
+  ? {
+      restore<const R extends Reply>(
+        spec?: RecordSpec<M, 'restore', R, Reply<200, Public<M, Hidden>>, Hidden>,
+      ): ActionDefinition<'restore', EmptyRules, ResolvedReply<R, Reply<200, Public<M, Hidden>>>>;
+    }
   : unknown);
 
 /** One policy for every action, or a policy per action with an optional default. */
@@ -94,7 +130,7 @@ export interface ResourceSpec<
   policy: PolicySpec<M>;
   /** Columns never returned in responses (e.g. password). */
   hidden?: H;
-  actions: (a: ActionBuilder<M>) => A;
+  actions: (a: ActionBuilder<M, H[number]>) => A;
 }
 
 export interface Resource<
@@ -128,10 +164,9 @@ const BUILTIN: ReadonlySet<string> = new Set<BuiltinAction>([
   'destroy',
   'restore',
 ]);
+const HOOK_NAMES = ['rules', 'load', 'authorize', 'calculate', 'save', 'respond'] as const;
 
-type AnySpec = {
-  rules?: ActionHooks['rules'];
-  calculate?: ActionHooks['calculate'];
+type AnySpec = { [K in (typeof HOOK_NAMES)[number]]?: ActionHooks[K] } & {
   method?: HttpMethod;
   path?: string;
 };
@@ -144,11 +179,18 @@ function define(
   builtin: boolean,
   spec: AnySpec = {},
 ): ActionDefinition {
-  const hooks: ActionHooks = {
-    ...(spec.rules ? { rules: spec.rules } : {}),
-    ...(spec.calculate ? { calculate: spec.calculate } : {}),
-  };
-  return Object.freeze({ name, on, method, path, builtin, hooks: Object.freeze(hooks) });
+  const hooks: Record<string, unknown> = {};
+  for (const hook of HOOK_NAMES) {
+    if (spec[hook]) hooks[hook] = spec[hook];
+  }
+  return Object.freeze({
+    name,
+    on,
+    method,
+    path,
+    builtin,
+    hooks: Object.freeze(hooks) as ActionHooks,
+  });
 }
 
 function builderFor(model: Model) {
@@ -161,8 +203,9 @@ function builderFor(model: Model) {
       fail(`custom action "${name}" must be lowercase letters, digits and _`);
     }
     const segment = spec.path ?? name;
-    if (!PATH_SEGMENT.test(segment))
+    if (!PATH_SEGMENT.test(segment)) {
       fail(`custom action "${name}" has an invalid path "${segment}"`);
+    }
     return define(
       name,
       on,
@@ -174,15 +217,15 @@ function builderFor(model: Model) {
   };
   return {
     index: () => define('index', 'collection', 'get', '', true),
-    show: () => define('show', 'member', 'get', '/:id', true),
+    show: (spec?: AnySpec) => define('show', 'member', 'get', '/:id', true, spec),
     store: (spec?: AnySpec) => define('store', 'collection', 'post', '', true, spec),
     update: (spec?: AnySpec) => define('update', 'member', 'patch', '/:id', true, spec),
-    destroy: () => define('destroy', 'member', 'delete', '/:id', true),
-    restore: () => {
+    destroy: (spec?: AnySpec) => define('destroy', 'member', 'delete', '/:id', true, spec),
+    restore: (spec?: AnySpec) => {
       if (model.meta.softDelete === null) {
         fail('restore needs a soft-delete table (a nullable deleted_at timestamp)');
       }
-      return define('restore', 'member', 'post', '/:id/restore', true);
+      return define('restore', 'member', 'post', '/:id/restore', true, spec);
     },
     member: (name: string, spec?: AnySpec) => custom('member', name, spec),
     collection: (name: string, spec?: AnySpec) => custom('collection', name, spec),
@@ -209,7 +252,7 @@ export function blend<
     throw new BlendxDefinitionError(model.name, message);
   };
 
-  const actions = spec.actions(builderFor(model) as unknown as ActionBuilder<M>);
+  const actions = spec.actions(builderFor(model) as unknown as ActionBuilder<M, H[number]>);
   const seen = new Set<string>();
   for (const action of actions) {
     if (seen.has(action.name)) fail(`action "${action.name}" is listed twice`);
