@@ -22,7 +22,7 @@ One item ≈ one focused session. Work top to bottom (see "Todo loop" in `CLAUDE
 - [x] P1.8 Confirm or amend ADRs D5 to D8 with spike results. Done: decisions.md updated.
 
 ## P2 DBML → IR → Drizzle
-- [ ] P2.1 SchemaIR types + conventions (timestamps, soft delete via `deleted_at`, generated columns). Done: types + IR unit test.
+- [x] P2.1 SchemaIR types + conventions (timestamps, soft delete via `deleted_at`, generated columns). Done: types + IR unit test.
 - [ ] P2.2 `parseDbml` → IR, errors with line/col. Done: addition, kitchen-sink and syntax-error tests.
 - [ ] P2.3 Type-mapping table (int/serial/bigint/varchar/char/text/bool/double/real/numeric/date/timestamp[tz]/time/uuid/json[b]/enum/arrays; unknown → error). Done: table-driven tests.
 - [ ] P2.4 IR validation (missing PK, composite PK, reserved query-name columns, identifier collisions). Done: tests.
