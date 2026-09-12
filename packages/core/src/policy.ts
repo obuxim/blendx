@@ -3,9 +3,10 @@
  * and each policy says up front whether it needs an identity, so a request without one
  * gets 401 before validation runs (docs/decisions.md D3).
  */
+import type { RegisteredAuth } from './app.ts';
 import type { Column, Model, Row } from './model.ts';
 
-export interface PolicyContext<M extends Model = Model, Auth = unknown> {
+export interface PolicyContext<M extends Model = Model, Auth = RegisteredAuth> {
   /** The authenticated identity, or null when the request has none. */
   auth: Auth | null;
   /** The loaded record for member actions; undefined for index, store and collection actions. */
@@ -17,7 +18,7 @@ export interface PolicyContext<M extends Model = Model, Auth = unknown> {
 
 export type PolicyKind = 'public' | 'authenticated' | 'owner' | 'when' | 'deny';
 
-export interface Policy<M extends Model = Model, Auth = unknown> {
+export interface Policy<M extends Model = Model, Auth = RegisteredAuth> {
   readonly kind: PolicyKind;
   /** True when a request without an identity is rejected with 401 before validation. */
   readonly requiresAuth: boolean;
@@ -51,7 +52,10 @@ export const allow = {
    * without a record (index, store, collection actions) are denied; give them their
    * own policy, and scope index queries in `load`.
    */
-  owner<M extends Model, Auth = unknown>(column: Column<M>, authKey = 'id'): Policy<M, Auth> {
+  owner<M extends Model, Auth = RegisteredAuth>(
+    column: Column<M>,
+    authKey = 'id',
+  ): Policy<M, Auth> {
     return {
       kind: 'owner',
       requiresAuth: true,
@@ -65,7 +69,7 @@ export const allow = {
   },
 
   /** A custom rule. Set `requiresAuth` when the rule cannot pass without an identity. */
-  when<M extends Model, Auth = unknown>(
+  when<M extends Model, Auth = RegisteredAuth>(
     check: (context: PolicyContext<M, Auth>) => boolean | Promise<boolean>,
     options: { description?: string; requiresAuth?: boolean } = {},
   ): Policy<M, Auth> {

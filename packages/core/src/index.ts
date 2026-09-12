@@ -1,6 +1,17 @@
 export const PACKAGE = '@blendx/core';
 
 export {
+  type App,
+  type AppHooks,
+  type AppSpec,
+  type AuthContext,
+  BlendxConfigError,
+  defineApp,
+  type Register,
+  type RegisteredAuth,
+} from './app.ts';
+
+export {
   type ActionBuilder,
   type ActionDefinition,
   type ActionHooks,

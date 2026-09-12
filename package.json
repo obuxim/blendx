@@ -10,7 +10,7 @@
     "check": "bun run lint && bun run typecheck && bun test",
     "lint": "biome check .",
     "fix": "biome check --write .",
-    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.portable.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.portable.json && tsc --noEmit -p packages/core/test/register/tsconfig.json",
     "test": "bun test"
   },
   "devDependencies": {

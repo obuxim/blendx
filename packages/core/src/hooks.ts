@@ -5,6 +5,7 @@
  */
 import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
 import type { z } from 'zod';
+import type { RegisteredAuth } from './app.ts';
 import type { Model, PublicRow, Row, Writes } from './model.ts';
 import type { DefaultRules, ResolvedRules } from './rules.ts';
 
@@ -33,13 +34,13 @@ export interface LoadContext<Rec> {
   db: Db;
   params: Readonly<Record<string, string>>;
   query: Readonly<Record<string, string>>;
-  auth: unknown;
+  auth: RegisteredAuth | null;
 }
 
 export interface AuthorizeContext<Action extends string, In, Rec> {
   /** What the resource policy decided. */
   prev: boolean;
-  auth: unknown;
+  auth: RegisteredAuth | null;
   record: Rec;
   input: In;
   action: Action;
@@ -60,7 +61,7 @@ export interface SaveContext<M extends Model, Rec> {
   tx: Db;
   writes: Writes<M>;
   record: Rec;
-  auth: unknown;
+  auth: RegisteredAuth | null;
 }
 
 export interface RespondContext<Default, Out, Result> {

@@ -1,0 +1,8 @@
+{
+  "//": "Separate project: the Register augmentation here is global to whatever program includes it.",
+  "extends": "../../../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["bun"]
+  },
+  "include": ["."]
+}
