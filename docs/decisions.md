@@ -35,6 +35,15 @@ Order: authenticate → validate → load → authorize → calculate → save �
 `tsc` is TS 7.0.2 (native compiler). It needs `"types": ["bun"]` explicitly; `baseUrl` and `node10` resolution are gone. TS 7.0 has no programmatic compiler API, so the CLI's review step uses `@typescript/typescript6` to read `calculate`'s source and return type.
 **Revisit:** switch to TS 7.1's API when it ships. Fallback if a type test ever diverges: pin `typescript@6.0.3`.
 
+### D5 note: P1.7 spike result (2026-09-13)
+`@typescript/typescript6` 6.0.2 (`import ts from '@typescript/typescript6'`) runs under Bun. A program over one hook file, the checker, and the AST walk take about 0.4 s. The extraction works like this:
+- Find every `calculate` property or method.
+- Name its action from the enclosing property.
+- Take `getText()` as the literal source.
+- Derive `writes` from the signature's return type as the **union of keys across all return shapes**: a union type is flattened, spreads resolve through the checker, and every `return` of a block body counts.
+
+Verified for an object literal, a spread over `prev`, a conditional, and a method with two returns. The dependency stays in `@blendx/cli` only. Regression test: `packages/cli/test/spikes/p1-7-calculate-writes.test.ts`.
+
 ## D6: Drizzle 0.45 pinned (2026-09-13)
 drizzle-orm 0.45.2, drizzle-kit 0.31.10, drizzle-zod 0.8.3. Drizzle 1.0 is still a release candidate. All drizzle-zod imports stay in one module. Don't generate `relations()`.
 **Revisit:** todo P12.6.
