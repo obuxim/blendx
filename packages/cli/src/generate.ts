@@ -2,7 +2,8 @@
  * `blendx generate` writes the generated folder in two phases. Phase one turns schema.dbml
  * into schema.gen.ts. Phase two imports the blends, which import that schema, and emits
  * routes.gen.ts, register.gen.ts and drizzle.config.gen.ts. A file is only rewritten when
- * its content changes.
+ * its content changes. With --check nothing is written: each drifted file prints a unified
+ * diff, and the command exits 1.
  */
 import { existsSync } from 'node:fs';
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
@@ -12,6 +13,7 @@ import type { Resource } from '@blendx/core';
 import { emitDrizzle, loadSchema } from '@blendx/dbml';
 import { CliError, type Command } from './command.ts';
 import { loadConfig, type ResolvedConfig } from './config.ts';
+import { unifiedDiff } from './diff.ts';
 import { emitDrizzleConfig } from './emit-drizzle-config.ts';
 import { emitRegister } from './emit-register.ts';
 import { type BlendModule, emitRoutes } from './emit-routes.ts';
@@ -78,47 +80,73 @@ export function emitAppFiles(
   };
 }
 
-async function writeIfChanged(path: string, content: string): Promise<boolean> {
-  if (existsSync(path) && (await readFile(path, 'utf8')) === content) return false;
-  await writeFile(path, content);
-  return true;
+function checkInputs(config: ResolvedConfig): void {
+  const inputs = [
+    [config.schema, 'schema', ''],
+    [config.blends, 'blends folder', ''],
+    [config.app, 'app module', ' (it default-exports defineApp)'],
+  ] as const;
+  for (const [path, what, hint] of inputs) {
+    if (!existsSync(path)) throw new CliError(`no ${what} at ${shown(config, path)}${hint}`);
+  }
 }
+
+const readIfExists = async (path: string) =>
+  existsSync(path) ? await readFile(path, 'utf8') : undefined;
 
 export const generate: Command = {
   name: 'generate',
   summary: 'Write the generated files from schema.dbml and the blends',
-  async run({ cwd, io }) {
+  options: {
+    check: {
+      type: 'boolean',
+      description: 'Write nothing; print a diff and exit 1 if a file is out of date',
+    },
+  },
+  async run({ values, cwd, io }) {
     const config = await loadConfig(cwd);
-    const inputs = [
-      [config.schema, 'schema'],
-      [config.blends, 'blends folder'],
-      [config.app, 'app module (it default-exports defineApp)'],
-    ] as const;
-    for (const [path, what] of inputs) {
-      if (!existsSync(path)) {
-        const [kind, hint] = what.split(' (');
-        throw new CliError(`no ${kind} at ${shown(config, path)}${hint ? ` (${hint}` : ''}`);
-      }
-    }
+    checkInputs(config);
+    const check = values.check === true;
+    const stale: string[] = [];
 
-    await mkdir(config.generated, { recursive: true });
-    const written: string[] = [];
-    const write = async (name: GeneratedFile, content: string) => {
+    /** Writes the file if it changed; with --check, reports how it differs instead. */
+    const settle = async (name: GeneratedFile, content: string) => {
       const path = join(config.generated, name);
-      if (await writeIfChanged(path, content)) written.push(shown(config, path));
+      const current = await readIfExists(path);
+      if (current === content) return;
+      const label = shown(config, path);
+      stale.push(label);
+      if (!check) {
+        await mkdir(config.generated, { recursive: true });
+        await writeFile(path, content);
+      } else if (current === undefined) {
+        io.out(`${label} is missing\n`);
+      } else {
+        io.out(unifiedDiff(current, content, { from: label, to: `${label} (generated)` }));
+      }
     };
 
-    await write('schema.gen.ts', await emitSchemaFile(config));
+    await settle('schema.gen.ts', await emitSchemaFile(config));
+    const schemaFile = join(config.generated, 'schema.gen.ts');
+    if (check && !existsSync(schemaFile)) {
+      throw new CliError(
+        `${shown(config, schemaFile)} is missing, and the blends import it; run \`blendx generate\``,
+      );
+    }
     const files = emitAppFiles(config, await loadBlends(config));
     for (const name of GENERATED_FILES) {
-      if (name !== 'schema.gen.ts') await write(name, files[name]);
+      if (name !== 'schema.gen.ts') await settle(name, files[name]);
     }
 
-    io.out(
-      written.length > 0
-        ? written.map((path) => `wrote ${path}\n`).join('')
-        : `${shown(config, config.generated)} is up to date\n`,
-    );
+    if (stale.length === 0) {
+      io.out(`${shown(config, config.generated)} is up to date\n`);
+      return 0;
+    }
+    if (check) {
+      const what = stale.length === 1 ? `${stale[0]} is` : `${stale.length} generated files are`;
+      throw new CliError(`${what} out of date; run \`blendx generate\``);
+    }
+    io.out(stale.map((path) => `wrote ${path}\n`).join(''));
     return 0;
   },
 };

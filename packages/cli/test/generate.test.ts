@@ -24,7 +24,7 @@ beforeAll(async () => {
 });
 afterAll(() => rm(app, { recursive: true, force: true }));
 
-async function generate() {
+async function generate(...args: string[]) {
   let out = '';
   let err = '';
   const io = {
@@ -36,7 +36,7 @@ async function generate() {
     },
     cwd: app,
   };
-  const code = await main(['generate'], { io });
+  const code = await main(['generate', ...args], { io });
   return { code, out, err };
 }
 
@@ -134,5 +134,96 @@ describe('blendx generate', () => {
     } finally {
       await rename(`${appFile}.bak`, appFile);
     }
+  });
+});
+
+describe('blendx generate --check (P7.5)', () => {
+  const generated = (name: string) => join(app, 'src', 'generated', name);
+
+  test('up to date: exits 0', async () => {
+    expect(await generate('--check')).toEqual({
+      code: 0,
+      out: 'src/generated is up to date\n',
+      err: '',
+    });
+  });
+
+  test('drift: a unified diff on stdout, exit 1, and nothing written', async () => {
+    const path = generated('routes.gen.ts');
+    const original = await readFile(path, 'utf8');
+    const edited = original.replace('.get("/orders/quote"', '.post("/orders/quote"');
+    expect(edited).not.toBe(original);
+    await withChanged(
+      path,
+      () => writeFile(path, edited),
+      async () => {
+        const { code, out, err } = await generate('--check');
+        expect(code).toBe(1);
+        expect(out).toStartWith(
+          '--- src/generated/routes.gen.ts\n+++ src/generated/routes.gen.ts (generated)\n@@ ',
+        );
+        expect(out).toContain(
+          '\n-  .post("/orders/quote", ...run(orders, "quote"))\n+  .get("/orders/quote", ...run(orders, "quote"))\n',
+        );
+        expect(err).toBe('src/generated/routes.gen.ts is out of date; run `blendx generate`\n');
+        expect(await readFile(path, 'utf8')).toBe(edited);
+      },
+    );
+  });
+
+  test('a missing file is reported and not written', async () => {
+    const path = generated('register.gen.ts');
+    await withChanged(
+      path,
+      () => rm(path),
+      async () => {
+        expect(await generate('--check')).toEqual({
+          code: 1,
+          out: 'src/generated/register.gen.ts is missing\n',
+          err: 'src/generated/register.gen.ts is out of date; run `blendx generate`\n',
+        });
+        expect(await Bun.file(path).exists()).toBe(false);
+      },
+    );
+  });
+
+  test('without schema.gen.ts the blends cannot load, so it stops there', async () => {
+    const path = generated('schema.gen.ts');
+    await withChanged(
+      path,
+      () => rm(path),
+      async () => {
+        expect(await generate('--check')).toEqual({
+          code: 1,
+          out: 'src/generated/schema.gen.ts is missing\n',
+          err: 'src/generated/schema.gen.ts is missing, and the blends import it; run `blendx generate`\n',
+        });
+      },
+    );
+  });
+
+  test('a blend change shows up as drift in routes.gen.ts', async () => {
+    // A fresh process: this one has already imported (and cached) the blends.
+    const bin = join(import.meta.dir, '..', 'src', 'bin.ts');
+    const path = join(app, 'blends', 'order_notes.ts');
+    const original = await readFile(path, 'utf8');
+    const edited = original.replace('[a.index(), a.store()]', '[a.index()]');
+    expect(edited).not.toBe(original);
+    await withChanged(
+      path,
+      () => writeFile(path, edited),
+      async () => {
+        const run = Bun.spawnSync([process.execPath, bin, 'generate', '--check', '--cwd', app], {
+          timeout: 30_000,
+        });
+        expect(run.stderr.toString()).toBe(
+          'src/generated/routes.gen.ts is out of date; run `blendx generate`\n',
+        );
+        expect(run.exitCode).toBe(1);
+        expect(run.stdout.toString()).toContain(
+          '\n-  .post("/order_notes", ...run(order_notes, "store"))\n',
+        );
+      },
+    );
   });
 });
