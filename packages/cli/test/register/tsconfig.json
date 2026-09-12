@@ -1,0 +1,8 @@
+{
+  "//": "Separate project: register.gen.ts augments blendx for the whole program that includes it.",
+  "extends": "../../../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["bun"]
+  },
+  "include": ["."]
+}

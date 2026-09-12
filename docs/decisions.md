@@ -108,6 +108,11 @@ Regression test: `packages/core/test/spikes/p1-6-json-schema.test.ts`.
 ### D9 note: P1.1 spike result (2026-09-13)
 Confirmed with hono 4.13.7: an explicitly typed `readonly [MiddlewareHandler, Handler]` tuple spread into a chained route keeps `hc` types (request input, 201 body, 422 Problem body, status narrowing). Status generics must be constrained to hono's `StatusCode`. Runtime tests use `testClient` from `hono/testing`, because `hc`'s `fetch` option is typed as `typeof fetch`, and Bun's `fetch` type carries an extra `preconnect` member. Regression test: `packages/hono/test/spikes/p1-1-rpc-tuple.test.ts`.
 
+### D9 note: P7.1 and P7.2 generated files (2026-09-13)
+- `routes.gen.ts` imports only from `blendx` (`router()` and `run()`), so an app needs no direct hono dependency. Tables sort by name, and endpoints keep the `toEndpoints()` order. A table named like a JS reserved word, `router` or `run` gets a `_` suffix on its import binding.
+- `register.gen.ts` augments `declare module "blendx"`. The augmentation reaches `Register` in `@blendx/core` through the facade's re-export, so apps never import `@blendx/core`. `packages/cli/test/register` is its own tsconfig project and fails without the golden.
+- `drizzle.config.gen.ts` is a plain object (no drizzle-kit import) with paths relative to the app root, where drizzle-kit runs. It holds no credentials: `migrate generate` is offline and `migrate up` uses blendx's own migrator, so no database URL lands in a committed file.
+
 ## D10: Out of scope for v1 (2026-09-13)
 Composite PKs, `?include=` relations, force-delete, PUT, and a post-commit side-effect stage (future: outbox or an `after` stage). The React adapter is the next phase.
 

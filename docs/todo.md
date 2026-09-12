@@ -64,7 +64,7 @@ One item ≈ one focused session. Work top to bottom (see "Todo loop" in `CLAUDE
 
 ## P7 Generators & CLI
 - [x] P7.1 routes.gen.ts emitter (thin, sorted, collection customs before `/:id`, exports AppType). Done: golden + tsc.
-- [ ] P7.2 register.gen.ts + drizzle.config.gen.ts emitters. Done: goldens.
+- [x] P7.2 register.gen.ts + drizzle.config.gen.ts emitters. Done: goldens.
 - [ ] P7.3 CLI shell (util.parseArgs, help, exit codes). Done: `blendx --help` works.
 - [ ] P7.4 `blendx generate`, two-phase (DBML → schema; then blends → routes/register/openapi). Done: fixture output equals goldens.
 - [ ] P7.5 `generate --check` with unified diff. Done: drift exits 1.

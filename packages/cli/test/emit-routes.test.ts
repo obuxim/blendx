@@ -10,16 +10,7 @@ import { type BlendModule, emitRoutes } from '../src/emit-routes.ts';
 import orderNotes from './fixtures/shop/blends/order_notes.ts';
 import orders from './fixtures/shop/blends/orders.ts';
 import users from './fixtures/shop/blends/users.ts';
-
-/** Compares with the committed golden file. Missing goldens are written once (never on CI). */
-async function expectGolden(name: string, actual: string) {
-  const path = join(import.meta.dir, 'golden', name);
-  if (process.env.UPDATE_GOLDEN === '1' || (!(await Bun.file(path).exists()) && !process.env.CI)) {
-    await Bun.write(path, actual);
-  }
-  // A fresh handle: a BunFile that was checked before the write can return stale content.
-  expect(actual).toBe(await Bun.file(path).text());
-}
+import { expectGolden } from './support/golden.ts';
 
 const fixture = (name: string) => `../fixtures/shop/blends/${name}.ts`;
 
@@ -32,7 +23,7 @@ const shop: BlendModule[] = [
 
 describe('emitRoutes', () => {
   test('shop fixture', async () => {
-    await expectGolden('routes.gen.ts', emitRoutes(shop));
+    await expectGolden(join(import.meta.dir, 'golden', 'routes.gen.ts'), emitRoutes(shop));
   });
 
   test('tables sort by name; collection routes come before /:id', async () => {
