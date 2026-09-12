@@ -22,7 +22,7 @@ import type {
 } from './hooks.ts';
 import type { Column, Model, PublicRow, SoftDeletes } from './model.ts';
 import type { Policy } from './policy.ts';
-import type { DefaultRules, EmptyRules, ResolvedRules } from './rules.ts';
+import type { DefaultRules, EmptyRules, IndexRules, ResolvedRules } from './rules.ts';
 
 export type BuiltinAction = 'index' | 'show' | 'store' | 'update' | 'destroy' | 'restore';
 export type HttpMethod = 'get' | 'post' | 'patch' | 'delete';
@@ -69,7 +69,7 @@ export interface IndexPage<Row> {
 }
 
 export type ActionBuilder<M extends Model, Hidden extends string = never> = {
-  index(): ActionDefinition<'index', EmptyRules, Reply<200, IndexPage<Public<M, Hidden>>>>;
+  index(): ActionDefinition<'index', IndexRules, Reply<200, IndexPage<Public<M, Hidden>>>>;
   show<const R extends Reply>(
     spec?: RecordSpec<M, 'show', R, Reply<200, Public<M, Hidden>>, Hidden>,
   ): ActionDefinition<'show', EmptyRules, ResolvedReply<R, Reply<200, Public<M, Hidden>>>>;

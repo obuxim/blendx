@@ -30,14 +30,29 @@ export type UpdateRules<M extends Model> = z.ZodObject<
   z.core.$strict
 >;
 
-/** Actions without a body (index, show, destroy, restore) and custom actions start empty. */
+/** show, destroy, restore and custom actions start from an empty object. */
 export type EmptyRules = z.ZodObject<Record<never, never>, z.core.$strict>;
+
+/** The parsed index query: pagination, sorting, opt-in trashed, and flat column filters. */
+export interface IndexQuery {
+  page?: number;
+  per_page?: number;
+  /** A sortable column, or `-column` for descending. */
+  sort?: string;
+  trashed?: 'with' | 'only';
+  [filter: string]: string | number | undefined;
+}
+
+/** index: parses query-string values (strings) into an IndexQuery. */
+export type IndexRules = z.ZodType<IndexQuery, Record<string, string | undefined>>;
 
 export type DefaultRules<M extends Model, Action extends string> = Action extends 'store'
   ? StoreRules<M>
   : Action extends 'update'
     ? UpdateRules<M>
-    : EmptyRules;
+    : Action extends 'index'
+      ? IndexRules
+      : EmptyRules;
 
 /**
  * When `rules` is omitted, TS falls back to the type parameter's constraint instead of

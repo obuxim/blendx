@@ -34,6 +34,7 @@ export {
   type DatabaseDriver,
   defineConfig,
 } from './config.ts';
+export { type DeriveOptions, defaultRules } from './derive-rules.ts';
 export { type EndpointDefinition, toEndpoints } from './endpoints.ts';
 export type {
   AuthorizeContext,
@@ -75,6 +76,8 @@ export {
 export type {
   DefaultRules,
   EmptyRules,
+  IndexQuery,
+  IndexRules,
   ResolvedRules,
   StoreRules,
   UpdateRules,

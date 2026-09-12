@@ -41,7 +41,7 @@ One item ≈ one focused session. Work top to bottom (see "Todo loop" in `CLAUDE
 - [x] P3.7 `defineConfig` + config loader/validation. Done: tests.
 
 ## P4 Rules & cascade
-- [ ] P4.1 Default rules per action (store: strict insert minus generated; update: partial; index: query; member: none; custom: empty). Done: one test per derivation rule id.
+- [x] P4.1 Default rules per action (store: strict insert minus generated; update: partial; index: query; member: none; custom: empty). Done: one test per derivation rule id.
 - [ ] P4.2 `packages/spec/derivation-rules.md` table mirroring the test ids. Done: every rule id links to a test.
 - [ ] P4.3 Cascade resolver schema → app → resource → action, `prev` vs `runDefault`, provenance recorded. Done: replace/extend tests at every level.
 - [ ] P4.4 Policy → authorize hook, schema-level deny. Done: tests.
@@ -109,7 +109,7 @@ One item ≈ one focused session. Work top to bottom (see "Todo loop" in `CLAUDE
 ## Inbox
 Discovered work goes here. Triage it into a phase before starting it.
 - [ ] Remove the postMessage workaround in `packages/dbml/src/dbml-core.ts` once `packages/dbml/test/bun-42512.test.ts` fails (Bun fixed oven-sh/bun#42512).
-- [ ] P4.1: decide whether to drop drizzle-zod's ±2^47 bounds on `doublePrecision` columns (real doubles like 1e20 are rejected today). See D8 note.
+- [x] P4.1: decide whether to drop drizzle-zod's ±2^47 bounds on `doublePrecision` columns (real doubles like 1e20 are rejected today). Decided in D13: dropped.
 - [ ] P9.1: add `format: date-time` / `date` to string-mode timestamp and date columns in OpenAPI output. See D8 note.
 
 ## Next: React adapter (not in current scope; don't start until asked)
