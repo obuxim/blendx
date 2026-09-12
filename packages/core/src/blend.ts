@@ -20,7 +20,7 @@ import type {
   StoreSpec,
   UpdateSpec,
 } from './hooks.ts';
-import type { Column, Model, PublicRow, SoftDeletes } from './model.ts';
+import type { Column, Model, PublicRow, Row, SoftDeletes } from './model.ts';
 import type { Policy } from './policy.ts';
 import type { DefaultRules, EmptyRules, IndexRules, ResolvedRules } from './rules.ts';
 
@@ -117,6 +117,19 @@ export type ActionBuilder<M extends Model, Hidden extends string = never> = {
     }
   : unknown);
 
+/**
+ * Resource-level hooks: the middle of the cascade (schema, app, resource, action). They run
+ * for every action of the resource, so each must return the type it receives. Declared as
+ * methods so a resource of a concrete model still fits the generic Resource type.
+ */
+export interface ResourceHooks<M extends Model = Model> {
+  rules?<T extends z.ZodType>(context: { prev: T; action: string }): T;
+  authorize?(
+    context: AuthorizeContext<string, unknown, Row<M> | undefined>,
+  ): boolean | Promise<boolean>;
+  respond?<R extends Reply>(context: { prev: R; action: string }): R;
+}
+
 /** One policy for every action, or a policy per action with an optional default. */
 export type PolicySpec<M extends Model> =
   | Policy<M>
@@ -130,6 +143,8 @@ export interface ResourceSpec<
   policy: PolicySpec<M>;
   /** Columns never returned in responses (e.g. password). */
   hidden?: H;
+  /** Hooks that run for every action of this resource. */
+  hooks?: ResourceHooks<M>;
   actions: (a: ActionBuilder<M, H[number]>) => A;
 }
 
@@ -144,6 +159,7 @@ export interface Resource<
   readonly hidden: H;
   /** The policy of every exposed action, after applying `default`. */
   readonly policies: { readonly [action: string]: Policy<M> };
+  readonly hooks: ResourceHooks<M>;
 }
 
 /** Thrown when a resource definition is invalid. Surfaces when blends are loaded. */
@@ -284,5 +300,6 @@ export function blend<
     actions,
     hidden,
     policies: Object.freeze(policies),
+    hooks: Object.freeze({ ...spec.hooks }),
   });
 }

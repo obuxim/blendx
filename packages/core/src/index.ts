@@ -24,8 +24,19 @@ export {
   type IndexPage,
   type PolicySpec,
   type Resource,
+  type ResourceHooks,
   type ResourceSpec,
 } from './blend.ts';
+export {
+  type EffectDefaults,
+  type Level,
+  type LoadInput,
+  type ResolvedEndpoint,
+  resolveEndpoint,
+  type SaveInput,
+  STAGES,
+  type Stage,
+} from './cascade.ts';
 export {
   CONFIG_DEFAULTS,
   type Config,

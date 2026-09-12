@@ -3,7 +3,13 @@
  * the OpenAPI builder and the review step read. The order is fixed, whatever order the
  * actions were listed in.
  */
-import type { ActionDefinition, ActionHooks, HttpMethod, Resource } from './blend.ts';
+import type {
+  ActionDefinition,
+  ActionHooks,
+  HttpMethod,
+  Resource,
+  ResourceHooks,
+} from './blend.ts';
 import type { Model } from './model.ts';
 import type { Policy } from './policy.ts';
 
@@ -20,7 +26,10 @@ export interface EndpointDefinition {
   readonly model: Model;
   readonly policy: Policy;
   readonly hidden: readonly string[];
+  /** The action's own hooks. */
   readonly hooks: ActionHooks;
+  /** The resource-level hooks, shared by every action of the resource. */
+  readonly resourceHooks: ResourceHooks;
 }
 
 const BUILTIN_ORDER = ['index', 'store', 'show', 'update', 'destroy', 'restore'];
@@ -58,6 +67,7 @@ export function toEndpoints(resource: Resource): EndpointDefinition[] {
       policy,
       hidden,
       hooks: action.hooks,
+      resourceHooks: resource.hooks as ResourceHooks,
     });
   });
 }

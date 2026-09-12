@@ -43,7 +43,7 @@ One item ≈ one focused session. Work top to bottom (see "Todo loop" in `CLAUDE
 ## P4 Rules & cascade
 - [x] P4.1 Default rules per action (store: strict insert minus generated; update: partial; index: query; member: none; custom: empty). Done: one test per derivation rule id.
 - [x] P4.2 `packages/spec/derivation-rules.md` table mirroring the test ids. Done: every rule id links to a test.
-- [ ] P4.3 Cascade resolver schema → app → resource → action, `prev` vs `runDefault`, provenance recorded. Done: replace/extend tests at every level.
+- [x] P4.3 Cascade resolver schema → app → resource → action, `prev` vs `runDefault`, provenance recorded. Done: replace/extend tests at every level.
 - [ ] P4.4 Policy → authorize hook, schema-level deny. Done: tests.
 
 ## P5 Engine
