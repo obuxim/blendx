@@ -56,6 +56,17 @@ drizzle-zod 0.8.3 schemas are plain zod 4 objects: `instanceof z.ZodObject`, and
 ## D7: Default DB driver `pg` (2026-09-13)
 node-postgres on Bun and Node. PGlite in tests. `bun-sql` is opt-in because of open Drizzle issues (JSON serialization, timezones). drizzle-kit is never bundled into the compiled CLI.
 
+### D7 note: P1.5 spike result (2026-09-13)
+drizzle-kit 0.31.10 runs on Bun with `bun x --bun drizzle-kit generate` (about 0.2 s), so migrations don't need Node installed. drizzle-kit#5122 is about bundling drizzle-kit into a compiled binary, not about running it. drizzle's PGlite migrator applies the generated folder inside `bun test`. Postgres errors keep their SQLSTATE through drizzle and PGlite (somewhere on the `cause` chain):
+
+| SQLSTATE | Meaning |
+|---|---|
+| 23505 | unique violation |
+| 22001 | value too long for varchar(n) |
+| 22P02 | invalid enum text |
+
+P5.7 therefore also maps 22001 to 422. Regression test: `packages/core/test/spikes/p1-5-pglite-migrate.test.ts`.
+
 ## D8: Own OpenAPI generator (2026-09-13)
 Walk the endpoint definitions and use `z.toJSONSchema` (draft 2020-12, which is OpenAPI 3.1). `@hono/zod-openapi` is rejected: it needs a hand-written spec per route and would bloat `routes.gen.ts`.
 
