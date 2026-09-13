@@ -14,7 +14,7 @@ export interface BelongsTo {
 }
 
 /** A model's single-column foreign keys, in the order of its constraints. */
-function foreignKeysOf(model: Model): BelongsTo[] {
+export function foreignKeysOf(model: Model): BelongsTo[] {
   const keys: BelongsTo[] = [];
   for (const constraint of Object.values(model.meta.constraints)) {
     const [column, ...more] = constraint.columns;

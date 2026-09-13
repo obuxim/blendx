@@ -203,9 +203,11 @@ describe('actions without a body', () => {
   });
 
   test("DR-INCLUDE: index and show take ?include=, the comma-separated names of the blend's includes", () => {
-    const options = { includes: ['user'] };
+    // Belongs-to (D28) and has-many (D31) names alike: the rule sees only the names.
+    const options = { includes: ['user', 'notes'] };
     const index = defaultRules(shop.orders, builtin('index'), options);
     expect(index.parse({ include: 'user,user' })).toEqual({ include: ['user'] });
+    expect(index.parse({ include: 'notes,user' })).toEqual({ include: ['notes', 'user'] });
     expect(issues(index, { include: 'customer' })).toEqual([{ code: 'custom', path: 'include' }]);
     const show = defaultRules(shop.orders, builtin('show'), options);
     expect(show.parse({ include: 'user' })).toEqual({ include: ['user'] });

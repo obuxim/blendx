@@ -150,6 +150,7 @@ describe('has-many includes (P16.11, D31)', () => {
       notes: {
         kind: 'hasMany',
         column: 'order_id',
+        key: 'id',
         target: notes,
         limit: 10,
         sort: { column: 'created_at', descending: true },

@@ -154,7 +154,59 @@ async function includedRows(
   return found;
 }
 
-/** The public record or page with each named relation nested, or null where there is none. */
+/**
+ * A has-many include's rows, by the parent key they point at (D31): one query for every
+ * parent, numbered per parent in the include's order by a window function and cut at its
+ * limit, live rows only. Each row goes through the target's show; a refused one is dropped.
+ */
+async function hasManyRows(
+  db: Db,
+  include: Extract<IncludedTarget, { kind: 'hasMany' }>,
+  rows: readonly Record<string, unknown>[],
+  auth: RegisteredAuth | null,
+): Promise<Map<unknown, unknown[]>> {
+  const { show, limit, sort } = include;
+  const { model } = show;
+  const found = new Map<unknown, unknown[]>();
+  const keys = [...new Set(rows.map((row) => row[include.key]))].filter(
+    (key) => key !== null && key !== undefined,
+  );
+  const columns = getColumns(model.table);
+  const foreignKey = columns[include.column];
+  const orderBy = columns[sort.column];
+  const primaryKey = model.meta.primaryKey ? columns[model.meta.primaryKey] : undefined;
+  if (keys.length === 0 || !foreignKey || !orderBy) return found;
+  const deletedAt = model.meta.softDelete ? columns[model.meta.softDelete] : undefined;
+  const byKey = inArray(foreignKey, keys);
+  const direction = sort.descending ? desc(orderBy) : asc(orderBy);
+  const ranked = db
+    .select({
+      ...columns,
+      rn: sql<number>`row_number() over (partition by ${foreignKey} order by ${direction}${
+        primaryKey ? sql`, ${primaryKey}` : sql``
+      })`.as('rn'),
+    })
+    .from(model.table as never)
+    .where(deletedAt ? and(byKey, isNull(deletedAt)) : byKey)
+    .as('ranked');
+  const targets = (await db
+    .select()
+    .from(ranked)
+    .where(sql`${ranked.rn} <= ${limit}`)
+    .orderBy(sql`${ranked.rn}`)) as Record<string, unknown>[];
+  const hidden = [...show.hidden, ...(show.revealed ?? [])];
+  for (const { rn: _rn, ...target } of targets) {
+    const allowed = await show.authorize({ auth, record: target, input: {} });
+    if (!allowed) continue;
+    const parent = target[include.column];
+    const list = found.get(parent) ?? [];
+    list.push(publicRow(target, hidden));
+    found.set(parent, list);
+  }
+  return found;
+}
+
+/** The public record or page with each named relation nested: a row or null, or an array. */
 async function withIncludes(
   db: Db,
   endpoint: ResolvedEndpoint,
@@ -170,15 +222,21 @@ async function withIncludes(
   for (const name of names) {
     const include = endpoint.included[name];
     if (include?.kind === 'hasMany') {
-      throw new Error(`${endpoint.id}: has-many includes are not served yet (P16.12)`);
+      nested.set(name, await hasManyRows(db, include, sources, auth));
+    } else if (include) {
+      nested.set(name, await includedRows(db, include, sources, auth));
     }
-    if (include) nested.set(name, await includedRows(db, include, sources, auth));
   }
   const nest = (row: unknown, source: Record<string, unknown> | undefined) => {
     if (!isObject(row) || !source) return row;
     const added = names.map((name) => {
-      const column = endpoint.included[name]?.column;
-      return [name, column ? (nested.get(name)?.get(source[column]) ?? null) : null] as const;
+      const include = endpoint.included[name];
+      if (!include) return [name, null] as const;
+      // D31: a has-many is looked up by the parent's key, and an empty one is [].
+      if (include.kind === 'hasMany') {
+        return [name, nested.get(name)?.get(source[include.key]) ?? []] as const;
+      }
+      return [name, nested.get(name)?.get(source[include.column]) ?? null] as const;
     });
     return { ...row, ...Object.fromEntries(added) };
   };

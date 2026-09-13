@@ -56,6 +56,20 @@ Tests:
 - [one query per relation, for the whole page](../core/test/engine-include.test.ts)
 - [respond receives the record with its includes](../core/test/engine-include.test.ts)
 
+A has-many include (docs/decisions.md D31) nests the live rows of the target whose foreign key points at each row, as an array, never null. They are loaded in one query for the whole reply, numbered per row in the include's order by a window function and cut at its limit, so a row gets at most `limit` of them; the order is the declared `sort`, else the target's primary key ascending, with the primary key as the tiebreaker. Each row goes through the target blend's show as a belongs-to row does, and loses the target's hidden columns; a row show refuses is dropped, and still counts against the limit.
+
+Tests:
+- [show nests the rows that point at it, at most its limit, in its order, without their hidden columns](../core/test/engine-include.test.ts)
+- [a row with none gets an empty array, never null](../core/test/engine-include.test.ts)
+- [every row of an index page gets its own rows, and a belongs-to beside it](../core/test/engine-include.test.ts)
+- [without a sort, the rows come in the order of the target's primary key](../core/test/engine-include.test.ts)
+- [a row the target's show refuses is dropped, and still counts against the limit](../core/test/engine-include.test.ts)
+- [the target's policy decides each row: anonymous sees none, an owner theirs](../core/test/engine-include.test.ts)
+- [soft-deleted rows are left out](../core/test/engine-include.test.ts)
+- [one query per relation, for the whole page](../core/test/engine-include.test.ts)
+- [respond receives the record with its rows](../core/test/engine-include.test.ts)
+- [each row gets at most the limit, in the declared order](../core/test/engine-include.pg.test.ts)
+
 ## The order of failures
 
 A request stops at the first stage that fails, so the statuses come in a fixed order:

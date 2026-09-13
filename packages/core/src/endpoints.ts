@@ -14,18 +14,20 @@ import { type HasManySpec, isHasMany } from './blend.ts';
 import type { ReplyDeclaration } from './hooks.ts';
 import type { Model } from './model.ts';
 import type { Policy } from './policy.ts';
-import { foreignKeysTo, relationsOf } from './relations.ts';
+import { foreignKeysOf, foreignKeysTo, relationsOf } from './relations.ts';
 
 /**
  * What `?include=<name>` nests, as the engine and the generators read it: a belongs-to (D28),
  * the row the foreign key `column` of this table points to; or a has-many (D31), the rows of
- * the target whose `column` points here, at most `limit` per row, in `sort` order.
+ * the target whose `column` points at this table's `key`, at most `limit` per row, in `sort`
+ * order.
  */
 export type IncludeDefinition =
   | { readonly kind: 'belongsTo'; readonly column: string; readonly target: Resource }
   | {
       readonly kind: 'hasMany';
       readonly column: string;
+      readonly key: string;
       readonly target: Resource;
       readonly limit: number;
       readonly sort: { readonly column: string; readonly descending: boolean };
@@ -40,6 +42,10 @@ export function resolveIncludes(resource: Resource): Readonly<Record<string, Inc
         if (isHasMany(value)) {
           const { blend: target, by, limit, sort } = value as HasManySpec;
           const column = by ?? foreignKeysTo(target.model, resource.model.name)[0] ?? '';
+          const key =
+            foreignKeysOf(target.model).find((fk) => fk.column === column)?.key ??
+            resource.model.meta.primaryKey ??
+            '';
           const descending = sort?.startsWith('-') ?? false;
           const orderBy = sort ? sort.replace(/^-/, '') : (target.model.meta.primaryKey ?? '');
           return [
@@ -47,6 +53,7 @@ export function resolveIncludes(resource: Resource): Readonly<Record<string, Inc
             Object.freeze({
               kind: 'hasMany',
               column,
+              key,
               target,
               limit,
               sort: Object.freeze({ column: orderBy, descending }),
