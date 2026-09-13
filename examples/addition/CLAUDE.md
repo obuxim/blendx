@@ -29,7 +29,7 @@ Done means `bunx blendx generate --check`, `bunx blendx review --check`, `bunx t
 
 ## Add a table
 
-1. Add the table to `schema.dbml`. Name it in snake_case. `id int [pk, increment]`, `created_at`, `updated_at` and a nullable `deleted_at timestamp` (soft delete) are recognised by name.
+1. Add the table to `schema.dbml`. Name it in snake_case. `id int [pk, increment]`, `created_at`, `updated_at` and a nullable `deleted_at timestamp` (soft delete) are recognised by name. The DBML blendx accepts is listed in `packages/spec/dbml.md` in the blendx repository.
 2. `bunx blendx generate`, then `bunx blendx migrate generate --name add_<table>`.
 3. Write `blends/<table>.ts`. The file name is the table name:
 

@@ -57,7 +57,7 @@ function integerArgs(raw: string | undefined): number[] | undefined {
 }
 
 /**
- * Maps a DBML column type name (verbatim from @dbml/core, arguments included) to the IR.
+ * Maps a DBML column type name (as written in schema.dbml, arguments included) to the IR.
  * Returns undefined when blendx does not support the type; the caller reports it.
  */
 export function mapColumnType(

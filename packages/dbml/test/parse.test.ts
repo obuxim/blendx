@@ -128,8 +128,8 @@ describe('parseDbml', () => {
     const error = await parseDbml('Table broken {\n  id int [pk\n}').catch((e: unknown) => e);
     expect(error).toBeInstanceOf(DbmlError);
     expect((error as DbmlError).diagnostics).toEqual([
-      { message: 'Expect an identifier', line: 3, column: 1 },
+      { message: 'expected "," or "]" but found "}"', line: 3, column: 1 },
     ]);
-    expect((error as DbmlError).message).toBe('schema.dbml:3:1 Expect an identifier');
+    expect((error as DbmlError).message).toBe('schema.dbml:3:1 expected "," or "]" but found "}"');
   });
 });

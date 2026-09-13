@@ -12,7 +12,7 @@ TypeScript · Bun (runtime, test runner, workspaces) · Hono (+ RPC) · Drizzle 
 **Consequence:** DBML can't express hidden fields or exposure. Those live in blends.
 
 ### D2 note: P1.4 spike result (2026-09-13)
-We keep @dbml/core 10.1.1. Under Bun a process that imports it never exits (oven-sh/bun#42512): VS Code code bundled in @dbml/parse adds a `message` listener to globalThis. `loadDbmlCore()` hides `postMessage` during the import, and `test/bun-42512.test.ts` fails once Bun fixes it. Behavior the adapter must handle (snapshot: `packages/dbml/test/spikes/__snapshots__/`):
+(Superseded by D21: blendx parses DBML itself.) We keep @dbml/core 10.1.1. Under Bun a process that imports it never exits (oven-sh/bun#42512): VS Code code bundled in @dbml/parse adds a `message` listener to globalThis. `loadDbmlCore()` hides `postMessage` during the import, and `test/bun-42512.test.ts` fails once Bun fixes it. Behavior the adapter must handle (snapshot: `packages/dbml/test/spikes/__snapshots__/`):
 
 - **PK columns:** they report `not_null: undefined`, so treat pk as not null. Absent settings are `undefined`, not `false`.
 - **Type names:** `type_name` is verbatim and includes its arguments (`varchar(255)` with `args: '255'`, `numeric(10,2)` with `args: '10,2'`). Arrays appear as `text[]`, and `double` stays `double`. Enum columns carry the enum name as the type plus an `_enum` link.
@@ -142,7 +142,7 @@ Composite PKs, `?include=` relations, force-delete, PUT, and a post-commit side-
 ## D11: P1 spikes confirm the plan, with amendments (2026-09-13)
 All seven spikes passed and stay as regression tests (`packages/*/test/spikes/`). D1, D3, D8, D9 and D10 stand as written. These amendments supersede the original text:
 
-- **D2:** `@dbml/core` is loaded only through `loadDbmlCore()` (workaround for oven-sh/bun#42512, tracked by `packages/dbml/test/bun-42512.test.ts`).
+- **D2:** (removed by D21) `@dbml/core` is loaded only through `loadDbmlCore()` (workaround for oven-sh/bun#42512, tracked by `packages/dbml/test/bun-42512.test.ts`).
 - **D4:** the Postgres error mapping also sends 22001 (value too long) to 422: 23505 → 409; 23503, 23502, 22P02 and 22001 → 422.
 - **D5:** `@typescript/typescript6` is a dev dependency of `@blendx/cli` for the spike. It becomes a runtime dependency when the review step lands (P10.2).
 - **D6:** the portability gate includes `types/portable-globals.d.ts` (type-only `Buffer`) so drizzle-zod types stay precise.
@@ -188,6 +188,15 @@ One generic call per action infers correctly in every case tested:
 - Custom actions are `a.member(name, spec)` and `a.collection(name, spec)`.
 - When `rules` is omitted, TS falls back to the type parameter's constraint, not to a generic default. The types therefore swap in the action's defaults with a conditional (`Resolved<S, Defaults>`).
 - Inside one spec, `rules` still comes before `calculate`.
+
+## D21: blendx parses DBML itself (2026-09-13)
+@dbml/core is replaced by `packages/dbml/src/parser.ts`, a lexer and recursive-descent parser for the DBML blendx accepts (`packages/spec/dbml.md`). @dbml/core bundled VS Code platform code into every app's toolchain, and under Bun that code kept the process alive (oven-sh/bun#42512), which took a workaround and a special way of loading it. blendx reads a small part of DBML, so owning the parser is less than carrying that, and its errors can name blendx's own rules.
+
+- Kept: the schema IR and every message blendx reported before. The kitchen-sink snapshot of the IR is unchanged.
+- Checked: before the swap, the new parser tests ran against @dbml/core. Every test of accepted syntax passed there too, so the two parsers agree on what both accept.
+- New in the parser: unknown tables and columns in refs and indexes, and a table, column, enum value or ref defined twice. @dbml/core's binder caught these; now blendx does, pointing at the name. Problems are listed in source order.
+- Changed: syntax errors are worded by blendx (`expected "," or "]" but found "}"`). `default: 'null'` is now the string `null`; @dbml/core read it as SQL null.
+- Removed: `loadDbmlCore()` and its Bun workaround, the test tracking the Bun bug, and the P1.4 spike with its snapshot of @dbml/core's model.
 
 ## D20: Drizzle 1.0.0-rc.4 now, without waiting for the release (2026-09-13)
 Replaces D19's wait. Waiting for 1.0.0 only moves a breaking upgrade onto a later, larger codebase, and with exact pins a release candidate cannot change under us. The pins are drizzle-orm 1.0.0-rc.4 and drizzle-kit 1.0.0-rc.4; drizzle-zod is dropped for `drizzle-orm/zod`. Moving on to 1.0.0, or to a later rc, is a pin change like any other: an entry here and the whole matrix.

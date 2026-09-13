@@ -1,8 +1,8 @@
 /**
  * Schema IR: the typed model of schema.dbml that every generator reads.
  *
- * packages/dbml builds it from @dbml/core's loosely typed model (P2.2), so nothing past
- * this package ever sees DBML-specific shapes. Names are kept verbatim (snake_case).
+ * packages/dbml builds it with its own DBML parser (parser.ts, D21), so nothing past this
+ * package ever sees DBML-specific shapes. Names are kept verbatim (snake_case).
  */
 
 export type ColumnType =
