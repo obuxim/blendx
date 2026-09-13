@@ -8,6 +8,7 @@ The file is generated. A header comment says so, and says that an edit is a fix 
 
 - `format: 1`, `resource` (the table), `source` (the blend file) and `hidden` (the hidden columns, when there are any).
 - `record`: the fields of a record in a reply, one line each, hidden columns removed. For example `created_at: string, or null`.
+- `includes`, when the blend declares any (docs/decisions.md D28): each relation `?include=` may nest, with its table and the policy of the target's show, which decides each row. For example `user: users, through its show: signed-in users`.
 - `actions`, in route order, each with:
   - `route`: `POST /addition_results`.
   - `input`, when the action takes any: one line per field, described from the resolved rules. For example `a: number` or `status: one of pending, paid, refunded, optional`.
@@ -36,6 +37,8 @@ Tests:
 - [after is listed where a hook sets it, between save and respond (D26)](../cli/test/emit-review.test.ts)
 - [later is listed only where a hook sets it, with its levels](../core/test/review.test.ts)
 - [later is listed where a hook sets it, between save and after (D27)](../cli/test/emit-review.test.ts)
+- [a resource's includes name each relation's table and the policy of its show](../core/test/review.test.ts)
+- [a resource's includes follow its record (D28)](../cli/test/emit-review.test.ts)
 - [an index scope yields its source and the columns it scopes by (D22)](../cli/test/calculates.test.ts)
 - [writes one file per blend](../cli/test/review.test.ts)
 - [--check: an edited file and a file without a blend drift; nothing is written](../cli/test/review.test.ts)

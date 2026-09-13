@@ -116,12 +116,20 @@ function replies(endpoint: EndpointDefinition, warnings: string[]): JsonObject {
     },
   });
   // D24: a reply that reveals hidden columns is the record and those, not the component.
-  const record = endpoint.revealed
-    ? markDates(
-        toJsonSchema(recordSchema(endpoint.model, endpoint.hidden), 'output'),
-        endpoint.model,
-      )
-    : ref(endpoint.resource);
+  // D28: index and show with includes add each include's record, or null.
+  const includes = Object.entries(endpoint.includes ?? {});
+  let record: JsonObject = ref(endpoint.resource);
+  if (endpoint.revealed || includes.length > 0) {
+    const own = markDates(
+      toJsonSchema(recordSchema(endpoint.model, endpoint.hidden), 'output'),
+      endpoint.model,
+    );
+    const nested = includes.map(([name, { target }]) => [
+      name,
+      { anyOf: [ref(target.model.name), { type: 'null' }] },
+    ]);
+    record = { ...own, properties: { ...propertiesOf(own), ...Object.fromEntries(nested) } };
+  }
 
   if (endpoint.reply) {
     const status = endpoint.reply.status ?? defaultStatus(endpoint);
@@ -185,6 +193,13 @@ export function buildOpenApi({ app, resources, info }: OpenApiOptions): OpenApiR
     const { model } = resource;
     const record = markDates(toJsonSchema(recordSchema(model, resource.hidden), 'output'), model);
     schemas[model.name] = record;
+    // D28: the record an include points to has a component, even without a blend of its own here.
+    for (const target of Object.values(resource.includes ?? {}) as Resource[]) {
+      schemas[target.model.name] ??= markDates(
+        toJsonSchema(recordSchema(target.model, target.hidden), 'output'),
+        target.model,
+      );
+    }
     const idSchema = (model.meta.primaryKey && propertiesOf(record)[model.meta.primaryKey]) || {
       type: 'string',
     };

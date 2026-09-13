@@ -112,6 +112,7 @@ export function emitReview({
     source,
     ...(review.hidden.length > 0 ? { hidden: [...review.hidden] } : {}),
     record: review.record,
+    ...(review.includes ? { includes: review.includes } : {}),
     actions: Object.fromEntries(actions),
   });
   doc.commentBefore = HEADER;

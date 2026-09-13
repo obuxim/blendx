@@ -326,7 +326,134 @@
                   "properties": {
                     "data": {
                       "items": {
-                        "$ref": "#/components/schemas/orders"
+                        "additionalProperties": false,
+                        "properties": {
+                          "created_at": {
+                            "type": "string"
+                          },
+                          "deleted_at": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "id": {
+                            "maximum": 9007199254740991,
+                            "minimum": -9007199254740991,
+                            "type": "integer"
+                          },
+                          "meta": {
+                            "anyOf": [
+                              {
+                                "anyOf": [
+                                  {
+                                    "type": [
+                                      "string",
+                                      "number",
+                                      "boolean",
+                                      "null"
+                                    ]
+                                  },
+                                  {
+                                    "additionalProperties": {},
+                                    "propertyNames": {
+                                      "type": "string"
+                                    },
+                                    "type": "object"
+                                  },
+                                  {
+                                    "items": {},
+                                    "type": "array"
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "placed_on": {
+                            "format": "date",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "public_id": {
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                            "type": "string"
+                          },
+                          "quantity": {
+                            "maximum": 2147483647,
+                            "minimum": -2147483648,
+                            "type": "integer"
+                          },
+                          "status": {
+                            "enum": [
+                              "pending",
+                              "paid",
+                              "refunded"
+                            ],
+                            "type": "string"
+                          },
+                          "tags": {
+                            "anyOf": [
+                              {
+                                "items": {
+                                  "type": "string"
+                                },
+                                "type": "array"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "total": {
+                            "type": "string"
+                          },
+                          "updated_at": {
+                            "type": "string"
+                          },
+                          "user": {
+                            "anyOf": [
+                              {
+                                "$ref": "#/components/schemas/users"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "user_id": {
+                            "maximum": 2147483647,
+                            "minimum": -2147483648,
+                            "type": "integer"
+                          },
+                          "weight": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "user_id",
+                          "status",
+                          "total",
+                          "quantity",
+                          "tags",
+                          "meta",
+                          "public_id",
+                          "placed_on",
+                          "weight",
+                          "created_at",
+                          "updated_at",
+                          "deleted_at"
+                        ],
+                        "type": "object"
                       },
                       "type": "array"
                     },
@@ -700,7 +827,134 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/orders"
+                  "additionalProperties": false,
+                  "properties": {
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "deleted_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "id": {
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
+                    },
+                    "meta": {
+                      "anyOf": [
+                        {
+                          "anyOf": [
+                            {
+                              "type": [
+                                "string",
+                                "number",
+                                "boolean",
+                                "null"
+                              ]
+                            },
+                            {
+                              "additionalProperties": {},
+                              "propertyNames": {
+                                "type": "string"
+                              },
+                              "type": "object"
+                            },
+                            {
+                              "items": {},
+                              "type": "array"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "placed_on": {
+                      "format": "date",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "public_id": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "type": "string"
+                    },
+                    "quantity": {
+                      "maximum": 2147483647,
+                      "minimum": -2147483648,
+                      "type": "integer"
+                    },
+                    "status": {
+                      "enum": [
+                        "pending",
+                        "paid",
+                        "refunded"
+                      ],
+                      "type": "string"
+                    },
+                    "tags": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "total": {
+                      "type": "string"
+                    },
+                    "updated_at": {
+                      "type": "string"
+                    },
+                    "user": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/components/schemas/users"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "user_id": {
+                      "maximum": 2147483647,
+                      "minimum": -2147483648,
+                      "type": "integer"
+                    },
+                    "weight": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "user_id",
+                    "status",
+                    "total",
+                    "quantity",
+                    "tags",
+                    "meta",
+                    "public_id",
+                    "placed_on",
+                    "weight",
+                    "created_at",
+                    "updated_at",
+                    "deleted_at"
+                  ],
+                  "type": "object"
                 }
               }
             },

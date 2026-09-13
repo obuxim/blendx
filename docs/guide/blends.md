@@ -152,6 +152,24 @@ actions: (a) => [a.store({ rules: ..., reveal: ['api_token'] }), a.show()],
 
 `reveal` is for actions that reply with one record: store, show, update, restore and member actions. It names only hidden columns, and index, destroy and collection actions take none, so no page ever carries the column. The action's reply type and its OpenAPI schema include what it reveals, and the review lists it under the action as `reveals` (docs/decisions.md D24).
 
+## Includes
+
+A blend may let index and show nest the row a foreign key points to. From the conformance fixture's [orders](../../packages/conformance/fixtures/shop/blends/orders.ts):
+
+```ts
+import users from './users.ts';
+
+export default blend(models.orders, {
+  policy: { ... },
+  includes: { user: users },
+  actions: (a) => [a.index({ trashed: true }), a.store(), a.show(), ...],
+});
+```
+
+`GET /orders?include=user` then gives every order its `user`, the row `user_id` points to ([The HTTP API](http.md#includes)). A relation is named after its foreign key column without `_id`, so `user_id` gives `user`, and only single-column foreign keys ending in `_id` are relations. The types refuse a name that is not a relation of the table, and a blend of another table than the one it points to.
+
+Each included row goes through the target blend's show, as `GET /users/:id` would for the same requester: its policy and authorize hooks decide row by row, and its hidden columns are left out. A row that show would refuse or not find, such as a soft-deleted one, is `null`. So the target must expose show, and its show may not have a load hook. This first version includes belongs-to relations, one level deep; two blends cannot include each other, because their files would import each other (docs/decisions.md D28).
+
 ## Declaring a reply
 
 blendx describes every default reply in OpenAPI and in the review file. There are two replies it cannot derive: a collection action's result, and a body that a respond hook builds. Declare them with `reply`:
@@ -166,6 +184,7 @@ The declaration is type-checked against what the action sends: the keys must mat
 `blend()` checks a definition when its file is imported, so `blendx generate`, the tests and the server all stop at once with `blend(<table>): ...`:
 
 - an action listed twice;
+- an include that is not a relation of the table, is not a blend of the table it points to, points to a blend without show or whose show has a load hook, or has the name of a column;
 - an action without a policy, or a policy for an action that is not listed;
 - a hidden column that is not a column;
 - a custom action that reuses a built-in name, has a name that is not lowercase letters, digits and `_`, or has an invalid path;

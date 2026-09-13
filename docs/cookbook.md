@@ -1,6 +1,6 @@
 # Blend cookbook
 
-Twelve patterns that cover most of what a blend ever says. Each shows only what differs from the defaults; everything left out is derived from the schema. Every pattern links to the test that pins its behaviour.
+Thirteen patterns that cover most of what a blend ever says. Each shows only what differs from the defaults; everything left out is derived from the schema. Every pattern links to the test that pins its behaviour.
 
 The examples use the `shop` tables: `users` (with a `password`), and `orders` (with a `user_id` and soft delete). Every snippet also compiles, with a typed identity, in [the cookbook, compiled](../packages/core/test/register/cookbook.types.test.ts).
 
@@ -185,3 +185,21 @@ A `later` hook does not run in the request. The write leaves an outbox entry in 
 - [a write leaves one outbox entry per level, with the hook's context as JSON](../packages/core/test/later.test.ts)
 - [a failing entry is reported, keeps its last error, and runs again once its delay has passed](../packages/core/test/outbox-worker.test.ts)
 - [an entry a stopped worker held runs again once its lease ends](../packages/core/test/outbox-worker.test.ts)
+
+## 13. Nest a related row
+
+```ts
+import users from './users.ts';
+
+export default blend(models.orders, {
+  policy: { default: allow.owner('user_id'), index: allow.public },
+  includes: { user: users },
+  actions: (a) => [a.index(), a.show()],
+});
+```
+
+`GET /orders?include=user` gives every order its `user`, the row `user_id` points to: a relation is named after its foreign key column without `_id`. Each nested row is what the users blend's show would reply to the same requester, hidden columns removed, or `null` where it would refuse or find nothing. The target must expose show, and two blends cannot include each other.
+
+- [show nests the row its foreign key points to, without its hidden columns](../packages/core/test/engine-include.test.ts)
+- [each included row goes through the target's show: a row it refuses is null](../packages/core/test/engine-include.test.ts)
+- [one query per relation, for the whole page](../packages/core/test/engine-include.test.ts)

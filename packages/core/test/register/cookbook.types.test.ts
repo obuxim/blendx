@@ -17,6 +17,13 @@ declare const payments: {
   refund(orderId: number, options: { idempotencyKey: string }): Promise<void>;
 };
 
+/** Pattern 13's target: the users blend, with a show that decides who sees each user. */
+const users = blend(models.users, {
+  policy: allow.authenticated,
+  hidden: ['password'],
+  actions: (a) => [a.show()],
+});
+
 test('the cookbook, compiled', () => {
   const patterns = [
     // 1. Expose a table read-only, hiding a column
@@ -124,8 +131,14 @@ test('the cookbook, compiled', () => {
         }),
       ],
     }),
+    // 13. Nest a related row
+    blend(models.orders, {
+      policy: { default: allow.owner('user_id'), index: allow.public },
+      includes: { user: users },
+      actions: (a) => [a.index(), a.show()],
+    }),
   ];
-  // Patterns 4 to 7 share one orders blend: nine blends for twelve patterns.
-  expect(patterns).toHaveLength(9);
+  // Patterns 4 to 7 share one orders blend: ten blends for thirteen patterns.
+  expect(patterns).toHaveLength(10);
   expect(patterns.every((pattern) => pattern.kind === 'blendx/resource')).toBe(true);
 });

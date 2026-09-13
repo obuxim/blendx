@@ -201,6 +201,27 @@ describe('after in the review (D26)', () => {
   });
 });
 
+describe('includes in the review (D28)', () => {
+  test("a resource's includes name each relation's table and the policy of its show", () => {
+    const users = blend(shop.users, {
+      policy: allow.authenticated,
+      hidden: ['password'],
+      actions: (a) => [a.show()],
+    });
+    const orders = blend(shop.orders, {
+      policy: allow.public,
+      includes: { user: users },
+      actions: (a) => [a.index(), a.show()],
+    });
+    const review = reviewResource(orders, defineApp({}));
+    expect(review.includes).toEqual({
+      user: `users, through its show: ${users.policies.show?.description}`,
+    });
+    expect(review.actions.find((a) => a.name === 'show')?.input).toHaveProperty('include');
+    expect(reviewResource(users, defineApp({}))).not.toHaveProperty('includes');
+  });
+});
+
 describe('later in the review (D27)', () => {
   test('later is listed only where a hook sets it, with its levels', () => {
     const orders = blend(shop.orders, {

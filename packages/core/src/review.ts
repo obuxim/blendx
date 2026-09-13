@@ -62,6 +62,8 @@ export interface ResourceReview {
   readonly hidden: readonly string[];
   /** The fields of a record in a reply, hidden columns removed. */
   readonly record: Readonly<Record<string, string>>;
+  /** What `?include=` may nest (D28): each relation's table, and the policy of its show. */
+  readonly includes?: Readonly<Record<string, string>>;
   readonly actions: readonly ActionReview[];
 }
 
@@ -228,11 +230,18 @@ export function reviewResource(resource: Resource, app: App): ResourceReview {
       reply: replyOf(definition),
     });
   });
+  // D28: what ?include= may nest, and who sees each row: the policy of the target's show.
+  const includes = Object.entries(resource.includes ?? {}).map(([name, value]) => {
+    const target = value as Resource;
+    const policy = target.policies.show?.description ?? 'no show';
+    return [name, `${target.model.name}, through its show: ${policy}`] as const;
+  });
   return Object.freeze({
     format: 1,
     resource: resource.model.name,
     hidden: Object.freeze([...resource.hidden]),
     record,
+    ...(includes.length > 0 ? { includes: Object.freeze(Object.fromEntries(includes)) } : {}),
     actions: Object.freeze(actions),
   });
 }

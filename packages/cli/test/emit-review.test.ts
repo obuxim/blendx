@@ -137,6 +137,28 @@ describe('emitReview', () => {
     expect(actions.show.stages).not.toHaveProperty('after');
   });
 
+  test("a resource's includes follow its record (D28)", () => {
+    const users = blend(shop.users, {
+      policy: allow.public,
+      hidden: ['password'],
+      actions: (a) => [a.show()],
+    });
+    const orders = blend(shop.orders, {
+      policy: allow.public,
+      includes: { user: users },
+      actions: (a) => [a.show()],
+    });
+    const parsed = parse(
+      emitReview({ review: reviewResource(orders, defineApp({})), source: 'blends/orders.ts' }),
+    );
+    expect(Object.keys(parsed)).toEqual([
+      ...['format', 'resource', 'source', 'record', 'includes', 'actions'],
+    ]);
+    expect(parsed.includes).toEqual({
+      user: `users, through its show: ${users.policies.show?.description}`,
+    });
+  });
+
   test('later is listed where a hook sets it, between save and after (D27)', () => {
     const orders = blend(shop.orders, {
       policy: allow.public,

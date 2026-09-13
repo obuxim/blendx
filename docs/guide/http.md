@@ -67,8 +67,28 @@ The query parameters:
 | `sort` | a filterable column, or `-column` for descending; the primary key, ascending, by default |
 | a column | an exact match, for primary key, unique, foreign key and indexed columns: `?status=submitted` |
 | `trashed` | `with` or `only`, when the blend enables it ([index options](blends.md#index-options)) |
+| `include` | relations to nest, comma-separated, such as `user`, when the blend declares includes ([Includes](#includes)) |
 
 Soft-deleted rows are left out unless `trashed` says otherwise. Hidden columns can neither filter nor sort. Any other parameter is refused with 422. An index with a `scope` lists only the rows in it: in the expenses API, a claimant lists only their own claims, and asking for someone else's (`?user_id=2`) answers an empty page.
+
+## Includes
+
+A blend may let index and show nest the row a foreign key points to ([Blends](blends.md#includes)). In the conformance fixture, whose orders include their user, `GET /orders/1?include=user` from Ada answers:
+
+```json
+{
+  "id": 1,
+  "user_id": 1,
+  "status": "paid",
+  "...": "...",
+  "user": { "id": 1, "email": "ada@example.com", "display_name": "Ada", "...": "..." }
+}
+```
+
+- `include` takes the comma-separated names the blend declares; any other name is refused with 422, naming the parameter. show takes it too, as its only query parameter.
+- An included row is what `GET /users/1` would answer the same requester: its hidden columns are left out, and a row that request would refuse or not find, such as a soft-deleted one, is `null`. Asked without an identity, the fixture's `user` is `null`, since its users need a signed-in requester.
+- On index, every row of the page gets its own, and each relation's rows are loaded in one query.
+- `AppType`, the React client and OpenAPI give each include as an optional, nullable field.
 
 ## Errors
 
