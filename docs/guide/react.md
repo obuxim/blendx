@@ -99,6 +99,35 @@ const options = {
 };
 ```
 
+## Pages
+
+An index replies with one page, `{ data, meta: { page, per_page, total } }`, and takes `page` and `per_page` in its query ([The HTTP API](http.md#listing)). There are two ways to show more than one.
+
+### Infinite scroll
+
+Every index also has `infiniteQueryOptions(input)`, the same listing page by page, for `useInfiniteQuery`, `useSuspenseInfiniteQuery` and `queryClient.fetchInfiniteQuery`. Its input is index's without `page`: the first page is 1, and `fetchNextPage` asks for the next one while the pages seen so far do not reach `total`. From the tests:
+
+```ts
+const options = apiFor().orders.index.infiniteQueryOptions({ query: { per_page: '2' } });
+```
+
+```ts
+while (observer.getCurrentResult().hasNextPage) await observer.fetchNextPage();
+```
+
+- The data is TanStack's `InfiniteData`: `pages`, each a reply of index, and `pageParams`, the page numbers. A list is `data.pages.flatMap((page) => page.data)`.
+- Its key is the plain query's with `'infinite'` added, `['orders', 'index', input, 'infinite']`: TanStack says not to share a key between a query and an infinite query, and the `[table]` prefix keeps it under the table, so a mutation invalidates it as it does any other query, every loaded page refetched. An include it asked for is followed too.
+
+### Numbered pages
+
+For a pager, keep the plain query and put the page in its input: `api.orders.index.queryOptions({ query: { page: String(page) } })`. Each page is a query of its own, so moving to a page that is not cached shows nothing until it arrives; TanStack's `placeholderData: keepPreviousData`, spread over the options, keeps the last page on screen meanwhile:
+
+```ts
+useQuery({ ...api.orders.index.queryOptions({ query: { page: String(page) } }), placeholderData: keepPreviousData });
+```
+
+Both ways page by offset. In a list sorted newest first, a row inserted while the reader is on page 1 pushes the others down, so page 2 repeats the last row of page 1; a row removed skips one. A list sorted oldest first, or by a value that does not move, has neither.
+
 ## Errors
 
 A reply that is not a success rejects with a `ProblemDetailsError`, exported by `@blendx/react`. It has the reply's `status`, its `problem` (the Problem Details of [the HTTP API](http.md#errors)) and a `message`, the problem's `detail` or else its `title`. A reply without Problem Details, such as a proxy's 502, gets one made from its status: `{ type: 'about:blank', title: 'Bad Gateway', status: 502 }`. A request that never gets a reply rejects with `fetch`'s own error.

@@ -6,7 +6,12 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { MutationObserver, QueryClient, QueryObserver } from '@tanstack/react-query';
+import {
+  InfiniteQueryObserver,
+  MutationObserver,
+  QueryClient,
+  QueryObserver,
+} from '@tanstack/react-query';
 import { createDatabase, createServer, type Database } from 'blendx';
 import { hc } from 'blendx/client';
 import { sql } from 'blendx/drizzle';
@@ -57,7 +62,11 @@ describe('createBlendxClient', () => {
     const api = apiFor();
     expect(Object.keys(api)).toEqual(Object.keys(tables));
     expect(Object.keys(api.orders)).toEqual(Object.keys(tables.orders.actions));
-    expect(Object.keys(api.orders.index)).toEqual(['queryOptions', 'fieldErrors']);
+    expect(Object.keys(api.orders.index)).toEqual([
+      'queryOptions',
+      'infiniteQueryOptions',
+      'fieldErrors',
+    ]);
     expect(Object.keys(api.orders.quote)).toEqual(['queryOptions', 'fieldErrors']);
     expect(Object.keys(api.orders.store)).toEqual(['mutationOptions', 'fieldErrors']);
     expect(Object.keys(api.orders.refund)).toEqual(['mutationOptions', 'fieldErrors']);
@@ -283,6 +292,108 @@ describe('invalidation (N.2)', () => {
     });
     expect(succeeded).toBe(true);
     expect(invalidated(client, index.queryKey)).toBe(true);
+  });
+});
+
+describe('infinite index (N.9)', () => {
+  const freshClient = () =>
+    new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Number.POSITIVE_INFINITY } },
+    });
+  const invalidated = (client: QueryClient, queryKey: readonly unknown[]) =>
+    client.getQueryState(queryKey)?.isInvalidated;
+
+  /** Enough orders for three pages of two, placed by user 2. */
+  async function atLeast(count: number) {
+    const api = apiFor(2);
+    const client = queryClient();
+    let { total } = (await client.fetchQuery(api.orders.index.queryOptions())).meta;
+    const store = new MutationObserver(client, api.orders.store.mutationOptions());
+    while (total < count) {
+      await store.mutate({ json: { user_id: 2, total: '2.00' } });
+      total += 1;
+    }
+    return total;
+  }
+
+  test("its key is the plain query's, marked, so the two never share one", () => {
+    const options = apiFor().orders.index.infiniteQueryOptions({ query: { per_page: '2' } });
+    expect([...options.queryKey]).toEqual([
+      'orders',
+      'index',
+      { query: { per_page: '2' } },
+      'infinite',
+    ]);
+    expect([...apiFor().orders.index.infiniteQueryOptions().queryKey]).toEqual([
+      'orders',
+      'index',
+      {},
+      'infinite',
+    ]);
+  });
+
+  test('pages are fetched up to the total, and none after', async () => {
+    const total = await atLeast(5);
+    const client = freshClient();
+    const options = apiFor().orders.index.infiniteQueryOptions({ query: { per_page: '2' } });
+    const first = await client.fetchInfiniteQuery(options);
+    expect(first.pages).toHaveLength(1);
+    expect(first.pages[0]?.meta).toEqual({ page: 1, per_page: 2, total });
+
+    const observer = new InfiniteQueryObserver(client, options);
+    const unsubscribe = observer.subscribe(() => {});
+    try {
+      while (observer.getCurrentResult().hasNextPage) await observer.fetchNextPage();
+      const { data } = observer.getCurrentResult();
+      const pages = Math.ceil(total / 2);
+      expect(data?.pages).toHaveLength(pages);
+      expect(data?.pageParams).toEqual(Array.from({ length: pages }, (_, i) => i + 1));
+      const ids = data?.pages.flatMap((page) => page.data.map((row) => row.id)) ?? [];
+      expect(ids).toHaveLength(total);
+      expect(new Set(ids).size).toBe(total);
+      // No next page: fetchNextPage fetches nothing more.
+      await observer.fetchNextPage();
+      expect(observer.getCurrentResult().data?.pages).toHaveLength(pages);
+    } finally {
+      unsubscribe();
+    }
+  });
+
+  test('a mutation refetches every loaded page before it resolves', async () => {
+    const total = await atLeast(3);
+    const client = freshClient();
+    const api = apiFor(2);
+    const options = api.orders.index.infiniteQueryOptions({ query: { per_page: '2' } });
+    await client.fetchInfiniteQuery(options);
+    const observer = new InfiniteQueryObserver(client, options);
+    const unsubscribe = observer.subscribe(() => {});
+    try {
+      await observer.fetchNextPage();
+      expect(observer.getCurrentResult().data?.pages).toHaveLength(2);
+      await new MutationObserver(client, api.orders.store.mutationOptions()).mutate({
+        json: { user_id: 2, total: '2.00' },
+      });
+      const { data } = observer.getCurrentResult();
+      expect(data?.pages).toHaveLength(2);
+      expect(data?.pages.map((page) => page.meta.total)).toEqual([total + 1, total + 1]);
+    } finally {
+      unsubscribe();
+    }
+  });
+
+  test('an infinite query that includes a table is invalidated by a write to it (N.8)', async () => {
+    const client = freshClient();
+    const api = apiFor(1);
+    const withUser = api.orders.index.infiniteQueryOptions({ query: { include: 'user' } });
+    const plain = api.orders.index.infiniteQueryOptions();
+    await client.fetchInfiniteQuery(withUser);
+    await client.fetchInfiniteQuery(plain);
+    await new MutationObserver(client, api.users.update.mutationOptions()).mutate({
+      param: { id: '1' },
+      json: { display_name: 'Ada' },
+    });
+    expect(invalidated(client, withUser.queryKey)).toBe(true);
+    expect(invalidated(client, plain.queryKey)).toBe(false);
   });
 });
 

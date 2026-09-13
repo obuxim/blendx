@@ -7,14 +7,16 @@
  *   useQuery(api.orders.show.queryOptions({ param: { id: '1' } }));
  *   useMutation(api.orders.store.mutationOptions());
  *
- * A GET action gives queryOptions, any other method mutationOptions. Both resolve to the
- * body of the action's success reply (null for a 204), and reject with a ProblemDetailsError
- * for any other reply. A mutation that succeeds invalidates every query of its table, and of
+ * A GET action gives queryOptions, any other method mutationOptions, and index also gives
+ * infiniteQueryOptions, the same listing page by page (N.9). All resolve to the body of the
+ * action's success reply (null for a 204), and reject with a ProblemDetailsError for any
+ * other reply. A mutation that succeeds invalidates every query of its table, and of
  * the tables it names (D25 note, N.2), and the queries of other tables that included one of
  * those (N.8). Every action's fieldErrors(error) turns a refusal into the first problem with
  * each field of its input, for a form to show (N.3).
  */
 import {
+  infiniteQueryOptions,
   mutationOptions,
   type QueryClient,
   type QueryKey,
@@ -141,10 +143,47 @@ type Key<T extends string, A extends string> = readonly [
   input: Record<string, unknown>,
 ];
 
+/** The key of an infinite index query: the plain query's, marked, so the two never share one (N.9). */
+type InfiniteKey<T extends string> = readonly [
+  table: T,
+  action: 'index',
+  input: Record<string, unknown>,
+  mode: 'infinite',
+];
+
+/** What every index page carries, which decides whether there is a next one. */
+interface IndexPage {
+  meta: { page: number; per_page: number; total: number };
+}
+
+/** An index input without `page`: the pages come from fetchNextPage (N.9). */
+type Unpaged<A> = A extends { query?: infer Q }
+  ? { [K in keyof A as K extends 'query' ? never : K]: A[K] } & {
+      query?: Omit<NonNullable<Q>, 'page'> & { page?: never };
+    } extends infer L
+    ? { [K in keyof L]: L[K] }
+    : never
+  : A;
+
+type UnpagedArgs<F> = InputArgs<F> extends [(infer A)?] ? [input?: Unpaged<NonNullable<A>>] : [];
+
 const toQueryOptions = <K extends QueryKey, D>(
   queryKey: K,
   queryFn: (context: { signal: AbortSignal }) => Promise<D>,
 ) => queryOptions({ queryKey, queryFn });
+
+/** Page 1 first, then the next while the pages seen so far do not reach the total. */
+const toInfiniteQueryOptions = <K extends QueryKey, P extends IndexPage>(
+  queryKey: K,
+  fetchPage: (page: number, signal: AbortSignal) => Promise<P>,
+) =>
+  infiniteQueryOptions({
+    queryKey,
+    queryFn: ({ pageParam, signal }) => fetchPage(pageParam, signal),
+    initialPageParam: 1,
+    getNextPageParam: ({ meta }) =>
+      meta.page * meta.per_page < meta.total ? meta.page + 1 : undefined,
+  });
 
 const toMutationOptions = <V, D>(
   mutationKey: readonly [table: string, action: string],
@@ -164,6 +203,14 @@ export interface QueryAction<K extends QueryKey, F> {
   fieldErrors(error: unknown): FieldErrors<F>;
 }
 
+/** index: a query, and the same listing page by page for infinite scroll (N.9). */
+export interface IndexAction<K extends QueryKey, IK extends QueryKey, F> extends QueryAction<K, F> {
+  /** `page` is left out of the input: `fetchNextPage` asks for the next while there is one. */
+  infiniteQueryOptions(
+    ...input: UnpagedArgs<F>
+  ): ReturnType<typeof toInfiniteQueryOptions<IK, Data<F> extends IndexPage ? Data<F> : never>>;
+}
+
 /** An action of any other method. `Tables` are the app's tables, which it may invalidate. */
 export interface MutationAction<F, Tables extends string> {
   mutationOptions(
@@ -177,7 +224,9 @@ export interface MutationAction<F, Tables extends string> {
 export type Api<Client, E extends Tables> = {
   readonly [T in keyof E & string]: {
     readonly [A in keyof E[T]['actions'] & string]: E[T]['actions'][A] extends `GET ${string}`
-      ? QueryAction<Key<T, A>, Call<Client, E[T]['actions'][A]>>
+      ? A extends 'index'
+        ? IndexAction<Key<T, A>, InfiniteKey<T>, Call<Client, E[T]['actions'][A]>>
+        : QueryAction<Key<T, A>, Call<Client, E[T]['actions'][A]>>
       : MutationAction<Call<Client, E[T]['actions'][A]>, keyof E & string>;
   };
 };
@@ -225,12 +274,29 @@ export function createBlendxClient<Client, E extends Tables>(
       const [method = '', path = ''] = route.split(' ');
       const call = (input: unknown, signal?: AbortSignal) =>
         request(client, method, path, input, signal);
+      // index: the same listing page by page (N.9). Its key keeps the input at the same place,
+      // so the includes it asked for are read the same way when invalidating (N.8).
+      const infinite =
+        action === 'index'
+          ? {
+              infiniteQueryOptions: (input?: { query?: Record<string, unknown> }) =>
+                toInfiniteQueryOptions(
+                  [table, action, input ?? {}, 'infinite'],
+                  (page, signal) =>
+                    call(
+                      { ...input, query: { ...input?.query, page: String(page) } },
+                      signal,
+                    ) as Promise<IndexPage>,
+                ),
+            }
+          : {};
       api[table][action] =
         method === 'GET'
           ? {
               queryOptions: (input?: Record<string, unknown>) =>
                 // TanStack aborts the signal when it cancels the query (N.7).
                 toQueryOptions([table, action, input ?? {}], ({ signal }) => call(input, signal)),
+              ...infinite,
               fieldErrors,
             }
           : {

@@ -4,7 +4,15 @@
  * typechecked, never called, so nothing renders and no request is sent.
  */
 import { describe, expectTypeOf, test } from 'bun:test';
-import { QueryClient, useMutation, useQuery, useSuspenseQuery } from '@tanstack/react-query';
+import {
+  type InfiniteData,
+  QueryClient,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useSuspenseInfiniteQuery,
+  useSuspenseQuery,
+} from '@tanstack/react-query';
 import { hc, type InferRequestType, type InferResponseType } from 'blendx/client';
 import { tables } from '../../../conformance/fixtures/shop/src/generated/client.gen.ts';
 import type { AppType } from '../../../conformance/fixtures/shop/src/generated/routes.gen.ts';
@@ -34,6 +42,19 @@ function useTypesOnly() {
   const destroy = useMutation(api.orders.destroy.mutationOptions());
   expectTypeOf(destroy.data).toEqualTypeOf<InferResponseType<Destroy, 204> | undefined>();
   expectTypeOf(destroy.data).toEqualTypeOf<null | undefined>();
+
+  // N.9: an infinite index holds pages of what index replies. The hooks type the page params
+  // as unknown, whatever the options say; fetchInfiniteQuery keeps them as numbers.
+  type Page = InferResponseType<Index, 200>;
+  const scrolled = useInfiniteQuery(
+    api.orders.index.infiniteQueryOptions({ query: { per_page: '20' } }),
+  );
+  expectTypeOf(scrolled.data).toEqualTypeOf<InfiniteData<Page> | undefined>();
+  expectTypeOf(scrolled.data?.pages).toEqualTypeOf<Page[] | undefined>();
+  expectTypeOf(scrolled.fetchNextPage).toBeFunction();
+  const suspended = useSuspenseInfiniteQuery(api.orders.index.infiniteQueryOptions());
+  expectTypeOf(suspended.data).toEqualTypeOf<InfiniteData<Page>>();
+  expectTypeOf(suspended.data.pages).toEqualTypeOf<Page[]>();
 }
 
 async function fetchedTypesOnly() {
@@ -42,6 +63,9 @@ async function fetchedTypesOnly() {
   );
   expectTypeOf(quote).toEqualTypeOf<InferResponseType<Quote, 200>>();
   expectTypeOf(quote).toEqualTypeOf<{ total: string }>();
+
+  const pages = await new QueryClient().fetchInfiniteQuery(api.orders.index.infiniteQueryOptions());
+  expectTypeOf(pages).toEqualTypeOf<InfiniteData<InferResponseType<Index, 200>, number>>();
 }
 
 describe('@blendx/react types', () => {
@@ -70,6 +94,19 @@ describe('@blendx/react types', () => {
     expectTypeOf(new QueryClient().getQueryData(options.queryKey)).toEqualTypeOf<
       InferResponseType<Show, 200> | undefined
     >();
+  });
+
+  test('only index has infiniteQueryOptions, and its input takes no page (N.9)', () => {
+    expectTypeOf(api.orders.index).toHaveProperty('infiniteQueryOptions');
+    expectTypeOf(api.orders.show).not.toHaveProperty('infiniteQueryOptions');
+    expectTypeOf(api.orders.quote).not.toHaveProperty('infiniteQueryOptions');
+    expectTypeOf(api.orders.store).not.toHaveProperty('infiniteQueryOptions');
+    api.orders.index.infiniteQueryOptions();
+    api.orders.index.infiniteQueryOptions({
+      query: { per_page: '20', sort: '-id', status: 'paid' },
+    });
+    // @ts-expect-error the pages come from fetchNextPage
+    api.orders.index.infiniteQueryOptions({ query: { page: '2' } });
   });
 
   test('a GET action is a query, any other method a mutation', () => {
@@ -110,7 +147,7 @@ describe('@blendx/react types', () => {
     expectTypeOf(api).not.toHaveProperty('payments');
   });
 
-  test('the options fit useQuery, useSuspenseQuery, useMutation and fetchQuery', () => {
+  test('the options fit useQuery, useSuspenseQuery, useMutation, fetchQuery and the infinite ones', () => {
     expectTypeOf(useTypesOnly).toBeFunction();
     expectTypeOf(fetchedTypesOnly).toBeFunction();
   });
