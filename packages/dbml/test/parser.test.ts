@@ -148,6 +148,20 @@ describe('the DBML blendx accepts', () => {
     expect(tableNamed(schema, 'b').note).toBe('n\n t\t ué');
   });
 
+  test('a multi-line string reads its escapes before its indentation is removed', async () => {
+    const schema = await parseDbml(
+      [
+        'Table t {',
+        '  id int [pk]',
+        "  Note: '''",
+        String.raw`    first\n    second`,
+        "  '''",
+        '}',
+      ].join('\n'),
+    );
+    expect(tableNamed(schema, 't').note).toBe('first\nsecond');
+  });
+
   test('refs: short and block forms, composite keys, aliases, and which side holds the key', async () => {
     const schema = await parseDbml(
       [
