@@ -9,5 +9,5 @@ test('the spec table and the tests list the same derivation rules', async () => 
   const spec = await Bun.file(join(root, 'packages/spec/derivation-rules.md')).text();
   const tests = await Bun.file(join(root, 'packages/core/test/derive-rules.test.ts')).text();
   expect(ruleIds(spec)).toEqual(ruleIds(tests));
-  expect(ruleIds(spec)).toHaveLength(22);
+  expect(ruleIds(spec)).toHaveLength(23);
 });

@@ -30,16 +30,14 @@ These are the generated columns: a request cannot set them (it gets a 422), and 
 | `varchar(n)`, `char(n)`, `text` | string | a string of at most `n` characters |
 | `boolean` | boolean | a boolean |
 | `uuid` | string | a UUID |
-| `date` | string: `"2026-09-01"` | a string |
-| `timestamp`, `timestamptz` | string, as PostgreSQL writes it: `"2026-09-13 12:48:14.595"` | a string |
+| `date` | string: `"2026-09-01"` | `YYYY-MM-DD`, naming a real day |
+| `timestamp`, `timestamptz` | string, as PostgreSQL writes it: `"2026-09-13 12:48:14.595"` | ISO 8601 (`2026-09-13T12:48:14Z`) or PostgreSQL's text form, naming a real day and time |
 | `time` | string | a string |
 | `json`, `jsonb` | any JSON value | any JSON value |
 | an enum of the schema | string | one of the enum's values |
 | any of these with `[]`, such as `text[]` | array | an array of that type |
 
-Timestamps are not ISO 8601: they come back with a space and, for `timestamp`, no offset, exactly as PostgreSQL writes them.
-
-Dates and timestamps are not checked by default: PostgreSQL reads the string, so it accepts words such as `yesterday`, and refuses `2026-02-30` with a 422. Where a date matters, write the rule yourself, as the tutorial does with `spent_on: z.iso.date()` ([Known issues](known-issues.md#dates-and-timestamps-accept-any-form-postgresql-reads)).
+Timestamps are not ISO 8601: they come back with a space and, for `timestamp`, no offset, exactly as PostgreSQL writes them. As input, a client may send a timestamp back in that form, or in ISO 8601. Anything else PostgreSQL would read, such as `yesterday` or `now`, is refused with a 422, so what an input means never depends on the database's settings. Index filters on date and timestamp columns take the same forms.
 
 The full list of type spellings, and the settings each column takes, is in [`packages/spec/dbml.md`](../../packages/spec/dbml.md). The input rules have ids and tests: [`packages/spec/derivation-rules.md`](../../packages/spec/derivation-rules.md).
 

@@ -47,7 +47,7 @@ export default blend(models.expenses, {
     }),
     a.store({
       rules: ({ prev }) =>
-        prev.pick({ description: true, category: true }).extend({ amount, spent_on: z.iso.date() }),
+        prev.pick({ description: true, category: true, spent_on: true }).extend({ amount }),
       calculate: ({ input }) => ({ ...input, ...price(input.amount, input.category) }),
       // The claimant is whoever is signed in. calculate never sees the identity; save does.
       save: ({ runDefault, writes, auth }) => runDefault({ ...writes, user_id: auth?.id }),
@@ -56,8 +56,8 @@ export default blend(models.expenses, {
     a.update({
       rules: ({ prev }) =>
         prev
-          .pick({ description: true, category: true })
-          .extend({ amount: amount.optional(), spent_on: z.iso.date().optional() }),
+          .pick({ description: true, category: true, spent_on: true })
+          .extend({ amount: amount.optional() }),
       // Only a draft changes, and a new amount or category is priced again.
       authorize: ({ prev, record }) => prev && record.status === 'draft',
       calculate: ({ input, record }) => ({

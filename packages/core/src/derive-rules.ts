@@ -9,6 +9,7 @@ import { getTableConfig } from 'drizzle-orm/pg-core';
 import { createInsertSchema, createSelectSchema } from 'drizzle-orm/zod';
 import { z } from 'zod';
 import type { ActionDefinition } from './blend.ts';
+import { isDateText, isTimestampText, TIMESTAMP_PATTERN } from './datetime.ts';
 import type { Model } from './model.ts';
 
 export interface DeriveOptions {
@@ -32,11 +33,47 @@ function unboundedDoubles(model: Model): Record<string, () => z.ZodNumber> {
   );
 }
 
-/** DR-STORE-INSERT, DR-STORE-GENERATED, DR-STORE-STRICT, DR-DOUBLE-UNBOUNDED. */
+/**
+ * DR-DATE-FORMAT (D23): a date names a real day as YYYY-MM-DD; a timestamp is ISO 8601 or
+ * PostgreSQL's text form, naming a real day and time. Their formats describe them in OpenAPI
+ * and the review: `date` is RFC 3339's full-date, `timestamp` blendx's name for the two forms.
+ */
+const dateRule = () =>
+  z
+    .string()
+    .refine(isDateText, 'must be a date as YYYY-MM-DD, naming a real day')
+    .meta({ format: 'date' });
+
+const timestampRule = () =>
+  z
+    .string()
+    .refine(
+      isTimestampText,
+      "must be a timestamp in ISO 8601 or PostgreSQL's text form, naming a real day and time",
+    )
+    .meta({ format: 'timestamp', pattern: TIMESTAMP_PATTERN });
+
+/** The input rule of a date or timestamp column, or undefined for any other column. */
+function dateTimeRule(column: { columnType: string }): (() => z.ZodType) | undefined {
+  if (column.columnType === 'PgDateString') return dateRule;
+  if (column.columnType === 'PgTimestampString') return timestampRule;
+  return undefined;
+}
+
+/** Input rules that replace drizzle-orm/zod's: unbounded doubles and checked dates. */
+function inputColumnRules(model: Model): Record<string, () => z.ZodType> {
+  const dateTimes = Object.entries(getColumns(model.table)).flatMap(([name, column]) => {
+    const rule = dateTimeRule(column);
+    return rule ? [[name, rule] as const] : [];
+  });
+  return { ...unboundedDoubles(model), ...Object.fromEntries(dateTimes) };
+}
+
+/** DR-STORE-INSERT, DR-STORE-GENERATED, DR-STORE-STRICT, DR-DOUBLE-UNBOUNDED, DR-DATE-FORMAT. */
 function storeRules(model: Model): z.ZodObject {
   const insert = createInsertSchema(
     model.table as never,
-    unboundedDoubles(model) as never,
+    inputColumnRules(model) as never,
   ) as unknown as z.ZodObject;
   // .omit() throws on keys the shape lacks, and identity columns are never in it.
   const generated = Object.fromEntries(
@@ -57,7 +94,7 @@ const count = (max?: number) =>
 
 /**
  * DR-INDEX-PAGE, DR-INDEX-PER-PAGE, DR-INDEX-SORT, DR-INDEX-FILTER, DR-INDEX-HIDDEN,
- * DR-INDEX-TRASHED, DR-INDEX-STRICT. Values arrive as query strings.
+ * DR-INDEX-TRASHED, DR-INDEX-STRICT, DR-DATE-FORMAT. Values arrive as query strings.
  */
 function indexRules(model: Model, options: DeriveOptions): z.ZodObject {
   const hidden = new Set(options.hidden ?? []);
@@ -67,9 +104,8 @@ function indexRules(model: Model, options: DeriveOptions): z.ZodObject {
       index.config.columns.map((column) => (column as { name?: string }).name ?? ''),
     ),
   ]);
-  const columns = Object.keys(getColumns(model.table)).filter(
-    (name) => keyed.has(name) && !hidden.has(name),
-  );
+  const all = getColumns(model.table);
+  const columns = Object.keys(all).filter((name) => keyed.has(name) && !hidden.has(name));
 
   const shape: Record<string, z.ZodType> = {
     page: count(),
@@ -79,7 +115,11 @@ function indexRules(model: Model, options: DeriveOptions): z.ZodObject {
   if (first !== undefined) {
     shape.sort = z.enum([first, ...rest, ...columns.map((column) => `-${column}`)]).optional();
   }
-  for (const column of columns) shape[column] = z.string().optional();
+  for (const column of columns) {
+    const definition = all[column];
+    const rule = definition ? dateTimeRule(definition) : undefined;
+    shape[column] = (rule ? rule() : z.string()).optional();
+  }
   if (options.trashed && model.meta.softDelete !== null) {
     shape.trashed = z.enum(['with', 'only']).optional();
   }

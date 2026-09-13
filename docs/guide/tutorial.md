@@ -205,7 +205,7 @@ export default blend(models.expenses, {
   actions: (a) => [
     a.store({
       rules: ({ prev }) =>
-        prev.pick({ description: true, category: true }).extend({ amount, spent_on: z.iso.date() }),
+        prev.pick({ description: true, category: true, spent_on: true }).extend({ amount }),
       calculate: ({ input }) => ({ ...input, ...price(input.amount, input.category) }),
       // The claimant is whoever is signed in. calculate never sees the identity; save does.
       save: ({ runDefault, writes, auth }) => runDefault({ ...writes, user_id: auth?.id }),
@@ -217,7 +217,7 @@ export default blend(models.expenses, {
 
 Three hooks, one per stage that differs ([Hooks](hooks.md)):
 
-- **rules**: a claim is described by four fields. `pick` takes `description` and `category` with their derived rules (at most 200 characters; one of the enum's values), and `extend` adds `amount` and `spent_on` with stricter rules than the schema gives: the schema only says "a string" for `numeric` and `date`, and PostgreSQL would decide the rest. Everything else, `user_id`, `tax`, `total`, `status`, is refused.
+- **rules**: a claim is described by four fields. `pick` takes `description`, `category` and `spent_on` with their derived rules (at most 200 characters; one of the enum's values; a real day as `YYYY-MM-DD`), and `extend` adds `amount` with a stricter rule than the schema gives: for `numeric` the schema only says "a string", and PostgreSQL would decide the rest. Everything else, `user_id`, `tax`, `total`, `status`, is refused.
 - **calculate**: the input, plus `tax` and `total` from `price()`. calculate is pure: no database, no identity, no clock. That is why the review examples can replay it (step 10).
 - **save**: the claimant is the signed-in user, never something the client sends. calculate cannot see the identity, so this happens in save, which can: it passes the writes to the default insert with `user_id` added.
 
@@ -309,8 +309,8 @@ A claimant may change, delete and restore a claim while it is a draft:
 a.update({
   rules: ({ prev }) =>
     prev
-      .pick({ description: true, category: true })
-      .extend({ amount: amount.optional(), spent_on: z.iso.date().optional() }),
+      .pick({ description: true, category: true, spent_on: true })
+      .extend({ amount: amount.optional() }),
   // Only a draft changes, and a new amount or category is priced again.
   authorize: ({ prev, record }) => prev && record.status === 'draft',
   calculate: ({ input, record }) => ({

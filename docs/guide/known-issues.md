@@ -4,24 +4,11 @@ What does not work yet, or not as it should, and what to do instead. Each was fo
 
 | Issue | Affects | Fixed by |
 |---|---|---|
-| [Dates and timestamps accept any form PostgreSQL reads](#dates-and-timestamps-accept-any-form-postgresql-reads) | date and timestamp columns | P15.3 |
 | [A listing cannot be scoped to the requester](#a-listing-cannot-be-scoped-to-the-requester) | index, load hooks | P15.7 |
 | [A column cannot be shown once and hidden elsewhere](#a-column-cannot-be-shown-once-and-hidden-elsewhere) | `hidden` | P15.8 |
 | [The review lists every column for a calculate that spreads prev](#the-review-lists-every-column-for-a-calculate-that-spreads-prev) | review files | P15.4 |
 | [The review prints long patterns for string formats](#the-review-prints-long-patterns-for-string-formats) | review files | P15.5 |
 | [Custom actions without a body still need an empty body in the typed client](#custom-actions-without-a-body-still-need-an-empty-body-in-the-typed-client) | the typed client | P15.6 |
-
-## Dates and timestamps accept any form PostgreSQL reads
-
-**What happens.** The default rule for a `date` or `timestamp` column accepts any string, and PostgreSQL decides what it means. It reads words such as `yesterday` as dates. A string it cannot read, such as `2026-02-30`, answers 422, naming the field.
-
-**What to do.** Give the column a rule of its own wherever clients send it:
-
-```ts
-rules: ({ prev }) => prev.extend({ spent_on: z.iso.date() }),
-```
-
-`z.iso.datetime()` does the same for timestamps. [The schema](schema.md#types).
 
 ## A listing cannot be scoped to the requester
 

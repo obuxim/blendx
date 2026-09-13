@@ -29,7 +29,7 @@ A hook goes in the action's spec. Put `rules` before `calculate` in the object: 
 ```ts
 a.store({
   rules: ({ prev }) =>
-    prev.pick({ description: true, category: true }).extend({ amount, spent_on: z.iso.date() }),
+    prev.pick({ description: true, category: true, spent_on: true }).extend({ amount }),
   calculate: ({ input }) => ({ ...input, ...price(input.amount, input.category) }),
   save: ({ runDefault, writes, auth }) => runDefault({ ...writes, user_id: auth?.id }),
 }),

@@ -17,6 +17,7 @@ import {
   toEndpoints,
 } from '@blendx/core';
 import { eq } from 'drizzle-orm';
+import { z } from 'zod';
 import {
   orders as ordersTable,
   models as shop,
@@ -70,6 +71,11 @@ const orders = blend(shop.orders, {
 
 const dated = blend(shop.orders, {
   policy: allow.public,
+  // The default rules refuse an unreadable filter (DR-DATE-FORMAT); an app's own rule may not.
+  hooks: {
+    rules: ({ prev, action }) =>
+      action === 'index' ? (z.object({ created_at: z.string().optional() }) as never) : prev,
+  },
   actions: (a) => [
     a.index(),
     a.member('misdate', { calculate: () => ({ placed_on: '2026-02-30' }) }),

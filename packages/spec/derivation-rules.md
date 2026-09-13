@@ -23,6 +23,7 @@ Every rule has an id. The test named with that id is the source of truth (`packa
 | DR-ENUM | An enum column accepts only its enum's values. |
 | DR-NUMERIC-STRING | `numeric` takes a string, so no precision is lost on the way in or out. |
 | DR-DATE-STRING | `date` and `timestamp` take strings. |
+| DR-DATE-FORMAT | A `date` takes `YYYY-MM-DD` naming a real day. A `timestamp` takes ISO 8601 or the text form PostgreSQL replies with, naming a real day and time (docs/decisions.md D23). Index filters on such columns take the same. |
 | DR-DOUBLE-UNBOUNDED | `double precision` takes any number (docs/decisions.md D13). |
 
 ## update

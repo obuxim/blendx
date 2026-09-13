@@ -10,6 +10,9 @@ const DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 const TIMESTAMP =
   /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?(?:Z|[+-](\d{2})(?::?(\d{2}))?)?$/;
 
+/** The shape of a timestamp, for JSON Schema; isTimestampText also checks the values. */
+export const TIMESTAMP_PATTERN = TIMESTAMP.source;
+
 /** PostgreSQL refuses a UTC offset beyond 15:59 (its MAX_TZDISP_HOUR). */
 const MAX_OFFSET_HOURS = 15;
 

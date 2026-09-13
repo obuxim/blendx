@@ -93,6 +93,25 @@ describe('store rules', () => {
     ]);
   });
 
+  test('DR-DATE-FORMAT: a date names a real day, a timestamp is ISO 8601 or PostgreSQL text', () => {
+    expect(ok(store, { ...validOrder, placed_on: '2024-02-29' })).toBe(true);
+    for (const placed_on of [
+      '2026-02-30',
+      '0000-01-01',
+      'yesterday',
+      '13/09/2026',
+      '2026-09-13T00:00',
+    ]) {
+      expect(issues(store, { ...validOrder, placed_on })).toEqual([
+        { code: 'custom', path: 'placed_on' },
+      ]);
+    }
+    const index = defaultRules(shop.orders, builtin('index'));
+    expect(ok(index, { created_at: '2026-09-13 12:48:14.595' })).toBe(true);
+    expect(ok(index, { created_at: '2026-09-13T12:48:14Z' })).toBe(true);
+    expect(issues(index, { created_at: 'now' })).toEqual([{ code: 'custom', path: 'created_at' }]);
+  });
+
   test('DR-DOUBLE-UNBOUNDED: double precision takes any number, keeping null and optional', () => {
     const additionStore = defaultRules(addition.addition_results, builtin('store'));
     expect(ok(additionStore, { result: 1e20 })).toBe(true);

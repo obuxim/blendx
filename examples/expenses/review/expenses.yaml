@@ -28,7 +28,7 @@ actions:
       id: string, optional
       user_id: string, optional
       status: string, optional
-      spent_on: string, optional
+      spent_on: string (date), optional
     stages:
       rules: page, per_page, sort, and filters on key and indexed columns
       load: a filtered, sorted page of rows that are not soft-deleted
@@ -45,8 +45,8 @@ actions:
     input:
       description: string, at most 200 characters
       category: one of travel, meals, office, other
+      spent_on: string (date)
       amount: string, matching ^\d{1,8}(\.\d{1,2})?$
-      spent_on: string (date), matching ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))$
     stages:
       rules: the insert columns, without generated ones # from: schema, action
       load: nothing
@@ -102,8 +102,8 @@ actions:
     input:
       description: string, at most 200 characters, optional
       category: one of travel, meals, office, other, optional
+      spent_on: string (date), optional
       amount: string, matching ^\d{1,8}(\.\d{1,2})?$, optional
-      spent_on: string (date), matching ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))$, optional
     stages:
       rules: the insert columns, all optional # from: schema, action
       load: the row by id, not soft-deleted, locked for update
