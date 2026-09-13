@@ -47,15 +47,15 @@ describe('blendx migrate', () => {
   test('generate writes the first migration with drizzle-kit', async () => {
     const { code, out } = await cli('migrate', 'generate', '--name', 'init');
     expect(code).toBe(0);
-    expect(out).toContain('0000_init.sql');
-    expect(await migrations()).toEqual(['0000_init.sql', 'meta']);
+    expect(out).toMatch(/drizzle\/\d{14}_init\/migration\.sql/);
+    expect(await migrations()).toEqual([expect.stringMatching(/^\d{14}_init$/)]);
   }, 60_000);
 
   test('generate with no schema change adds nothing', async () => {
     const { code, out } = await cli('migrate', 'generate');
     expect(code).toBe(0);
     expect(out).toContain('No schema changes');
-    expect(await migrations()).toEqual(['0000_init.sql', 'meta']);
+    expect(await migrations()).toEqual([expect.stringMatching(/^\d{14}_init$/)]);
   }, 60_000);
 
   test('up applies the migration once', async () => {
@@ -113,6 +113,21 @@ describe('blendx migrate', () => {
       });
     } finally {
       await rename(`${folder}.bak`, folder);
+    }
+  });
+
+  test('up refuses the drizzle-kit 0.x layout and says how to convert it', async () => {
+    const meta = join(app, 'drizzle', 'meta');
+    await mkdir(meta);
+    await writeFile(join(meta, '_journal.json'), '{}');
+    try {
+      expect(await cli('migrate', 'up')).toEqual({
+        code: 1,
+        out: '',
+        err: "drizzle is in the drizzle-kit 0.x layout (meta/_journal.json), which drizzle-kit 1.0 does not read; convert it once with drizzle-kit 1.0's `up` command\n",
+      });
+    } finally {
+      await rm(meta, { recursive: true });
     }
   });
 

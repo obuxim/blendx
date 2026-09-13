@@ -19,7 +19,7 @@
     "@blendx/dbml": "workspace:*",
     "@typescript/typescript6": "6.0.2",
     "blendx": "workspace:*",
-    "drizzle-kit": "0.31.10",
+    "drizzle-kit": "1.0.0-rc.4",
     "yaml": "2.9.1"
   }
 }

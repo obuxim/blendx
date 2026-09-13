@@ -12,7 +12,7 @@
   "dependencies": {
     "@blendx/core": "workspace:*",
     "@blendx/hono": "workspace:*",
-    "drizzle-orm": "0.45.2",
+    "drizzle-orm": "1.0.0-rc.4",
     "hono": "4.13.7",
     "zod": "4.6.2"
   },

@@ -2,7 +2,8 @@
  * Types over the generated `models` const in schema.gen.ts. A Model pairs a Drizzle
  * table with the conventions blendx derived from schema.dbml (packages/dbml).
  */
-import type { InferInsertModel, InferSelectModel, Table } from 'drizzle-orm';
+import type { InferInsertModel, InferSelectModel } from 'drizzle-orm';
+import type { PgTable } from 'drizzle-orm/pg-core';
 
 export type ConstraintKind = 'primaryKey' | 'unique' | 'foreignKey';
 
@@ -22,7 +23,7 @@ export interface ModelMeta {
   readonly constraints: { readonly [name: string]: ConstraintMeta };
 }
 
-export interface Model<T extends Table = Table> {
+export interface Model<T extends PgTable = PgTable> {
   readonly name: string;
   readonly table: T;
   readonly meta: ModelMeta;

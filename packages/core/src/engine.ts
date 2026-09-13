@@ -3,7 +3,7 @@
  * authenticate, validate, load, authorize, calculate, save, respond. Every failure is a
  * Problem Details response; the order decides precedence (401, 422, 404, 403).
  */
-import { and, asc, count, desc, eq, getTableColumns, isNotNull, isNull, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, getColumns, isNotNull, isNull, sql } from 'drizzle-orm';
 import type { RegisteredAuth } from './app.ts';
 import type { EffectDefaults, ResolvedEndpoint } from './cascade.ts';
 import type { EndpointDefinition } from './endpoints.ts';
@@ -59,7 +59,7 @@ const isObject = (value: unknown): value is Record<string, unknown> =>
 /** Columns a write may set: every column except generated ones. */
 export function writableColumns(model: Model): Set<string> {
   const generated = new Set(model.meta.generated);
-  return new Set(Object.keys(getTableColumns(model.table)).filter((name) => !generated.has(name)));
+  return new Set(Object.keys(getColumns(model.table)).filter((name) => !generated.has(name)));
 }
 
 /** The schema-default writes: the validated input's writable columns. */
@@ -308,7 +308,7 @@ export function defaultEffects(
 ): EffectDefaults {
   const { model, action } = endpoint;
   const table = model.table as never;
-  const columns = getTableColumns(model.table);
+  const columns = getColumns(model.table);
   const deletedAt = model.meta.softDelete ? columns[model.meta.softDelete] : undefined;
   const { createdAt, updatedAt } = model.meta.timestamps;
   const stamps = (keys: (string | null)[]) =>

@@ -98,3 +98,102 @@ exports[`P1.6 z.toJSONSchema on blendx schemas response body: drizzle-zod select
   "type": "object",
 }
 `;
+
+exports[`P1.6 z.toJSONSchema on blendx schemas store request body: strict drizzle-orm/zod insert schema, io input 1`] = `
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "created_at": {
+      "type": "string",
+    },
+    "customer_name": {
+      "maxLength": 20,
+      "type": "string",
+    },
+    "note": {
+      "anyOf": [
+        {
+          "maxLength": 255,
+          "type": "string",
+        },
+        {
+          "type": "null",
+        },
+      ],
+    },
+    "status": {
+      "enum": [
+        "pending",
+        "paid",
+        "refunded",
+      ],
+      "type": "string",
+    },
+    "total": {
+      "maximum": 140737488355327,
+      "minimum": -140737488355328,
+      "type": "number",
+    },
+  },
+  "required": [
+    "customer_name",
+    "total",
+  ],
+  "type": "object",
+}
+`;
+
+exports[`P1.6 z.toJSONSchema on blendx schemas response body: drizzle-orm/zod select schema, io output 1`] = `
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "created_at": {
+      "type": "string",
+    },
+    "customer_name": {
+      "maxLength": 20,
+      "type": "string",
+    },
+    "id": {
+      "maximum": 2147483647,
+      "minimum": -2147483648,
+      "type": "integer",
+    },
+    "note": {
+      "anyOf": [
+        {
+          "maxLength": 255,
+          "type": "string",
+        },
+        {
+          "type": "null",
+        },
+      ],
+    },
+    "status": {
+      "enum": [
+        "pending",
+        "paid",
+        "refunded",
+      ],
+      "type": "string",
+    },
+    "total": {
+      "maximum": 140737488355327,
+      "minimum": -140737488355328,
+      "type": "number",
+    },
+  },
+  "required": [
+    "id",
+    "customer_name",
+    "status",
+    "total",
+    "note",
+    "created_at",
+  ],
+  "type": "object",
+}
+`;

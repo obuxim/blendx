@@ -110,13 +110,17 @@ One item ≈ one focused session. Work top to bottom (see "Todo loop" in `CLAUDE
 - [x] P12.5b README. Done: README.
 - [x] P12.6 Drizzle 1.0 GA migration spike (drizzle-orm/zod, kit folder format). Done: ADR go/no-go. Decided in D19: no-go until 1.0.0 is on npm `latest`; the upgrade checklist is in D19.
 
+## P13 Own our dependencies' gaps (don't wait on upstream)
+- [x] P13.1 Upgrade to Drizzle 1.0.0-rc.4 now, exactly pinned (D20 replaces D19's wait): `drizzle-orm/zod` instead of drizzle-zod, the type renames, migration folders converted with `drizzle-kit up`, `blendx migrate` on the 1.0 layout. Done: `bun run check`, plus the pg, bun-sql and Node rows of the matrix, pass.
+- [ ] P13.2 Our own DBML parser for the subset blendx accepts, replacing @dbml/core and the oven-sh/bun#42512 workaround (D21). Done: the DBML tests and goldens pass on it, @dbml/core and `loadDbmlCore()` are gone.
+
 ## Inbox
 Discovered work goes here. Triage it into a phase before starting it.
 - [ ] Remove the postMessage workaround in `packages/dbml/src/dbml-core.ts` once `packages/dbml/test/bun-42512.test.ts` fails (Bun fixed oven-sh/bun#42512).
 - [x] P4.1: decide whether to drop drizzle-zod's ±2^47 bounds on `doublePrecision` columns (real doubles like 1e20 are rejected today). Decided in D13: dropped.
 - [x] P9.1: add `format: date-time` / `date` to string-mode timestamp and date columns in OpenAPI output. Decided in the D8 P9.1 note: `format: date` on date columns only; Postgres timestamps are not RFC 3339, so they stay plain strings.
 - [x] P12.5: the `blendx` facade depends on `@blendx/cli` for its bin (D9 note), so production installs also get the CLI's dependencies (drizzle-kit, typescript6 once review lands). Decide before publishing whether to make them optional or lazy. Decided in D18: split; now P12.5a.
-- [ ] Upgrade to Drizzle 1.0.0 once it is on npm `latest`, following the D19 checklist, with the new pins recorded (D5).
+- [x] Upgrade to Drizzle 1.0.0 once it is on npm `latest`, following the D19 checklist, with the new pins recorded (D5). Now P13.1, without waiting.
 
 ## Next: React adapter (not in current scope; don't start until asked)
 - [ ] N.1 `@blendx/react`: `createBlendxClient<AppType>()` → TanStack Query hooks per resource/action over `hc`.

@@ -14,7 +14,7 @@ import type { AddressInfo } from 'node:net';
 import { allow, blend, type Db, defineApp, PROBLEM_CONTENT_TYPE } from '@blendx/core';
 import { type BlendxEnv, createServer, run } from '@blendx/hono';
 import { serve } from '@hono/node-server';
-import { generateDrizzleJson, generateMigration } from 'drizzle-kit/api';
+import { generateDrizzleJson, generateMigration } from 'drizzle-kit/api-postgres';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Hono } from 'hono';
 import { Pool } from 'pg';
@@ -46,8 +46,11 @@ const routes = new Hono<BlendxEnv>()
 
 const pool = new Pool({ connectionString: url });
 await pool.query('drop schema if exists public cascade; create schema public');
-const empty = generateDrizzleJson({});
-for (const statement of await generateMigration(empty, generateDrizzleJson({ addition_results }))) {
+const empty = await generateDrizzleJson({});
+for (const statement of await generateMigration(
+  empty,
+  await generateDrizzleJson({ addition_results }),
+)) {
   await pool.query(statement);
 }
 

@@ -64,10 +64,11 @@ const failure = (query: PromiseLike<unknown>) =>
   );
 
 describe('P1.5 drizzle-kit migration applied by PGlite', () => {
-  test('drizzle-kit wrote one migration plus its journal', async () => {
-    const files = await readdir(outDir);
-    expect(files).toContain('0000_init.sql');
-    expect(files).toContain('meta');
+  test('drizzle-kit wrote one migration folder: its SQL and its snapshot', async () => {
+    const folders = await readdir(outDir);
+    expect(folders).toEqual([expect.stringMatching(/^\d{14}_init$/)]);
+    const files = await readdir(join(outDir, folders[0] ?? ''));
+    expect(files.sort()).toEqual(['migration.sql', 'snapshot.json']);
   });
 
   test('the migrated schema accepts rows and fills defaults', async () => {

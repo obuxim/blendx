@@ -3,14 +3,14 @@
  * authorize, calculate, respond) receive `prev` and return its replacement. Effect
  * stages (load, save) receive `runDefault()`: call it to extend, skip it to replace.
  */
-import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
+import type { PgAsyncDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
 import type { z } from 'zod';
 import type { RegisteredAuth } from './app.ts';
 import type { Model, PublicRow, Row, Writes } from './model.ts';
 import type { DefaultRules, ResolvedRules } from './rules.ts';
 
 /** A Drizzle Postgres database or transaction handle. */
-export type Db = PgDatabase<PgQueryResultHKT>;
+export type Db = PgAsyncDatabase<PgQueryResultHKT>;
 
 export interface Reply<Status extends number = number, Body = unknown> {
   readonly status: Status;

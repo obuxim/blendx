@@ -4,7 +4,7 @@
  * table's public record (the output side). z.toJSONSchema writes draft 2020-12, the dialect
  * OpenAPI 3.1 uses. stringifyOpenApi sorts keys, so the file is deterministic.
  */
-import { getTableColumns } from 'drizzle-orm';
+import { getColumns } from 'drizzle-orm';
 import { z } from 'zod';
 import type { App } from './app.ts';
 import type { Resource } from './blend.ts';
@@ -71,7 +71,7 @@ const propertiesOf = (schema: JsonObject) =>
  */
 function markDates(schema: JsonObject, model: Model): JsonObject {
   const properties = propertiesOf(schema);
-  for (const [name, column] of Object.entries(getTableColumns(model.table))) {
+  for (const [name, column] of Object.entries(getColumns(model.table))) {
     const property = properties[name];
     if (!property || column.columnType !== 'PgDateString') continue;
     // A nullable column is { type: ['string', 'null'] }; format only constrains the string.

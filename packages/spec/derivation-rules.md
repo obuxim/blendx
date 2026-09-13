@@ -8,7 +8,7 @@ Every rule has an id. The test named with that id is the source of truth (`packa
 
 | Id | Rule |
 |---|---|
-| DR-STORE-INSERT | `store` accepts the table's insert columns, as drizzle-zod derives them from the generated schema. |
+| DR-STORE-INSERT | `store` accepts the table's insert columns, as drizzle-orm/zod derives them from the generated schema. |
 | DR-STORE-GENERATED | Generated columns are never input: the identity primary key, `created_at`, `updated_at` and `deleted_at`. |
 | DR-STORE-STRICT | Unknown keys are rejected with 422, so a request cannot set columns it was not meant to (no mass assignment). |
 | DR-STORE-REQUIRED | A NOT NULL column without a default is required. Nullable and defaulted columns are optional. |

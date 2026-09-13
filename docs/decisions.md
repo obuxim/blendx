@@ -48,7 +48,7 @@ Order: authenticate → validate → load → authorize → calculate → save �
 Verified for an object literal, a spread over `prev`, a conditional, and a method with two returns. The dependency stays in `@blendx/cli` only. Regression test: `packages/cli/test/spikes/p1-7-calculate-writes.test.ts`.
 
 ## D6: Drizzle 0.45 pinned (2026-09-13)
-drizzle-orm 0.45.2, drizzle-kit 0.31.10, drizzle-zod 0.8.3. Drizzle 1.0 is still a release candidate. All drizzle-zod imports stay in one module. Don't generate `relations()`.
+drizzle-orm 0.45.2, drizzle-kit 0.31.10, drizzle-zod 0.8.3. Drizzle 1.0 is still a release candidate. All drizzle-zod imports stay in one module. (D20: now drizzle-orm and drizzle-kit 1.0.0-rc.4, with `drizzle-orm/zod` in place of drizzle-zod.) Don't generate `relations()`.
 **Revisit:** todo P12.6.
 
 ### D6 note: P1.3 spike result (2026-09-13)
@@ -189,7 +189,20 @@ One generic call per action infers correctly in every case tested:
 - When `rules` is omitted, TS falls back to the type parameter's constraint, not to a generic default. The types therefore swap in the action's defaults with a conditional (`Resolved<S, Defaults>`).
 - Inside one spec, `rules` still comes before `calculate`.
 
+## D20: Drizzle 1.0.0-rc.4 now, without waiting for the release (2026-09-13)
+Replaces D19's wait. Waiting for 1.0.0 only moves a breaking upgrade onto a later, larger codebase, and with exact pins a release candidate cannot change under us. The pins are drizzle-orm 1.0.0-rc.4 and drizzle-kit 1.0.0-rc.4; drizzle-zod is dropped for `drizzle-orm/zod`. Moving on to 1.0.0, or to a later rc, is a pin change like any other: an entry here and the whole matrix.
+
+What changed, following the D19 checklist:
+- `derive-rules.ts` and `rules.ts` import `drizzle-orm/zod`. The derivation rules are unchanged.
+- `Db` is `PgAsyncDatabase<PgQueryResultHKT>`. `Model` takes a `PgTable`, which `getTableConfig` now requires; blendx is PostgreSQL only. `getTableColumns` is deprecated in 1.0, so the core uses `getColumns`.
+- Migrations use drizzle-kit 1.0's layout: one `<timestamp>_<name>/` folder per migration, holding `migration.sql` and `snapshot.json`, and no journal. The committed folders were converted with `drizzle-kit up`, and the blendx test fixture, which had no snapshot, by hand (the migrator reads only `migration.sql`). `blendx migrate up` looks for those folders and refuses the 0.x layout with a message saying how to convert it. Databases migrated under 0.45.2 upgrade in place (D19, point 6).
+- The Node smoke test imports `drizzle-kit/api-postgres`, whose `generateDrizzleJson` is now async.
+
+The whole matrix passes on rc.4: `bun run check` (Bun with PGlite), the `BLENDX_TEST_DB=pg` run (Bun with pg and with bun-sql, PostgreSQL 18.6), the Node smoke test, and the conformance suite on Node 24 with pg (28 of 28).
+
 ## D19: Stay on Drizzle 0.x until 1.0.0 is released (2026-09-13)
+Superseded by D20: blendx moved to 1.0.0-rc.4 without waiting. The checklist below is what D20 followed.
+
 No-go for now. On npm, `latest` is still drizzle-orm 0.45.2, drizzle-kit 0.31.10 and drizzle-zod 0.8.3. Drizzle 1.0 exists only under the `rc` tag (1.0.0-rc.4) and `beta`, with newer rc.5 snapshot builds. Pins are exact (D5), and a release candidate can still change. The upstream question, drizzle-team/drizzle-orm#5660, is open with no date. Go when 1.0.0 is on `latest`.
 
 The spike ran the whole suite on drizzle-orm and drizzle-kit 1.0.0-rc.4, in a scratch worktree. The upgrade is small and mechanical. When 1.0.0 is out:

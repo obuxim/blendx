@@ -1,15 +1,15 @@
 /**
  * P1.3 spike, kept as a regression test.
  *
- * Default validation rules come from the schema via drizzle-zod (docs/decisions.md D6).
- * This proves drizzle-zod 0.8.3 on zod 4.6.2 covers the column kinds blendx relies on
+ * Default validation rules come from the schema via drizzle-orm/zod (docs/decisions.md D6).
+ * This proves drizzle-orm/zod on zod 4.6.2 covers the column kinds blendx relies on
  * (varchar(n), pgEnum, identity, string-mode timestamp, double, int32), and that its
  * schemas are ordinary `zod` schemas: z.infer, .strict() and .extend() from the `zod`
  * import all work on them.
  */
 import { describe, expect, expectTypeOf, test } from 'bun:test';
 import { doublePrecision, integer, pgEnum, pgTable, timestamp, varchar } from 'drizzle-orm/pg-core';
-import { createInsertSchema, createSelectSchema, createUpdateSchema } from 'drizzle-zod';
+import { createInsertSchema, createSelectSchema, createUpdateSchema } from 'drizzle-orm/zod';
 import { z } from 'zod';
 
 const orderStatus = pgEnum('order_status', ['pending', 'paid', 'refunded']);
@@ -29,7 +29,7 @@ const update = createUpdateSchema(orders);
 
 const validOrder = { customer_name: 'Ada', total: 12.5 };
 
-describe('P1.3 drizzle-zod 0.8.3 on zod 4.6.2', () => {
+describe('P1.3 drizzle-orm/zod on zod 4.6.2', () => {
   test('varchar(n) becomes a max-length rule', () => {
     const result = insert.safeParse({ ...validOrder, customer_name: 'x'.repeat(21) });
     expect(result.success).toBe(false);

@@ -5,7 +5,7 @@
  * driver's own migrator.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -50,9 +50,21 @@ async function generateMigration(config: ResolvedConfig, name: string | undefine
   return 0;
 }
 
+/** drizzle-kit 1.0 writes one folder per migration, each holding its migration.sql. */
+const hasMigrations = (folder: string) =>
+  existsSync(folder) &&
+  readdirSync(folder, { withFileTypes: true }).some(
+    (entry) => entry.isDirectory() && existsSync(join(folder, entry.name, 'migration.sql')),
+  );
+
 async function applyMigrations(config: ResolvedConfig, io: Io) {
   const where = shown(config, config.migrations);
-  if (!existsSync(join(config.migrations, 'meta', '_journal.json'))) {
+  if (existsSync(join(config.migrations, 'meta', '_journal.json'))) {
+    throw new CliError(
+      `${where} is in the drizzle-kit 0.x layout (meta/_journal.json), which drizzle-kit 1.0 does not read; convert it once with drizzle-kit 1.0's \`up\` command`,
+    );
+  }
+  if (!hasMigrations(config.migrations)) {
     throw new CliError(`no migrations in ${where}; run \`blendx migrate generate\``);
   }
   const database = await createDatabase(config);

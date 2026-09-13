@@ -2,7 +2,7 @@
  * Types of the default validation rules per action. P4.1 builds the matching schemas
  * at runtime; hooks receive them as `prev` (docs/decisions.md D3, D12).
  */
-import type { BuildSchema } from 'drizzle-zod';
+import type { BuildSchema } from 'drizzle-orm/zod';
 import type { z } from 'zod';
 import type { Model } from './model.ts';
 

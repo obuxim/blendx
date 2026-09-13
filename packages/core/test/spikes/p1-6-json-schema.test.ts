@@ -3,13 +3,13 @@
  *
  * blendx generates openapi.json itself (docs/decisions.md D8) with zod 4's
  * z.toJSONSchema, targeting draft 2020-12 (the dialect OpenAPI 3.1 uses). This proves
- * drizzle-zod schemas and hand-written rules convert without unrepresentable types, in
+ * drizzle-orm/zod schemas and hand-written rules convert without unrepresentable types, in
  * both directions: io 'input' for request bodies and io 'output' for responses.
  * The snapshots show exactly what the OpenAPI builder (P9.1) will receive.
  */
 import { describe, expect, test } from 'bun:test';
 import { doublePrecision, integer, pgEnum, pgTable, timestamp, varchar } from 'drizzle-orm/pg-core';
-import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
+import { createInsertSchema, createSelectSchema } from 'drizzle-orm/zod';
 import { z } from 'zod';
 
 const orderStatus = pgEnum('order_status', ['pending', 'paid', 'refunded']);
@@ -28,12 +28,12 @@ const toJson = (schema: z.ZodType, io: 'input' | 'output'): unknown =>
   JSON.parse(JSON.stringify(z.toJSONSchema(schema, { target: 'draft-2020-12', io })));
 
 describe('P1.6 z.toJSONSchema on blendx schemas', () => {
-  test('store request body: strict drizzle-zod insert schema, io input', () => {
+  test('store request body: strict drizzle-orm/zod insert schema, io input', () => {
     const body = toJson(createInsertSchema(orders).strict(), 'input');
     expect(body).toMatchSnapshot();
   });
 
-  test('response body: drizzle-zod select schema, io output', () => {
+  test('response body: drizzle-orm/zod select schema, io output', () => {
     expect(toJson(createSelectSchema(orders), 'output')).toMatchSnapshot();
   });
 

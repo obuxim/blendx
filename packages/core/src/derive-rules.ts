@@ -1,12 +1,12 @@
 /**
  * Default validation rules per action, and the public record a reply holds, derived from the
- * generated model at runtime. The only module that imports drizzle-zod (docs/decisions.md
- * D6). Each rule has an id (DR-...) shared with its test and its entry in
- * packages/spec/derivation-rules.md.
+ * generated model at runtime. The only module that imports drizzle-orm/zod, formerly
+ * drizzle-zod (docs/decisions.md D6, D20). Each rule has an id (DR-...) shared with its test
+ * and its entry in packages/spec/derivation-rules.md.
  */
-import { getTableColumns } from 'drizzle-orm';
+import { getColumns } from 'drizzle-orm';
 import { getTableConfig } from 'drizzle-orm/pg-core';
-import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
+import { createInsertSchema, createSelectSchema } from 'drizzle-orm/zod';
 import { z } from 'zod';
 import type { ActionDefinition } from './blend.ts';
 import type { Model } from './model.ts';
@@ -21,12 +21,12 @@ export interface DeriveOptions {
 }
 
 /**
- * drizzle-zod bounds double precision to plus or minus 2^47 (D13). The callback form keeps
- * drizzle-zod's null and optional handling; a plain schema would drop it.
+ * drizzle-orm/zod bounds double precision to plus or minus 2^47 (D13). The callback form keeps
+ * its null and optional handling; a plain schema would drop it.
  */
 function unboundedDoubles(model: Model): Record<string, () => z.ZodNumber> {
   return Object.fromEntries(
-    Object.entries(getTableColumns(model.table))
+    Object.entries(getColumns(model.table))
       .filter(([, column]) => column.columnType === 'PgDoublePrecision')
       .map(([name]) => [name, () => z.number()]),
   );
@@ -67,7 +67,7 @@ function indexRules(model: Model, options: DeriveOptions): z.ZodObject {
       index.config.columns.map((column) => (column as { name?: string }).name ?? ''),
     ),
   ]);
-  const columns = Object.keys(getTableColumns(model.table)).filter(
+  const columns = Object.keys(getColumns(model.table)).filter(
     (name) => keyed.has(name) && !hidden.has(name),
   );
 

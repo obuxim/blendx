@@ -4,7 +4,7 @@
  * (docs/decisions.md D12). Nothing is exposed unless it is listed, and every listed
  * action needs a policy (default-deny).
  */
-import { getTableColumns } from 'drizzle-orm';
+import { getColumns } from 'drizzle-orm';
 import type { z } from 'zod';
 import type {
   AuthorizeContext,
@@ -421,7 +421,7 @@ export function blend<
   }
 
   const hidden = spec.hidden ?? ([] as unknown as H);
-  const columns = new Set(Object.keys(getTableColumns(model.table)));
+  const columns = new Set(Object.keys(getColumns(model.table)));
   for (const column of hidden) {
     if (!columns.has(column)) fail(`hidden column "${column}" is not a column of ${model.name}`);
   }
