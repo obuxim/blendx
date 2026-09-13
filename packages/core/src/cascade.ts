@@ -2,23 +2,26 @@
  * The hook cascade (docs/decisions.md D3). Every stage starts from the schema default,
  * then the app, resource and action hooks run in that order, each receiving the result
  * of the level above. Value stages (rules, authorize, calculate, respond) pass `prev`;
- * effect stages (load, save) pass `runDefault`. Provenance records which levels shaped
- * each stage, for the review YAML.
+ * effect stages (load, save) pass `runDefault`. after (D26) is neither: it has no default,
+ * so every level's hook runs, and none replaces another. Provenance records which levels
+ * shaped each stage, for the review YAML.
  */
 import { z } from 'zod';
 import type { App, RegisteredAuth } from './app.ts';
 import { defaultRules } from './derive-rules.ts';
 import type { EndpointDefinition } from './endpoints.ts';
+import { saves } from './engine.ts';
 import type { Db, Reply } from './hooks.ts';
 
 export type Level = 'schema' | 'app' | 'resource' | 'action';
-export type Stage = 'rules' | 'load' | 'authorize' | 'calculate' | 'save' | 'respond';
+export type Stage = 'rules' | 'load' | 'authorize' | 'calculate' | 'save' | 'after' | 'respond';
 export const STAGES: readonly Stage[] = [
   'rules',
   'load',
   'authorize',
   'calculate',
   'save',
+  'after',
   'respond',
 ];
 
@@ -42,6 +45,16 @@ export interface SaveInput {
   auth: Auth;
 }
 
+/** What after receives, once the write has committed (D26). */
+export interface AfterInput {
+  /** The database, outside the committed transaction. */
+  db: Db;
+  saved: unknown;
+  record: unknown;
+  input: unknown;
+  auth: Auth;
+}
+
 /** The engine's schema-level load and save for one endpoint. */
 export interface EffectDefaults {
   load(context: LoadInput): Promise<unknown>;
@@ -60,6 +73,8 @@ export interface ResolvedEndpoint extends EndpointDefinition {
   /** `prev` is the schema default: the validated input's writable columns. */
   calculate(context: { prev: Record<string, unknown>; input: unknown; record: unknown }): unknown;
   save(context: SaveInput): Promise<unknown>;
+  /** Every level's after hook, in order, for an action that writes; `report` gets what one throws. */
+  after(context: AfterInput, report: (error: unknown) => void): Promise<void>;
   /** `prev` is the schema default reply. */
   respond(context: { prev: Reply; record: unknown; result: unknown }): Reply;
 }
@@ -83,8 +98,10 @@ export function resolveEndpoint(
   const resourceHooks = endpoint.resourceHooks;
   const actionHooks = endpoint.hooks;
 
+  const writes = saves(endpoint);
+  // App and resource after hooks run only for actions that write (D26).
   const has = (hooks: object, name: string) =>
-    typeof (hooks as Record<string, unknown>)[name] === 'function';
+    typeof (hooks as Record<string, unknown>)[name] === 'function' && (name !== 'after' || writes);
   // An index's scope shapes its load at the action level, as a load hook would (D22).
   const byAction = (stage: Stage) =>
     has(actionHooks, stage) || (stage === 'load' && has(actionHooks, 'scope'));
@@ -146,6 +163,27 @@ export function resolveEndpoint(
       return actionHooks.save
         ? actionHooks.save({ ...context, runDefault } as never)
         : runDefault();
+    },
+
+    after: async (context: AfterInput, report: (error: unknown) => void) => {
+      if (!writes) return;
+      // Each level runs even when one before it failed: an audit log must not stop an email.
+      const run = async (hook: (() => unknown) | undefined) => {
+        if (!hook) return;
+        try {
+          await hook();
+        } catch (error) {
+          report(error);
+        }
+      };
+      const { after: appAfter } = appHooks;
+      const { after: resourceAfter } = resourceHooks;
+      const { after: actionAfter } = actionHooks;
+      await run(appAfter && (() => appAfter.call(appHooks, { ...context, model, action })));
+      await run(
+        resourceAfter && (() => resourceAfter.call(resourceHooks, { ...context, action } as never)),
+      );
+      await run(actionAfter && (() => actionAfter(context as never)));
     },
 
     respond: ({ prev, record, result }: { prev: Reply; record: unknown; result: unknown }) => {

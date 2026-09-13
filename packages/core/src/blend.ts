@@ -6,7 +6,9 @@
  */
 import { getColumns } from 'drizzle-orm';
 import type { z } from 'zod';
+import { saves } from './engine.ts';
 import type {
+  AfterContext,
   AuthorizeContext,
   CalculateContext,
   CollectionSpec,
@@ -43,6 +45,8 @@ export interface ActionHooks {
   readonly calculate?: (context: CalculateContext<Model, unknown, unknown>) => unknown;
   readonly save?: (context: SaveContext<Model, unknown>) => Promise<unknown>;
   readonly respond?: (context: RespondContext<Reply, unknown, unknown>) => Reply;
+  /** Actions that write only: runs once the write has committed (D26). */
+  readonly after?: (context: AfterContext<Model, unknown, unknown>) => unknown;
   /** index only: the column values the listing is limited to, from the identity (D22). */
   readonly scope?: (context: { auth: unknown }) => Readonly<Record<string, unknown>>;
 }
@@ -280,6 +284,8 @@ export interface ResourceHooks<M extends Model = Model> {
     context: AuthorizeContext<string, unknown, Row<M> | undefined>,
   ): boolean | Promise<boolean>;
   respond?<R extends Reply>(context: { prev: R; action: string }): R;
+  /** After each write of this resource commits, before the action's own after (D26). */
+  after?(context: AfterContext<M, Row<M> | undefined, unknown> & { action: string }): unknown;
 }
 
 /** One policy for every action, or a policy per action with an optional default. */
@@ -333,7 +339,16 @@ const BUILTIN: ReadonlySet<string> = new Set<BuiltinAction>([
   'restore',
 ]);
 /** The hooks an action spec may hold: one per stage, and an index's scope (D22). */
-const HOOK_NAMES = ['rules', 'load', 'authorize', 'calculate', 'save', 'respond', 'scope'] as const;
+const HOOK_NAMES = [
+  'rules',
+  'load',
+  'authorize',
+  'calculate',
+  'save',
+  'after',
+  'respond',
+  'scope',
+] as const;
 
 type AnySpec = { [K in (typeof HOOK_NAMES)[number]]?: ActionHooks[K] } & {
   method?: HttpMethod;
@@ -402,6 +417,9 @@ function builderFor(model: Model) {
     const reply = replyOf(spec?.reply);
     if (reply === null) {
       fail(`action "${name}" has a reply that is neither a zod schema nor { status, body }`);
+    }
+    if (spec?.after !== undefined && !saves({ on, action: name })) {
+      fail(`${name} writes nothing, so it has no after`);
     }
     return define(name, on, method, path, builtin, spec, reply ?? undefined);
   };

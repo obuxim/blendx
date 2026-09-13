@@ -10,7 +10,8 @@ Every endpoint runs the same stages in the same order. A resource changes a stag
 | 4 | authorize | the policy's decision, the identity, the record and the input | allowed or not | the resource's policy for the action |
 | 5 | calculate | the default writes, the input and the record | the writes; for a collection action, the reply body | the input's writable columns |
 | 6 | save | the writes and the record | the saved row | store inserts, update and custom member actions update, destroy soft-deletes or deletes, restore clears `deleted_at` |
-| 7 | respond | the default reply, the public record and calculate's result | the reply | 201 for store, 204 for destroy, 200 otherwise; the page envelope for index; hidden columns removed |
+| 7 | after | the saved row, the row as loaded, the input, the identity and the database | nothing | nothing. Only actions that save have it, and it runs once the write has committed (docs/decisions.md D26) |
+| 8 | respond | the default reply, the public record and calculate's result | the reply | 201 for store, 204 for destroy, 200 otherwise; the page envelope for index; hidden columns removed |
 
 Tests:
 - [the addition example, end to end](../core/test/engine.test.ts)
@@ -28,6 +29,11 @@ Tests:
 - [scope (D22): only the rows in scope, and pages and totals count only those](../core/test/engine-load.test.ts)
 - [scope: a missing value matches no row; an empty scope scopes nothing](../core/test/engine-load.test.ts)
 - [scope: a load hook calling runDefault gets the scoped page](../core/test/engine-load.test.ts)
+- [after runs once the write has committed, with the saved row, the loaded row and the input](../core/test/after.test.ts)
+- [store has no loaded row, and the saved row keeps its hidden columns](../core/test/after.test.ts)
+- [destroy: saved is the soft-deleted row, record the row before](../core/test/after.test.ts)
+- [after runs before respond](../core/test/after.test.ts)
+- [reads never run after: index, show and collection actions skip app and resource hooks](../core/test/after.test.ts)
 
 ## The order of failures
 
@@ -50,13 +56,23 @@ Tests:
 
 ## Transactions
 
-An action that saves (store, update, destroy, restore and custom member actions) runs load, authorize, calculate and save in one transaction. A member row is loaded `FOR UPDATE`, so calculate's read, change and write cannot race another request. A failure anywhere rolls back what the action wrote. respond runs after the commit, so a failing respond leaves the saved row. Reads (index, show and collection actions) take no lock.
+An action that saves (store, update, destroy, restore and custom member actions) runs load, authorize, calculate and save in one transaction. A member row is loaded `FOR UPDATE`, so calculate's read, change and write cannot race another request. A failure anywhere rolls back what the action wrote. after and respond run after the commit, so a failing respond leaves the saved row, and a write that fails runs no after. Reads (index, show and collection actions) take no lock.
 
 Tests:
 - [a failing save rolls back what the action had already written](../core/test/engine-transaction.test.ts)
 - [member mutations load their row FOR UPDATE; reads take no lock](../core/test/engine-transaction.test.ts)
 - [respond runs after the commit: a failing respond leaves the saved row](../core/test/engine-transaction.test.ts)
 - [a concurrent writer cannot lock the row while an update holds it](../core/test/engine-lock.pg.test.ts)
+- [a write that fails runs no after](../core/test/after.test.ts)
+
+## after's failures
+
+The write has committed before after runs, so what an after hook throws does not change the reply: the engine hands it to the server's `onError` (console.error when there is none), and the next level's hook still runs (docs/decisions.md D26). An effect is lost if the process stops between the commit and the hook.
+
+Tests:
+- [a failing after is reported, the other levels still run, and the reply stands](../core/test/after.test.ts)
+- [without onError, a failing after goes to console.error](../core/test/after.test.ts)
+- [an after hook's failure goes to the server's onError, and the reply stands](../hono/test/after.test.ts)
 
 ## calculate is pure
 

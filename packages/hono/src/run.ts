@@ -115,7 +115,7 @@ export function run<R extends Resource, const N extends R['actions'][number]['na
   };
 
   const handle = async (c: Context<BlendxEnv>) => {
-    const { app, db, auth } = c.get('blendx');
+    const { app, db, auth, onError } = c.get('blendx');
     const endpoint = endpointFor(app);
     const typeBase = app.spec.problems?.typeBase;
     const hasBody = endpoint.method !== 'get' && endpoint.method !== 'delete';
@@ -127,7 +127,7 @@ export function run<R extends Resource, const N extends R['actions'][number]['na
         body: hasBody ? await readJson(c, typeBase) : undefined,
         auth,
       },
-      { db, typeBase },
+      { db, typeBase, onError },
     );
     if (result.status === 204) return c.body(null, 204, result.headers);
     return c.json(result.body as never, result.status as ContentfulStatusCode, result.headers);

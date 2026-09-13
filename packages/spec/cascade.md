@@ -1,6 +1,6 @@
 # Cascade
 
-Each stage of the pipeline (`pipeline.md`) has one hook, and four levels can set it: the schema default, the app (`defineApp({ hooks })`), the resource (`blend(model, { hooks })`) and the action (`a.store({ ... })`). They run in that order. Each level receives what the level above produced, so the most specific level has the last word.
+Each stage of the pipeline (`pipeline.md`) has one hook, and four levels can set it: the schema default, the app (`defineApp({ hooks })`), the resource (`blend(model, { hooks })`) and the action (`a.store({ ... })`). They run in that order. Each level receives what the level above produced, so the most specific level has the last word. after is the exception: every level's hook runs (below).
 
 Not every level can hook every stage:
 
@@ -11,9 +11,10 @@ Not every level can hook every stage:
 | authorize | yes | yes | yes |
 | calculate | | | yes |
 | save | | | yes |
+| after | yes | yes | yes |
 | respond | yes | yes | yes |
 
-App and resource hooks run for many tables or actions at once, so each must return the type it receives. Load, calculate and save depend on one table's columns, so only an action sets them.
+App and resource hooks run for many tables or actions at once, so each must return the type it receives. Load, calculate and save depend on one table's columns, so only an action sets them. after returns nothing, so every level can set it.
 
 Tests:
 - [without hooks every stage is the schema default](../core/test/cascade.test.ts)
@@ -43,6 +44,15 @@ An effect hook receives `runDefault()` instead of a value. Calling it runs the d
 Tests:
 - [calling runDefault extends the default, skipping it replaces the default](../core/test/cascade.test.ts)
 - [a load hook can scope the listing to the requester](../core/test/engine-load.test.ts)
+
+## after: every level runs
+
+after (docs/decisions.md D26) has no default to extend or replace, so no level replaces another: the app's hook runs, then the resource's, then the action's, each with the same saved row, loaded row, input, identity and database. App and resource hooks run only for actions that write, and an action that writes nothing cannot have one. What one level throws is reported, and the next level still runs (`pipeline.md`).
+
+Tests:
+- [app, resource and action after run in that order, none replacing another](../core/test/after.test.ts)
+- [provenance: after counts app and resource hooks only on actions that write](../core/test/after.test.ts)
+- [blend() refuses after on an action that writes nothing](../core/test/after.test.ts)
 
 ## Provenance
 

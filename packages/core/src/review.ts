@@ -38,7 +38,7 @@ export interface ActionReview {
   /** 'POST /addition_results' */
   readonly route: string;
   readonly input: Readonly<Record<string, string>>;
-  readonly stages: Readonly<Record<Stage, StageReview>>;
+  readonly stages: Readonly<Record<ReviewedStage, StageReview>>;
   /**
    * What calculate writes, for actions that calculate (store, update, custom). Without a
    * hook, the input's writable columns; with one, it is left for the CLI to fill in.
@@ -61,11 +61,17 @@ export interface ResourceReview {
   readonly actions: readonly ActionReview[];
 }
 
+/** The stages every action lists. after (D26) is listed apart, only where a hook sets it (P16.2). */
+type ReviewedStage = Exclude<Stage, 'after'>;
+const REVIEWED = STAGES.filter((stage): stage is ReviewedStage => stage !== 'after');
+
 const EMPTY = 'nothing (an empty object)';
 const WRITABLE = "the input's writable columns";
 
 /** What each stage does at the schema level, mirroring the engine's defaultEffects. */
-function stageDefaults(endpoint: EndpointDefinition): Record<Exclude<Stage, 'authorize'>, string> {
+function stageDefaults(
+  endpoint: EndpointDefinition,
+): Record<Exclude<ReviewedStage, 'authorize'>, string> {
   const { softDelete, timestamps } = endpoint.model.meta;
   const touch = timestamps.updatedAt ? `, touching ${timestamps.updatedAt}` : '';
   const live = softDelete ? ', not soft-deleted' : '';
@@ -179,14 +185,14 @@ export function reviewResource(resource: Resource, app: App): ResourceReview {
     });
     const defaults = stageDefaults(definition);
     const stages = Object.fromEntries(
-      STAGES.map((stage) => [
+      REVIEWED.map((stage) => [
         stage,
         Object.freeze({
           from: endpoint.provenance[stage],
           default: stage === 'authorize' ? definition.policy.description : defaults[stage],
         }),
       ]),
-    ) as Record<Stage, StageReview>;
+    ) as Record<ReviewedStage, StageReview>;
     const input = describeFields(toJsonSchema(endpoint.rules, 'input'));
     // The default calculate returns the input's writable columns (engine defaultWrites).
     const calculates = !definition.builtin || ['store', 'update'].includes(definition.action);

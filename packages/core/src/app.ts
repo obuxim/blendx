@@ -34,6 +34,19 @@ export interface AppHooks<Auth = unknown> {
     action: string;
   }): boolean | Promise<boolean>;
   respond?<R extends Reply>(context: { prev: R; model: Model; action: string }): R;
+  /**
+   * After every write commits, for every table, before the resource's and the action's after
+   * (D26). What it throws is reported, and the reply stands.
+   */
+  after?(context: {
+    saved: unknown;
+    record: unknown;
+    input: unknown;
+    auth: Auth | null;
+    db: Db;
+    model: Model;
+    action: string;
+  }): unknown;
 }
 
 /** `Auth` is what `auth` resolves to, null included. */

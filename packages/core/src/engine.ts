@@ -1,7 +1,8 @@
 /**
  * The engine: runs one request through an endpoint's pipeline (docs/decisions.md D3):
- * authenticate, validate, load, authorize, calculate, save, respond. Every failure is a
- * Problem Details response; the order decides precedence (401, 422, 404, 403).
+ * authenticate, validate, load, authorize, calculate, save, after, respond. Every failure is
+ * a Problem Details response; the order decides precedence (401, 422, 404, 403). after (D26)
+ * runs once a write has committed, and what it throws is reported, not answered.
  */
 import { and, asc, count, desc, eq, getColumns, isNotNull, isNull, sql } from 'drizzle-orm';
 import type { RegisteredAuth } from './app.ts';
@@ -32,6 +33,8 @@ export interface ExecuteDeps {
   db: Db;
   /** Base URI for problem types (defineApp problems.typeBase). */
   typeBase?: string;
+  /** Gets what an after hook throws (D26); the reply stays as it is. console.error by default. */
+  onError?: (error: unknown) => void;
 }
 
 export interface ExecuteResult {
@@ -309,11 +312,19 @@ export async function execute(
             auth,
           })
         : record;
-      return { loaded, result, saved };
+      return { loaded, record, result, saved };
     };
-    const { loaded, result, saved } = mutates
+    const { loaded, record, result, saved } = mutates
       ? await deps.db.transaction((tx) => stages(tx as unknown as Db))
       : await stages(deps.db);
+
+    // after, once the write has committed (D26): what it throws is reported, and the reply stands
+    if (mutates) {
+      await endpoint.after(
+        { db: deps.db, saved, record, input, auth },
+        deps.onError ?? ((error) => console.error(error)),
+      );
+    }
 
     // respond, after the commit
     const out =

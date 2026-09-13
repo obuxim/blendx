@@ -58,6 +58,7 @@ export {
 } from './engine.ts';
 export { type ExampleRun, runExamples } from './examples.ts';
 export type {
+  AfterContext,
   AuthorizeContext,
   CalculateContext,
   CollectionSpec,

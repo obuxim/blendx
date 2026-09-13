@@ -19,6 +19,8 @@ export interface BlendxContext {
   db: Db;
   /** What the app's auth function resolved for this request, or null. */
   auth: RegisteredAuth | null;
+  /** The server's onError: routes hand it what an after hook throws (D26). */
+  onError?: (error: unknown) => void;
 }
 
 export type BlendxEnv = { Variables: { blendx: BlendxContext } };
@@ -30,7 +32,10 @@ export interface ServerOptions {
   routes?: Hono<BlendxEnv>;
   /** Where the routes are mounted, e.g. '/api'. Defaults to '/'. */
   basePath?: string;
-  /** Called with every unexpected error before the 500 problem is sent. */
+  /**
+   * Called with every unexpected error before the 500 problem is sent, and with what an after
+   * hook throws, whose reply stands (D26). console.error by default.
+   */
   onError?: (error: unknown) => void;
 }
 
@@ -59,11 +64,12 @@ export function router(): Hono<BlendxEnv> {
 export function createServer(options: ServerOptions): Hono<BlendxEnv> {
   const { app, db } = options;
   const typeBase = app.spec.problems?.typeBase;
+  const onError = options.onError ?? ((error: unknown) => console.error(error));
   const server = new Hono<BlendxEnv>();
 
   server.use(async (c, next) => {
     const identity = app.spec.auth ? await app.spec.auth({ request: c.req.raw, db }) : null;
-    c.set('blendx', { app, db, auth: (identity ?? null) as RegisteredAuth | null });
+    c.set('blendx', { app, db, auth: (identity ?? null) as RegisteredAuth | null, onError });
     await next();
   });
 
@@ -78,8 +84,7 @@ export function createServer(options: ServerOptions): Hono<BlendxEnv> {
 
   server.onError((error, c) => {
     if (error instanceof HttpProblem) return problemResponse(c, error.problem);
-    if (options.onError) options.onError(error);
-    else console.error(error);
+    onError(error);
     return problemResponse(c, problem(500, { typeBase }));
   });
 

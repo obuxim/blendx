@@ -33,14 +33,15 @@ Working on an app built with blendx rather than on the framework? Its own `CLAUD
 
 ## The pattern
 
-- Pipeline per endpoint: **authenticate → validate → load → authorize → calculate → save → respond**. Error precedence 401 → 422 → 404 → 403 → 409.
+- Pipeline per endpoint: **authenticate → validate → load → authorize → calculate → save → after → respond**. Error precedence 401 → 422 → 404 → 403 → 409.
 - Cascade per hook: **schema default → app → resource → action**. Each level receives the result of the level above; the most specific wins.
 - Actions: `index`, `show`, `store`, `update` (PATCH), `destroy` (204), `restore` (soft-delete tables only), plus custom actions (`on: 'member' | 'collection'`).
-- Mutations run in one transaction (member loads `FOR UPDATE`); `respond` runs after commit.
+- Mutations run in one transaction (member loads `FOR UPDATE`); `after` and `respond` run after commit.
 
 ## Hook rules
 
-- One hook per stage: `rules`, `load`, `authorize`, `calculate`, `save`, `respond`.
+- One hook per stage: `rules`, `load`, `authorize`, `calculate`, `save`, `after`, `respond`.
+- `after` (D26) is for side effects once a write has committed: only actions that write have it, and the app, resource and action hooks all run, in that order. What it throws goes to `onError`; the reply stands. Writes that must be atomic go in `save`.
 - Value stages (`rules`, `authorize`, `calculate`, `respond`) receive `prev` and return the replacement. Ignore `prev` to replace it, use it to extend. Never mutate.
 - Effect stages (`load`, `save`) receive `runDefault()`. Call it to extend, skip it to replace.
 - `calculate({ prev, input, record })` is pure and synchronous: no db, no request, no I/O imports.
@@ -88,4 +89,4 @@ Definition of done: `bun run check` passes. Besides Biome, tsc and the tests (th
 
 ## Roadmap
 
-The API (phases P0 to P15) and the React adapter (phase N: `@blendx/react`, TanStack Query options over `hc<AppType>` with actions called by name; D25) are done, and `docs/todo.md` has nothing open. No next phase is planned. What D10 leaves out of v1 (composite primary keys, `?include=` relations, force-delete, PUT, a post-commit side-effect stage) and publishing to npm are candidates. Don't start one until asked; it becomes a new phase in the todo first.
+The API (phases P0 to P15) and the React adapter (phase N: `@blendx/react`, TanStack Query options over `hc<AppType>` with actions called by name; D25) are done. Phase P16 builds what D10 left out of v1, one feature at a time, each decided first: the after stage (D26) is in progress; composite primary keys, `?include=` relations, force-delete and PUT are candidates, as is publishing to npm. Don't start one until asked; it becomes a todo item first.
