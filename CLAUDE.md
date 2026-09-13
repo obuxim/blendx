@@ -87,4 +87,4 @@ Definition of done: `bun run check` passes. Besides Biome, tsc and the tests (th
 
 ## Roadmap
 
-Current scope: API only. The next phase is the React adapter (`@blendx/react`: TanStack Query over `hc<AppType>`). See "Next" in `docs/todo.md`. Don't start it until asked.
+The API is done. The React adapter (`@blendx/react`: TanStack Query options over `hc<AppType>`, actions called by name; D25) is in progress, as "N React adapter" in `docs/todo.md`.

@@ -74,7 +74,7 @@ window.WALKTHROUGH = {
     "entries": [
      {
       "command": "bunx blendx generate",
-      "output": "wrote src/generated/schema.gen.ts\nwrote src/generated/routes.gen.ts\nwrote src/generated/register.gen.ts\nwrote src/generated/drizzle.config.gen.ts\nwrote src/generated/openapi.json"
+      "output": "wrote src/generated/schema.gen.ts\nwrote src/generated/routes.gen.ts\nwrote src/generated/client.gen.ts\nwrote src/generated/register.gen.ts\nwrote src/generated/drizzle.config.gen.ts\nwrote src/generated/openapi.json"
      }
     ]
    }
@@ -107,8 +107,8 @@ window.WALKTHROUGH = {
       "reply": {
        "id": 1,
        "result": 7,
-       "created_at": "2026-09-13 15:06:29.23",
-       "updated_at": "2026-09-13 15:06:29.23",
+       "created_at": "2026-09-13 16:08:06.591",
+       "updated_at": "2026-09-13 16:08:06.591",
        "deleted_at": null
       }
      }
@@ -198,8 +198,8 @@ window.WALKTHROUGH = {
       "reply": {
        "id": 1,
        "result": 7,
-       "created_at": "2026-09-13 15:06:29.23",
-       "updated_at": "2026-09-13 15:06:29.237",
+       "created_at": "2026-09-13 16:08:06.591",
+       "updated_at": "2026-09-13 16:08:06.599",
        "deleted_at": null
       }
      }
@@ -328,9 +328,9 @@ window.WALKTHROUGH = {
        "email": "ada@example.com",
        "name": "Ada",
        "is_approver": false,
-       "api_token": "0ba12cad-4c14-417b-a745-d029ebd24fbd",
-       "created_at": "2026-09-13 15:06:29.926",
-       "updated_at": "2026-09-13 15:06:29.926"
+       "api_token": "f0f4c234-a2ef-4ef2-b803-0ca5deb69fd2",
+       "created_at": "2026-09-13 16:08:07.432",
+       "updated_at": "2026-09-13 16:08:07.432"
       }
      },
      {
@@ -463,8 +463,8 @@ window.WALKTHROUGH = {
        "status": "draft",
        "spent_on": "2026-09-01",
        "review_note": null,
-       "created_at": "2026-09-13 15:06:29.93",
-       "updated_at": "2026-09-13 15:06:29.93",
+       "created_at": "2026-09-13 16:08:07.438",
+       "updated_at": "2026-09-13 16:08:07.438",
        "deleted_at": null
       }
      }
@@ -585,8 +585,8 @@ window.WALKTHROUGH = {
          "status": "draft",
          "spent_on": "2026-09-01",
          "review_note": null,
-         "created_at": "2026-09-13 15:06:29.93",
-         "updated_at": "2026-09-13 15:06:29.93",
+         "created_at": "2026-09-13 16:08:07.438",
+         "updated_at": "2026-09-13 16:08:07.438",
          "deleted_at": null
         }
        ],
@@ -674,8 +674,8 @@ window.WALKTHROUGH = {
        "status": "draft",
        "spent_on": "2026-09-01",
        "review_note": null,
-       "created_at": "2026-09-13 15:06:29.93",
-       "updated_at": "2026-09-13 15:06:29.938",
+       "created_at": "2026-09-13 16:08:07.438",
+       "updated_at": "2026-09-13 16:08:07.448",
        "deleted_at": null
       }
      }
@@ -759,8 +759,8 @@ window.WALKTHROUGH = {
        "status": "submitted",
        "spent_on": "2026-09-01",
        "review_note": null,
-       "created_at": "2026-09-13 15:06:29.93",
-       "updated_at": "2026-09-13 15:06:30.205",
+       "created_at": "2026-09-13 16:08:07.438",
+       "updated_at": "2026-09-13 16:08:07.742",
        "deleted_at": null
       }
      },
@@ -796,8 +796,8 @@ window.WALKTHROUGH = {
          "status": "submitted",
          "spent_on": "2026-09-01",
          "review_note": null,
-         "created_at": "2026-09-13 15:06:29.93",
-         "updated_at": "2026-09-13 15:06:30.205",
+         "created_at": "2026-09-13 16:08:07.438",
+         "updated_at": "2026-09-13 16:08:07.742",
          "deleted_at": null
         }
        ],
@@ -824,8 +824,8 @@ window.WALKTHROUGH = {
        "status": "approved",
        "spent_on": "2026-09-01",
        "review_note": null,
-       "created_at": "2026-09-13 15:06:29.93",
-       "updated_at": "2026-09-13 15:06:30.21",
+       "created_at": "2026-09-13 16:08:07.438",
+       "updated_at": "2026-09-13 16:08:07.747",
        "deleted_at": null
       }
      },
@@ -984,7 +984,7 @@ window.WALKTHROUGH = {
      },
      {
       "command": "bun test",
-      "output": " 17 pass\n 0 fail\nRan 17 tests across 3 files. [1.57s]"
+      "output": " 17 pass\n 0 fail\nRan 17 tests across 3 files. [1.78s]"
      }
     ]
    }

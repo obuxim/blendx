@@ -156,9 +156,11 @@ Discovered work goes here. Triage it into a phase before starting it.
 - [x] An app-level authorize hook that reads `auth` does not typecheck in a registered app: `RegisteredAuth` comes from `typeof app`, whose hook types need `RegisteredAuth`, so tsc reports TS2502 (`'auth' is referenced directly or indirectly in its own type annotation`), even with the hook's parameter annotated. It runs correctly, and resource hooks and policies read `auth` with its type. (Found while writing the P14.2 guide, which points app authors to resource hooks for now.) Now P15.1.
 - [x] The typed client makes a custom POST action without rules take `json: {}` (`client.expenses[':id'].submit.$post({ param, json: {} })`), while built-in `restore` takes only `param`. Decide whether an action whose rules are the empty object should take no body in its route type. (P14.2's client test passes `json: {}`.) Decided: it takes none, as OpenAPI already says; now P15.6.
 
-## Next: React adapter (not in current scope; don't start until asked)
-- [ ] N.1 `@blendx/react`: `createBlendxClient<AppType>()` → TanStack Query hooks per resource/action over `hc`.
-- [ ] N.2 Query-key derivation + invalidation (store/update/destroy invalidate index/show).
+## N React adapter
+Started 2026-09-13 on D25: a client calls an action by its table and name, and gets TanStack Query options, not hooks.
+- [x] N.1a `blendx generate` writes `src/generated/client.gen.ts`: every action's `METHOD /path` by table and action name, importing nothing (D25). Done: a golden from the shop blends, a type test that its entries are exactly the routes of the same blends' AppType, and the examples and fixtures regenerated.
+- [ ] N.1b `@blendx/react`: `createBlendxClient<AppType>(endpoints, { baseUrl, headers, queryClient })`. A GET action gives `queryOptions(input)`, any other method `mutationOptions()`; each resolves to the body of the action's success status, and throws a `ProblemError` carrying the typed Problem Details otherwise. The react and @tanstack/react-query pins go in decisions. Done: type tests that an action's input and data are `hc`'s, and runtime tests through a QueryClient against the shop fixture.
+- [ ] N.2 Query keys `[table, action, input]`; a mutation invalidates every query of its table, and can name other tables its hooks write.
 - [ ] N.3 Problem Details pointers → form field errors helper.
-- [ ] N.4 Type tests: hook input/output parity with `hc`.
+- [ ] N.4 Type tests: input/output parity with `hc` for every kind of action.
 - [ ] N.5 `examples/addition/web` (React + Vite) consuming `AppType` + e2e test.

@@ -87,7 +87,7 @@ The full app is in [`examples/addition`](examples/addition).
 | `schema.dbml` | you: tables, columns, keys, indexes |
 | `blends/<table>.ts` | you: per table, what differs from the defaults |
 | `src/app.ts` | you: identity (`auth`) and app-wide hooks |
-| `src/generated/` | generated: the Drizzle schema, routes, the `AppType` for the client, the drizzle-kit config, `openapi.json` |
+| `src/generated/` | generated: the Drizzle schema, routes, the `AppType` and the endpoint map for clients, the drizzle-kit config, `openapi.json` |
 | `drizzle/` | generated: SQL migrations, through drizzle-kit |
 | `review/<table>.yaml` | generated for human review (below) |
 | `review/<table>.examples.yaml` | the humans': inputs and the outputs they expect |

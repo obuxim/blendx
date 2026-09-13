@@ -236,7 +236,7 @@ describe('blendx generate --check (P7.5)', () => {
     );
   });
 
-  test('a blend change shows up as drift in routes.gen.ts and openapi.json', async () => {
+  test('a blend change shows up as drift in routes.gen.ts, client.gen.ts and openapi.json', async () => {
     const path = join(app, 'blends', 'order_notes.ts');
     const original = await readFile(path, 'utf8');
     const edited = original.replace('[a.index(), a.store()]', '[a.index()]');
@@ -246,9 +246,10 @@ describe('blendx generate --check (P7.5)', () => {
       () => writeFile(path, edited),
       async () => {
         const { code, out, err } = spawnGenerate('--check');
-        expect(err).toBe(`${WARNING}2 generated files are out of date; run \`blendx generate\`\n`);
+        expect(err).toBe(`${WARNING}3 generated files are out of date; run \`blendx generate\`\n`);
         expect(code).toBe(1);
         expect(out).toContain('\n-  .post("/order_notes", ...run(order_notes, "store"))\n');
+        expect(out).toContain('\n-    "store": "POST /order_notes",\n');
         expect(out).toContain('--- src/generated/openapi.json\n');
       },
     );

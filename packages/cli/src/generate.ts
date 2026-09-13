@@ -1,7 +1,8 @@
 /**
  * `blendx generate` writes the generated folder in two phases. Phase one turns schema.dbml
  * into schema.gen.ts. Phase two imports the blends, which import that schema, and the app
- * module, and emits routes.gen.ts, register.gen.ts, drizzle.config.gen.ts and openapi.json.
+ * module, and emits routes.gen.ts, client.gen.ts, register.gen.ts, drizzle.config.gen.ts and
+ * openapi.json.
  * A file is only rewritten when its content changes. With --check nothing is written: each
  * drifted file prints a unified diff, and the command exits 1. Replies that openapi.json
  * cannot describe print as warnings, which never fail the command.
@@ -15,6 +16,7 @@ import { emitDrizzle, loadSchema } from '@blendx/dbml';
 import { CliError, type Command } from './command.ts';
 import { loadConfig, type ResolvedConfig } from './config.ts';
 import { unifiedDiff } from './diff.ts';
+import { emitClient } from './emit-client.ts';
 import { emitDrizzleConfig } from './emit-drizzle-config.ts';
 import { emitRegister } from './emit-register.ts';
 import { type BlendModule, emitRoutes } from './emit-routes.ts';
@@ -24,6 +26,7 @@ import { relativeTo } from './paths.ts';
 export const GENERATED_FILES = [
   'schema.gen.ts',
   'routes.gen.ts',
+  'client.gen.ts',
   'register.gen.ts',
   'drizzle.config.gen.ts',
   'openapi.json',
@@ -85,14 +88,13 @@ export function emitAppFiles(
   blends: readonly BlendModule[],
   app: App,
 ): { files: Record<Exclude<GeneratedFile, 'schema.gen.ts'>, string>; warnings: string[] } {
-  const openapi = buildOpenApi({
-    app,
-    resources: blends.map((blend) => blend.resource),
-    info: config.openapi,
-  });
+  const resources = blends.map((blend) => blend.resource);
+  const openapi = buildOpenApi({ app, resources, info: config.openapi });
   return {
     files: {
+      // routes.gen.ts first: it refuses two blends of one table and two actions on one route.
       'routes.gen.ts': emitRoutes(blends),
+      'client.gen.ts': emitClient(resources),
       'register.gen.ts': emitRegister(relativeTo(config.generated, config.app)),
       'drizzle.config.gen.ts': emitDrizzleConfig({
         schema: relativeTo(config.root, join(config.generated, 'schema.gen.ts')),
