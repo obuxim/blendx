@@ -105,9 +105,9 @@ One item ≈ one focused session. Work top to bottom (see "Todo loop" in `CLAUDE
 - [x] P12.1 Spec docs: pipeline, cascade, errors, review-format (each linked to test ids). Done: docs exist, links resolve.
 - [x] P12.2 Final CLAUDE.md + app-author CLAUDE.md template in examples/addition. Done: dry-run "add a table + a custom action" using only the docs.
 - [x] P12.3 One-page blend cookbook (10 patterns). Done: doc.
-- [x] P12.4 `bun build --compile` CLI. Decided against for v1 (D17): the CLI ships only as the `blendx` package's bin, `bunx blendx`.
+- [x] P12.4 `bun build --compile` CLI. Decided against for v1 (D17): the CLI ships only as a package bin, `bunx blendx` (`@blendx/cli`'s since D18).
 - [x] P12.5a Split the runtime from the CLI (D18): `blendx` drops its bin and its dependency on `@blendx/cli`, which owns the `blendx` bin and `@blendx/cli/examples`. Done: `bunx blendx` works from the repo and from the example, and `bun run check` passes.
-- [ ] P12.5b README. Done: README.
+- [x] P12.5b README. Done: README.
 - [ ] P12.6 Drizzle 1.0 GA migration spike (drizzle-orm/zod, kit folder format). Done: ADR go/no-go.
 
 ## Inbox
