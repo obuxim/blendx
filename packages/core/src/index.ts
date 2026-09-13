@@ -10,7 +10,7 @@ export {
   type Register,
   type RegisteredAuth,
 } from './app.ts';
-
+export type { IncludesSpec, IncludeTarget } from './blend.ts';
 export {
   type ActionBuilder,
   type ActionDefinition,
@@ -89,6 +89,8 @@ export type {
   Model,
   ModelMeta,
   PublicRow,
+  Relation,
+  RelationTable,
   Row,
   SoftDeletes,
   WritableColumn,
@@ -119,6 +121,7 @@ export {
   problem,
   validationProblem,
 } from './problems.ts';
+export { type BelongsTo, relationsOf } from './relations.ts';
 export {
   type ActionReview,
   type CalculateReview,

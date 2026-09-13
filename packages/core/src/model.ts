@@ -35,6 +35,30 @@ export type Row<M extends Model> = InferSelectModel<M['table']>;
 /** Column names of a model. */
 export type Column<M extends Model> = Extract<keyof Row<M>, string>;
 
+/** A model's foreign keys, as schema.gen.ts records them. */
+type ForeignKeyOf<M extends Model> = Extract<
+  M['meta']['constraints'][keyof M['meta']['constraints']],
+  { readonly kind: 'foreignKey' }
+>;
+
+type RelationNameOf<F> = F extends { readonly columns: readonly [`${infer Name}_id`] }
+  ? Name
+  : never;
+
+/**
+ * A model's belongs-to relations (D28): its single-column foreign keys whose column ends in
+ * `_id`, named without it. A name that a column already has is not a relation.
+ */
+export type Relation<M extends Model> = Exclude<RelationNameOf<ForeignKeyOf<M>>, Column<M> | ''>;
+
+/** The table a relation points to. */
+export type RelationTable<M extends Model, R extends string> =
+  Extract<ForeignKeyOf<M>, { readonly columns: readonly [`${R}_id`] }> extends {
+    readonly references: { readonly table: infer T };
+  }
+    ? T
+    : never;
+
 /** A row as Drizzle accepts it on insert. */
 export type Insert<M extends Model> = InferInsertModel<M['table']>;
 

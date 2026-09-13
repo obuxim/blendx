@@ -29,8 +29,17 @@ import type {
   StoreSpec,
   UpdateSpec,
 } from './hooks.ts';
-import type { Column, Model, PublicRow, Row, SoftDeletes } from './model.ts';
+import type {
+  Column,
+  Model,
+  PublicRow,
+  Relation,
+  RelationTable,
+  Row,
+  SoftDeletes,
+} from './model.ts';
 import type { Policy } from './policy.ts';
+import { relationsOf } from './relations.ts';
 import type { DefaultRules, EmptyRules, IndexRules, ResolvedRules } from './rules.ts';
 
 export type BuiltinAction = 'index' | 'show' | 'store' | 'update' | 'destroy' | 'restore';
@@ -298,14 +307,25 @@ export type PolicySpec<M extends Model> =
   | Policy<M>
   | ({ default?: Policy<M> } & { [action: string]: Policy<M> | undefined });
 
+/** A blend of the table a relation points to (D28). */
+export type IncludeTarget<M extends Model, R extends string> = Resource<
+  Model & { readonly name: RelationTable<M, R> }
+>;
+
+/** What `?include=` may nest: relations of the table, each through a blend of its target (D28). */
+export type IncludesSpec<M extends Model> = { readonly [R in Relation<M>]?: IncludeTarget<M, R> };
+
 export interface ResourceSpec<
   M extends Model,
   A extends readonly ActionDefinition[],
   H extends readonly Column<M>[],
+  I extends IncludesSpec<M> = Record<never, never>,
 > {
   policy: PolicySpec<M>;
   /** Columns never returned in responses (e.g. password), unless an action reveals them. */
   hidden?: H;
+  /** The rows `?include=` may nest, each through its target blend's show (D28). */
+  includes?: I & { readonly [K in Exclude<keyof I, Relation<M>>]: never };
   /** Hooks that run for every action of this resource. */
   hooks?: ResourceHooks<M>;
   actions: (a: ActionBuilder<M, H[number]>) => A;
@@ -315,6 +335,7 @@ export interface Resource<
   M extends Model = Model,
   A extends readonly ActionDefinition[] = readonly ActionDefinition[],
   H extends readonly string[] = readonly string[],
+  I extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>,
 > {
   readonly kind: 'blendx/resource';
   readonly model: M;
@@ -323,6 +344,8 @@ export interface Resource<
   /** The policy of every exposed action, after applying `default`. */
   readonly policies: { readonly [action: string]: Policy<M> };
   readonly hooks: ResourceHooks<M>;
+  /** What `?include=` may nest, by relation name, each a blend of its target (D28). */
+  readonly includes: I;
 }
 
 /** Thrown when a resource definition is invalid. Surfaces when blends are loaded. */
@@ -474,6 +497,9 @@ function builderFor(model: Model) {
   };
 }
 
+const isResource = (value: unknown): value is Resource =>
+  typeof value === 'object' && value !== null && (value as Resource).kind === 'blendx/resource';
+
 const isPolicy = (value: unknown): value is Policy =>
   typeof value === 'object' &&
   value !== null &&
@@ -493,7 +519,8 @@ export function blend<
   M extends Model,
   A extends readonly ActionDefinition[],
   const H extends readonly Column<M>[] = [],
->(model: M, spec: ResourceSpec<NoInfer<M>, A, H>): Resource<M, A, H> {
+  const I extends IncludesSpec<M> = Record<never, never>,
+>(model: M, spec: ResourceSpec<NoInfer<M>, A, H, I>): Resource<M, A, H, I> {
   const fail = (message: string): never => {
     throw new BlendxDefinitionError(model.name, message);
   };
@@ -524,6 +551,34 @@ export function blend<
     if (!columns.has(column)) fail(`hidden column "${column}" is not a column of ${model.name}`);
   }
 
+  // D28: each include is a relation of the table, through a blend of its target with a show.
+  const relations = relationsOf(model);
+  const includes = (spec.includes ?? {}) as Readonly<Record<string, unknown>>;
+  for (const [name, target] of Object.entries(includes)) {
+    const relation = relations.get(name);
+    const show = isResource(target)
+      ? target.actions.find((action) => action.name === 'show')
+      : undefined;
+    if (!relation) {
+      const known = [...relations.keys()].join(', ') || 'none';
+      fail(`include "${name}" is not a relation of ${model.name} (its relations: ${known})`);
+    } else if (columns.has(name)) {
+      fail(`include "${name}" has the name of a column of ${model.name}`);
+    } else if (!isResource(target)) {
+      fail(`include "${name}" is not a blend; two blends cannot include each other (D28)`);
+    } else if (target.model.name !== relation.table) {
+      fail(`include "${name}" points to ${relation.table}, not to ${target.model.name}`);
+    } else if (!show) {
+      fail(
+        `include "${name}": ${relation.table} does not expose show, which decides who sees its rows`,
+      );
+    } else if (show.hooks.load) {
+      fail(
+        `include "${name}": the show of ${relation.table} has a load hook, which an include cannot run`,
+      );
+    }
+  }
+
   // D24: an action reveals hidden columns, and only in a reply that holds one record.
   for (const action of actions) {
     const reveal = action.options.reveal ?? [];
@@ -545,5 +600,6 @@ export function blend<
     hidden,
     policies: Object.freeze(policies),
     hooks: Object.freeze({ ...spec.hooks }),
+    includes: Object.freeze({ ...includes }) as I,
   });
 }
