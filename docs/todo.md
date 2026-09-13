@@ -92,7 +92,7 @@ One item ≈ one focused session. Work top to bottom (see "Todo loop" in `CLAUDE
 - [x] P10.6 Fix-request workflow test (edit YAML → check fails → change blend → passes) + doc. Done: test + doc.
 
 ## P11 Conformance
-- [ ] P11.1 Case format + matchers ($any, $int, $iso8601, $absent) in `packages/spec/conformance.md`. Done: doc + types.
+- [x] P11.1 Case format + matchers ($any, $int, $timestamp, $absent; `$timestamp` replaces the planned `$iso8601`, see D15) in `packages/spec/conformance.md`. Done: doc + types.
 - [ ] P11.2 `runConformance(cases, fetch, { reset })`. Done: unit tests.
 - [ ] P11.3 Shop fixture (users: hidden password, unique email; orders: FK, enum, soft delete, owner policy, `refund` member action, `quote` collection action, filters). Done: `generate --check` passes.
 - [ ] P11.4 One case per derivation rule and per error status. Done: coverage meta-test passes.
