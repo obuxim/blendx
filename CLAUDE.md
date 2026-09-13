@@ -88,4 +88,4 @@ Definition of done: `bun run check` passes. Besides Biome, tsc and the tests (th
 
 ## Roadmap
 
-The API is done. The React adapter (`@blendx/react`: TanStack Query options over `hc<AppType>`, actions called by name; D25) is in progress, as "N React adapter" in `docs/todo.md`.
+The API (phases P0 to P15) and the React adapter (phase N: `@blendx/react`, TanStack Query options over `hc<AppType>` with actions called by name; D25) are done, and `docs/todo.md` has nothing open. No next phase is planned. What D10 leaves out of v1 (composite primary keys, `?include=` relations, force-delete, PUT, a post-commit side-effect stage) and publishing to npm are candidates. Don't start one until asked; it becomes a new phase in the todo first.
