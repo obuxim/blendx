@@ -31,6 +31,7 @@ import type {
 } from './hooks.ts';
 import type {
   Column,
+  ForeignKeysTo,
   Model,
   PublicRow,
   Relation,
@@ -39,7 +40,7 @@ import type {
   SoftDeletes,
 } from './model.ts';
 import type { Policy } from './policy.ts';
-import { relationsOf } from './relations.ts';
+import { foreignKeysTo, relationsOf } from './relations.ts';
 import type { DefaultRules, EmptyRules, IncludeRules, IndexRules, ResolvedRules } from './rules.ts';
 
 export type BuiltinAction = 'index' | 'show' | 'store' | 'update' | 'destroy' | 'restore' | 'purge';
@@ -137,10 +138,15 @@ type IncludedRow<T> =
     ? PublicRow<TM, Extract<TH[number], Column<TM>>>
     : never;
 
-/** What `?include=` may add to a record of index or show: each include's record, or null (D28). */
+/** What one include adds: a has-many's rows as an array (D31), a belongs-to's record or null (D28). */
+type IncludedValue<V> = V extends { readonly blend: infer T }
+  ? IncludedRow<T>[]
+  : IncludedRow<V> | null;
+
+/** What `?include=` may add to a record of index or show: each include's value (D28, D31). */
 export type Included<I> = [keyof I] extends [never]
   ? unknown
-  : { [K in keyof I]?: IncludedRow<I[K]> | null };
+  : { [K in keyof I]?: IncludedValue<I[K]> };
 
 /** show's rules: an empty object, or `?include=` when the blend declares includes (D28). */
 type ShowRules<I> = [keyof I] extends [never] ? EmptyRules : IncludeRules;
@@ -349,8 +355,54 @@ export type IncludeTarget<M extends Model, R extends string> = Resource<
   Model & { readonly name: RelationTable<M, R> }
 >;
 
-/** What `?include=` may nest: relations of the table, each through a blend of its target (D28). */
-export type IncludesSpec<M extends Model> = { readonly [R in Relation<M>]?: IncludeTarget<M, R> };
+/**
+ * A has-many include (D31): the blend of the rows whose foreign key points at this table, the
+ * most of them one row nests, and their order (a column of the target, `-` for descending;
+ * the target's primary key when left out). `by` names the foreign key when the target points
+ * at the table more than once.
+ */
+export interface HasManySpec<
+  T extends Resource = Resource,
+  By extends string = string,
+  Sort extends string = string,
+> {
+  readonly blend: T;
+  readonly by?: By;
+  readonly limit: number;
+  readonly sort?: Sort | `-${Sort}`;
+}
+
+type IsUnion<U, C = U> = U extends unknown ? ([C] extends [U] ? false : true) : never;
+
+/** The has-many spec a value must be, given the blend it names, or never (D31). */
+type HasManyOf<M extends Model, V> = V extends { readonly blend: infer T extends Resource }
+  ? [ForeignKeysTo<T['model'], M['name']>] extends [never]
+    ? never
+    : (IsUnion<ForeignKeysTo<T['model'], M['name']>> extends true
+        ? { readonly by: ForeignKeysTo<T['model'], M['name']> }
+        : { readonly by?: ForeignKeysTo<T['model'], M['name']> }) & {
+        readonly blend: T;
+        readonly limit: number;
+        readonly sort?: Column<T['model']> | `-${Column<T['model']>}`;
+      } & { readonly [P in Exclude<keyof V, keyof HasManySpec>]: never }
+  : never;
+
+/**
+ * What an include named K may be: a belongs-to relation takes a blend of its target (D28),
+ * any other name that is not a column takes a has-many spec (D31).
+ */
+type IncludeCheck<M extends Model, K, V> =
+  K extends Relation<M> ? IncludeTarget<M, K> : K extends Column<M> ? never : HasManyOf<M, V>;
+
+/**
+ * What `?include=` may nest: relations of the table, each through a blend of its target (D28),
+ * and has-many includes under names of the app's choosing (D31); IncludeCheck decides each.
+ */
+export type IncludesSpec<M extends Model> = {
+  readonly [R in Relation<M>]?: IncludeTarget<M, R>;
+} & {
+  readonly [name: string]: unknown;
+};
 
 export interface ResourceSpec<
   M extends Model,
@@ -361,8 +413,11 @@ export interface ResourceSpec<
   policy: PolicySpec<M>;
   /** Columns never returned in responses (e.g. password), unless an action reveals them. */
   hidden?: H;
-  /** The rows `?include=` may nest, each through its target blend's show (D28). */
-  includes?: I & { readonly [K in Exclude<keyof I, Relation<M>>]: never };
+  /**
+   * What `?include=` may nest: a belongs-to relation through its target blend's show (D28),
+   * or the rows that point at this table, `{ blend, limit }`, through theirs (D31).
+   */
+  includes?: I & { readonly [K in keyof I]: IncludeCheck<M, K, I[K]> };
   /** Hooks that run for every action of this resource. */
   hooks?: ResourceHooks<M>;
   actions: (a: ActionBuilder<M, H[number], I>) => A;
@@ -546,6 +601,16 @@ function builderFor(model: Model) {
 const isResource = (value: unknown): value is Resource =>
   typeof value === 'object' && value !== null && (value as Resource).kind === 'blendx/resource';
 
+/** A has-many include as written (D31): an object naming its blend, checked further by blend(). */
+export const isHasMany = (
+  value: unknown,
+): value is {
+  readonly blend: unknown;
+  readonly by?: unknown;
+  readonly limit?: unknown;
+  readonly sort?: unknown;
+} => typeof value === 'object' && value !== null && 'blend' in value;
+
 const isPolicy = (value: unknown): value is Policy =>
   typeof value === 'object' &&
   value !== null &&
@@ -599,31 +664,71 @@ export function blend<
     if (!columns.has(column)) fail(`hidden column "${column}" is not a column of ${model.name}`);
   }
 
-  // D28: each include is a relation of the table, through a blend of its target with a show.
+  // D28: a belongs-to include is a relation of the table, through a blend of its target with
+  // a show. D31: a has-many include is { blend, limit }, the blend of a table that points here.
   const relations = relationsOf(model);
   const includes = (spec.includes ?? {}) as Readonly<Record<string, unknown>>;
-  for (const [name, target] of Object.entries(includes)) {
-    const relation = relations.get(name);
-    const show = isResource(target)
-      ? target.actions.find((action) => action.name === 'show')
-      : undefined;
-    if (!relation) {
-      const known = [...relations.keys()].join(', ') || 'none';
-      fail(`include "${name}" is not a relation of ${model.name} (its relations: ${known})`);
-    } else if (columns.has(name)) {
-      fail(`include "${name}" has the name of a column of ${model.name}`);
-    } else if (!isResource(target)) {
-      fail(`include "${name}" is not a blend; two blends cannot include each other (D28)`);
-    } else if (target.model.name !== relation.table) {
-      fail(`include "${name}" points to ${relation.table}, not to ${target.model.name}`);
-    } else if (!show) {
+  /** The target's show, or the reason it cannot serve an include. */
+  const showOf = (name: string, target: Resource) => {
+    const show = target.actions.find((action) => action.name === 'show');
+    if (!show) {
       fail(
-        `include "${name}": ${relation.table} does not expose show, which decides who sees its rows`,
+        `include "${name}": ${target.model.name} does not expose show, which decides who sees its rows`,
       );
     } else if (show.hooks.load) {
       fail(
-        `include "${name}": the show of ${relation.table} has a load hook, which an include cannot run`,
+        `include "${name}": the show of ${target.model.name} has a load hook, which an include cannot run`,
       );
+    }
+  };
+  for (const [name, value] of Object.entries(includes)) {
+    const relation = relations.get(name);
+    const hasMany = isHasMany(value);
+    if (columns.has(name)) {
+      fail(`include "${name}" has the name of a column of ${model.name}`);
+    } else if (relation && hasMany) {
+      fail(
+        `include "${name}" is a belongs-to relation of ${model.name}; give it the blend of ${relation.table}`,
+      );
+    } else if (relation) {
+      if (!isResource(value)) {
+        fail(`include "${name}" is not a blend; two blends cannot include each other (D28)`);
+      } else if (value.model.name !== relation.table) {
+        fail(`include "${name}" points to ${relation.table}, not to ${value.model.name}`);
+      } else {
+        showOf(name, value);
+      }
+    } else if (!hasMany) {
+      const known = [...relations.keys()].join(', ') || 'none';
+      fail(
+        `include "${name}" is not a relation of ${model.name} (its relations: ${known}); a has-many include is { blend, limit } (D31)`,
+      );
+    } else if (!isResource(value.blend)) {
+      fail(`include "${name}" is not a blend; two blends cannot include each other (D28)`);
+    } else {
+      const target = value.blend;
+      const keys = foreignKeysTo(target.model, model.name);
+      const targetColumns = Object.keys(getColumns(target.model.table));
+      const sort = typeof value.sort === 'string' ? value.sort.replace(/^-/, '') : undefined;
+      if (keys.length === 0) {
+        fail(`include "${name}": ${target.model.name} has no foreign key to ${model.name}`);
+      } else if (value.by !== undefined && !keys.includes(value.by as string)) {
+        fail(
+          `include "${name}": "${value.by}" is not a foreign key of ${target.model.name} to ${model.name} (they are: ${keys.join(', ')})`,
+        );
+      } else if (value.by === undefined && keys.length > 1) {
+        fail(
+          `include "${name}": ${target.model.name} points to ${model.name} by ${keys.join(' and ')}; say which with by`,
+        );
+      } else if (!Number.isInteger(value.limit) || (value.limit as number) <= 0) {
+        fail(`include "${name}": limit must be a positive integer (D31)`);
+      } else if (sort !== undefined && !targetColumns.includes(sort)) {
+        fail(`include "${name}": sort "${value.sort}" is not a column of ${target.model.name}`);
+      } else if (sort !== undefined && (target.hidden as readonly string[]).includes(sort)) {
+        fail(`include "${name}": sort "${value.sort}" is a hidden column of ${target.model.name}`);
+      } else {
+        showOf(name, target);
+      }
     }
   }
 

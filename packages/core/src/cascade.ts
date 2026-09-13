@@ -9,7 +9,7 @@
 import { z } from 'zod';
 import type { App, RegisteredAuth } from './app.ts';
 import { defaultRules } from './derive-rules.ts';
-import type { EndpointDefinition } from './endpoints.ts';
+import type { EndpointDefinition, IncludeDefinition } from './endpoints.ts';
 import { toEndpoints } from './endpoints.ts';
 import { defaultEffects, saves } from './engine.ts';
 import type { Db, Reply } from './hooks.ts';
@@ -74,11 +74,8 @@ export interface LaterInput extends AfterInput {
   attempt: number;
 }
 
-/** An include (D28): the foreign key column, and the target's show that decides each row. */
-export interface IncludedTarget {
-  readonly column: string;
-  readonly show: ResolvedEndpoint;
-}
+/** An include as resolved (D28, D31), with the target's show that decides each row. */
+export type IncludedTarget = IncludeDefinition & { readonly show: ResolvedEndpoint };
 
 /** The engine's schema-level load and save for one endpoint. */
 export interface EffectDefaults {
@@ -165,11 +162,11 @@ export function resolveEndpoint(
   // D28: each include's target show, with this app, as it answers GET /<table>/:id.
   const included = Object.freeze(
     Object.fromEntries(
-      Object.entries(endpoint.includes ?? {}).map(([name, { column, target }]) => {
-        const show = toEndpoints(target).find((definition) => definition.action === 'show');
+      Object.entries(endpoint.includes ?? {}).map(([name, include]) => {
+        const show = toEndpoints(include.target).find((definition) => definition.action === 'show');
         if (!show) throw new Error(`${model.name}: include "${name}" has no show to go through`);
         const resolved = resolveEndpoint(show, { app, defaults: defaultEffects(show) });
-        return [name, Object.freeze({ column, show: resolved })];
+        return [name, Object.freeze({ ...include, show: resolved })];
       }),
     ),
   );

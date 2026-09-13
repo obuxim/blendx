@@ -10,7 +10,12 @@ import type { App } from './app.ts';
 import type { Resource } from './blend.ts';
 import { type ResolvedEndpoint, resolveEndpoint } from './cascade.ts';
 import { recordSchema } from './derive-rules.ts';
-import { defaultStatus, type EndpointDefinition, toEndpoints } from './endpoints.ts';
+import {
+  defaultStatus,
+  type EndpointDefinition,
+  resolveIncludes,
+  toEndpoints,
+} from './endpoints.ts';
 import { defaultEffects } from './engine.ts';
 import { type JsonObject, toJsonSchema } from './json-schema.ts';
 import type { Model } from './model.ts';
@@ -195,7 +200,7 @@ export function buildOpenApi({ app, resources, info }: OpenApiOptions): OpenApiR
     const record = markDates(toJsonSchema(recordSchema(model, resource.hidden), 'output'), model);
     schemas[model.name] = record;
     // D28: the record an include points to has a component, even without a blend of its own here.
-    for (const target of Object.values(resource.includes ?? {}) as Resource[]) {
+    for (const { target } of Object.values(resolveIncludes(resource))) {
       schemas[target.model.name] ??= markDates(
         toJsonSchema(recordSchema(target.model, target.hidden), 'output'),
         target.model,

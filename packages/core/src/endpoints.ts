@@ -10,15 +10,60 @@ import type {
   Resource,
   ResourceHooks,
 } from './blend.ts';
+import { type HasManySpec, isHasMany } from './blend.ts';
 import type { ReplyDeclaration } from './hooks.ts';
 import type { Model } from './model.ts';
 import type { Policy } from './policy.ts';
-import { relationsOf } from './relations.ts';
+import { foreignKeysTo, relationsOf } from './relations.ts';
 
-/** What `?include=<name>` nests (D28): the foreign key column, and the blend it points to. */
-export interface IncludeDefinition {
-  readonly column: string;
-  readonly target: Resource;
+/**
+ * What `?include=<name>` nests, as the engine and the generators read it: a belongs-to (D28),
+ * the row the foreign key `column` of this table points to; or a has-many (D31), the rows of
+ * the target whose `column` points here, at most `limit` per row, in `sort` order.
+ */
+export type IncludeDefinition =
+  | { readonly kind: 'belongsTo'; readonly column: string; readonly target: Resource }
+  | {
+      readonly kind: 'hasMany';
+      readonly column: string;
+      readonly target: Resource;
+      readonly limit: number;
+      readonly sort: { readonly column: string; readonly descending: boolean };
+    };
+
+/** A resource's includes resolved (D28, D31); blend() has checked them. */
+export function resolveIncludes(resource: Resource): Readonly<Record<string, IncludeDefinition>> {
+  const relations = relationsOf(resource.model);
+  return Object.freeze(
+    Object.fromEntries(
+      Object.entries(resource.includes ?? {}).map(([name, value]): [string, IncludeDefinition] => {
+        if (isHasMany(value)) {
+          const { blend: target, by, limit, sort } = value as HasManySpec;
+          const column = by ?? foreignKeysTo(target.model, resource.model.name)[0] ?? '';
+          const descending = sort?.startsWith('-') ?? false;
+          const orderBy = sort ? sort.replace(/^-/, '') : (target.model.meta.primaryKey ?? '');
+          return [
+            name,
+            Object.freeze({
+              kind: 'hasMany',
+              column,
+              target,
+              limit,
+              sort: Object.freeze({ column: orderBy, descending }),
+            }),
+          ];
+        }
+        return [
+          name,
+          Object.freeze({
+            kind: 'belongsTo',
+            column: relations.get(name)?.column ?? `${name}_id`,
+            target: value as Resource,
+          }),
+        ];
+      }),
+    ),
+  );
 }
 
 export interface EndpointDefinition {
@@ -76,18 +121,7 @@ function byRank(a: ActionDefinition, b: ActionDefinition): number {
 /** The endpoints of one resource, in route order. */
 export function toEndpoints(resource: Resource): EndpointDefinition[] {
   const { model, hidden, policies } = resource;
-  const relations = relationsOf(model);
-  const includes = Object.freeze(
-    Object.fromEntries(
-      Object.entries(resource.includes ?? {}).map(([name, target]) => [
-        name,
-        Object.freeze({
-          column: relations.get(name)?.column ?? `${name}_id`,
-          target: target as Resource,
-        }),
-      ]),
-    ),
-  );
+  const includes = resolveIncludes(resource);
   const reads = (action: ActionDefinition) =>
     action.builtin && (action.name === 'index' || action.name === 'show');
   return [...resource.actions].sort(byRank).map((action) => {

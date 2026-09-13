@@ -7,7 +7,7 @@
  * update find the row. The file imports nothing, so a web app loads it without loading the
  * server. Order follows routes.gen.ts.
  */
-import { type Resource, toEndpoints } from '@blendx/core';
+import { type Resource, resolveIncludes, toEndpoints } from '@blendx/core';
 import { byCodeUnit, HEADER, routeOf } from './emit-routes.ts';
 
 const str = (value: string) => JSON.stringify(value);
@@ -43,8 +43,8 @@ export function emitClient(resources: readonly Resource[]): string {
       const actions = toEndpoints(resource).map(
         (endpoint) => [endpoint.action, str(routeOf(endpoint))] as const,
       );
-      const includes = Object.entries(resource.includes ?? {})
-        .map(([name, target]) => [name, str((target as Resource).model.name)] as const)
+      const includes = Object.entries(resolveIncludes(resource))
+        .map(([name, { target }]) => [name, str(target.model.name)] as const)
         .sort(([a], [b]) => byCodeUnit(a, b));
       const table = object(
         [

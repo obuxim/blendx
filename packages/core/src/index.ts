@@ -10,7 +10,7 @@ export {
   type Register,
   type RegisteredAuth,
 } from './app.ts';
-export type { IncludesSpec, IncludeTarget } from './blend.ts';
+export type { HasManySpec, IncludesSpec, IncludeTarget } from './blend.ts';
 export {
   type ActionBuilder,
   type ActionDefinition,
@@ -46,7 +46,12 @@ export {
   defineConfig,
 } from './config.ts';
 export { type DeriveOptions, defaultRules, recordSchema } from './derive-rules.ts';
-export { defaultStatus, type EndpointDefinition, toEndpoints } from './endpoints.ts';
+export {
+  defaultStatus,
+  type EndpointDefinition,
+  resolveIncludes,
+  toEndpoints,
+} from './endpoints.ts';
 export {
   type DefaultEffectOptions,
   defaultEffects,
@@ -85,6 +90,7 @@ export type {
   Column,
   ConstraintKind,
   ConstraintMeta,
+  ForeignKeysTo,
   Insert,
   Model,
   ModelMeta,
@@ -121,7 +127,7 @@ export {
   problem,
   validationProblem,
 } from './problems.ts';
-export { type BelongsTo, relationsOf } from './relations.ts';
+export { type BelongsTo, foreignKeysTo, relationsOf } from './relations.ts';
 export {
   type ActionReview,
   type CalculateReview,

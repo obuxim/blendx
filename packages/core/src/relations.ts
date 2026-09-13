@@ -13,18 +13,37 @@ export interface BelongsTo {
   readonly key: string;
 }
 
-/** The belongs-to relations of a model, by name, in the order of its constraints. */
-export function relationsOf(model: Model): ReadonlyMap<string, BelongsTo> {
-  const relations = new Map<string, BelongsTo>();
+/** A model's single-column foreign keys, in the order of its constraints. */
+function foreignKeysOf(model: Model): BelongsTo[] {
+  const keys: BelongsTo[] = [];
   for (const constraint of Object.values(model.meta.constraints)) {
     const [column, ...more] = constraint.columns;
     const table = constraint.references?.table;
     const [key, ...others] = constraint.references?.columns ?? [];
     if (constraint.kind !== 'foreignKey' || !column || !table || !key) continue;
-    if (more.length > 0 || others.length > 0 || !column.endsWith('_id') || column === '_id') {
-      continue;
-    }
-    relations.set(column.slice(0, -'_id'.length), { column, table, key });
+    if (more.length > 0 || others.length > 0) continue;
+    keys.push({ column, table, key });
+  }
+  return keys;
+}
+
+/** The belongs-to relations of a model, by name, in the order of its constraints. */
+export function relationsOf(model: Model): ReadonlyMap<string, BelongsTo> {
+  const relations = new Map<string, BelongsTo>();
+  for (const relation of foreignKeysOf(model)) {
+    const { column } = relation;
+    if (!column.endsWith('_id') || column === '_id') continue;
+    relations.set(column.slice(0, -'_id'.length), relation);
   }
   return relations;
+}
+
+/**
+ * The columns of a model that are single-column foreign keys to `table` (D31): the ways its
+ * rows point at that table's rows, which a has-many include follows.
+ */
+export function foreignKeysTo(model: Model, table: string): string[] {
+  return foreignKeysOf(model)
+    .filter((key) => key.table === table)
+    .map((key) => key.column);
 }

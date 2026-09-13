@@ -169,6 +169,9 @@ async function withIncludes(
   const nested = new Map<string, Map<unknown, unknown>>();
   for (const name of names) {
     const include = endpoint.included[name];
+    if (include?.kind === 'hasMany') {
+      throw new Error(`${endpoint.id}: has-many includes are not served yet (P16.12)`);
+    }
     if (include) nested.set(name, await includedRows(db, include, sources, auth));
   }
   const nest = (row: unknown, source: Record<string, unknown> | undefined) => {

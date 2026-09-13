@@ -9,7 +9,12 @@ import type { App } from './app.ts';
 import type { Resource } from './blend.ts';
 import { type Level, resolveEndpoint, STAGES, type Stage } from './cascade.ts';
 import { recordSchema } from './derive-rules.ts';
-import { defaultStatus, type EndpointDefinition, toEndpoints } from './endpoints.ts';
+import {
+  defaultStatus,
+  type EndpointDefinition,
+  resolveIncludes,
+  toEndpoints,
+} from './endpoints.ts';
 import { defaultEffects, saves, writableColumns } from './engine.ts';
 import { describeFields, describeSchema, toJsonSchema } from './json-schema.ts';
 
@@ -241,8 +246,7 @@ export function reviewResource(resource: Resource, app: App): ResourceReview {
     });
   });
   // D28: what ?include= may nest, and who sees each row: the policy of the target's show.
-  const includes = Object.entries(resource.includes ?? {}).map(([name, value]) => {
-    const target = value as Resource;
+  const includes = Object.entries(resolveIncludes(resource)).map(([name, { target }]) => {
     const policy = target.policies.show?.description ?? 'no show';
     return [name, `${target.model.name}, through its show: ${policy}`] as const;
   });

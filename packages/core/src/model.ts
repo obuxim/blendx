@@ -51,6 +51,16 @@ type RelationNameOf<F> = F extends { readonly columns: readonly [`${infer Name}_
  */
 export type Relation<M extends Model> = Exclude<RelationNameOf<ForeignKeyOf<M>>, Column<M> | ''>;
 
+type ColumnOfKey<F> = F extends { readonly columns: readonly [infer C extends string] } ? C : never;
+
+/**
+ * The columns of a model that are single-column foreign keys to the table named T (D31):
+ * `ForeignKeysTo<order_notes, 'orders'>` is `'order_id'`. A has-many include follows one.
+ */
+export type ForeignKeysTo<M extends Model, T extends string> = ColumnOfKey<
+  Extract<ForeignKeyOf<M>, { readonly references: { readonly table: T } }>
+>;
+
 /** The table a relation points to. */
 export type RelationTable<M extends Model, R extends string> =
   Extract<ForeignKeyOf<M>, { readonly columns: readonly [`${R}_id`] }> extends {
