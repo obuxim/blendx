@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "npm install --global bun@1.4.2",
+  "buildCommand": "\"$(npm prefix --global)/bin/bun\" docs/site/build.ts",
+  "outputDirectory": "site",
+  "trailingSlash": true,
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- docs vercel.json",
+  "redirects": [{ "source": "/", "destination": "/docs/", "permanent": false }]
+}

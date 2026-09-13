@@ -127,6 +127,9 @@ One item ≈ one focused session. Work top to bottom (see "Todo loop" in `CLAUDE
 
 - [x] P14.4 A narrated, interactive walkthrough of both examples in `docs/media/walkthrough/`: `script.ts` holds the steps and their narration, `build.ts` captures every command and reply from the running examples and voices the narration with Piper (the public-domain LJSpeech voice), and `index.html` plays it step by step. Done: every output on the page comes from a build run, the page lints clean, and the guide links to it.
 
+- [x] P14.5 The guide, the cookbook and the walkthrough as one site: `docs/site/build.ts` renders the Markdown with Bun's own renderer into `site/` (not committed), links pages to each other and repository files to GitHub, fails on a link that resolves to nothing, and copies the walkthrough to `/tutorial/`; `vercel.json` tells Vercel how to build and serve it. Done: the site builds with every link resolved, and `bun run check` passes.
+- [ ] P14.6 Serve the site from Vercel at `blendx.zubairhasan.com`: a Vercel project linked to the repository, redeploying when `docs/` changes, with the domain attached. Done: `/docs/` and `/tutorial/` load from the domain. (Needs the owner's go-ahead, and a DNS record for the subdomain.)
+
 ## P15 Fixes from the guide
 Found while building `examples/expenses` and writing `docs/guide` (P14). Each item also removes its entry from `docs/guide/known-issues.md`, and updates the guide and the example where they work around it.
 - [x] P15.1 App hooks type `auth` from the app's own `auth` function, not through `Register`: going through `Register` makes an app-level authorize hook that reads `auth` a circular type (TS2502). Done: a type test in the Register project, with an app authorize hook that reads `auth`, passes tsc; the guide shows app hooks reading the identity.
