@@ -122,7 +122,7 @@ One item ≈ one focused session. Work top to bottom (see "Todo loop" in `CLAUDE
 
 ## P14 A guide for app authors, and a second example
 - [x] P14.1 `examples/expenses`, built from scratch as the guide will tell it: users who sign up for a bearer token, expense claims with an owner policy and an approver role, state rules on member actions, pure pricing in calculate, a `quote` collection action, review examples and end-to-end tests. Done: `bun run check` passes with the example in its typecheck, generate and review checks.
-- [ ] P14.2 `docs/guide/`, the app author's guide: getting started (in the monorepo, or in an app of its own through `bun link`), a tutorial that builds `examples/expenses`, and reference pages (schema, blends, hooks, the app and identity, the HTTP API and typed client, review, testing, configuration and deployment, the CLI). README and CLAUDE.md link to it. Done: every command and reply the guide shows was run, and every link resolves.
+- [x] P14.2 `docs/guide/`, the app author's guide: getting started (in the monorepo, or in an app of its own through `bun link`), a tutorial that builds `examples/expenses`, and reference pages (schema, blends, hooks, the app and identity, the HTTP API and typed client, review, testing, configuration and deployment, the CLI). README and CLAUDE.md link to it. Done: every command and reply the guide shows was run, and every link resolves.
 
 ## Inbox
 Discovered work goes here. Triage it into a phase before starting it.
@@ -136,6 +136,8 @@ Discovered work goes here. Triage it into a phase before starting it.
 - [ ] The review prints zod's whole regex after a string format: `spent_on: string (date), matching ^(?:(?:\d\d[2468]...`, and the same for `email` and `uuid`. The format alone says it. (P14.1.)
 - [ ] An index scoped to the requester has no correct pages: a load hook's `runDefault()` takes no filter, and cookbook pattern 7 filters one page after loading it, so `meta.total` and the page sizes are wrong once rows span pages. Consider `runDefault({ where })` or a scope hook. (P14.1 asks non-approvers for `?user_id=` and checks it in authorize.)
 - [ ] A column that one reply must carry and every other reply must hide, such as an API token returned once at signup, has no way to say so: `hidden` applies to the whole resource, and respond sees only the public record. (P14.1 leaves `api_token` visible and exposes users only through store and an owner-only show.)
+- [ ] An app-level authorize hook that reads `auth` does not typecheck in a registered app: `RegisteredAuth` comes from `typeof app`, whose hook types need `RegisteredAuth`, so tsc reports TS2502 (`'auth' is referenced directly or indirectly in its own type annotation`), even with the hook's parameter annotated. It runs correctly, and resource hooks and policies read `auth` with its type. (Found while writing the P14.2 guide, which points app authors to resource hooks for now.)
+- [ ] The typed client makes a custom POST action without rules take `json: {}` (`client.expenses[':id'].submit.$post({ param, json: {} })`), while built-in `restore` takes only `param`. Decide whether an action whose rules are the empty object should take no body in its route type. (P14.2's client test passes `json: {}`.)
 
 ## Next: React adapter (not in current scope; don't start until asked)
 - [ ] N.1 `@blendx/react`: `createBlendxClient<AppType>()` → TanStack Query hooks per resource/action over `hc`.

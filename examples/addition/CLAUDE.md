@@ -75,7 +75,7 @@ a.collection('quote', {
 
 A collection action loads and saves nothing: calculate's result is the reply, so declare its `reply` schema for OpenAPI. A member action saves what calculate returns and replies with the record.
 
-More patterns (scoping a listing to the requester, reshaping a reply, an extra authorization rule, soft delete) are in the blend cookbook, `docs/cookbook.md` in the blendx repository.
+More patterns (scoping a listing to the requester, reshaping a reply, an extra authorization rule, soft delete) are in the blend cookbook, `docs/cookbook.md` in the blendx repository. The guide for blendx apps, with a page per part (schema, blends, hooks, identity, the HTTP API, review, testing, deployment), is `docs/guide/`.
 
 ## Hook rules
 
