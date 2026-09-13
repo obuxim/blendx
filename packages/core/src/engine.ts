@@ -63,14 +63,18 @@ export function writableColumns(model: Model): Set<string> {
 }
 
 /** The schema-default writes: the validated input's writable columns. */
-function defaultWrites(model: Model, input: unknown): Record<string, unknown> {
+export function defaultWrites(model: Model, input: unknown): Record<string, unknown> {
   if (!isObject(input)) return {};
   const writable = writableColumns(model);
   return Object.fromEntries(Object.entries(input).filter(([key]) => writable.has(key)));
 }
 
 /** calculate may only return writable columns of its model. A mistake is a 500, not a silent drop. */
-function assertWritable(model: Model, action: string, writes: unknown): Record<string, unknown> {
+export function assertWritable(
+  model: Model,
+  action: string,
+  writes: unknown,
+): Record<string, unknown> {
   if (!isObject(writes)) {
     throw new Error(`${model.name}.${action}: calculate must return an object of column values`);
   }

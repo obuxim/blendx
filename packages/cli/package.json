@@ -5,7 +5,8 @@
   "type": "module",
   "description": "blendx CLI: generate, review, migrate. The blendx package exposes it as its bin.",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./examples": "./src/examples.ts"
   },
   "devDependencies": {
     "hono": "4.13.7"

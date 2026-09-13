@@ -109,3 +109,29 @@ describe('blendx review', () => {
     TIMEOUT,
   );
 });
+
+describe('blendx review --check runs the examples (P10.5)', () => {
+  test(
+    'a failing example fails the check with a readable line; fixed, it passes',
+    async () => {
+      const examples = reviewFile('orders.examples.yaml');
+      const quote = (total: number) =>
+        `quote:\n  - name: ten per item\n    input: { quantity: '3' }\n    returns: { total: ${total} }\n`;
+
+      await writeFile(examples, quote(31));
+      expect(await cli('review', '--check')).toEqual({
+        code: 1,
+        out: 'review/orders.examples.yaml: quote #1 (ten per item): returns {"total":30}, expected {"total":31}\n',
+        err: '1 example failed\n',
+      });
+
+      await writeFile(examples, quote(30));
+      expect(await cli('review', '--check')).toEqual({
+        code: 0,
+        out: 'review is up to date\n1 example passed\n',
+        err: '',
+      });
+    },
+    TIMEOUT,
+  );
+});

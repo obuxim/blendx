@@ -2,7 +2,8 @@
  * `blendx review` writes review/<resource>.yaml for every blend (P10.4): the review model
  * from core, with calculate's source read by one TypeScript 6 program. Files whose blend is
  * gone are removed. With --check nothing is written: drift prints a unified diff and exits
- * 1, like `generate --check`. Human-owned *.examples.yaml files are never touched.
+ * 1, like `generate --check`. Human-owned *.examples.yaml files are never touched; --check
+ * runs them (P10.5), and a failing example fails the check.
  */
 import { existsSync } from 'node:fs';
 import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
@@ -13,6 +14,7 @@ import { CliError, type Command } from './command.ts';
 import { loadConfig } from './config.ts';
 import { unifiedDiff } from './diff.ts';
 import { emitReview } from './emit-review.ts';
+import { runExampleFiles } from './examples.ts';
 import { loadApp, loadBlends } from './generate.ts';
 
 /** Generated review files; `<resource>.examples.yaml` belongs to the humans. */
@@ -96,13 +98,24 @@ export const review: Command = {
       }
     }
 
+    // The humans' examples run with --check; a plain run only writes.
+    const examples = check ? await runExampleFiles(config, blends, app) : undefined;
+    for (const failure of examples?.failures ?? []) io.out(`${failure}\n`);
+
+    const problems: string[] = [];
+    if (check && stale.length > 0) {
+      const what = stale.length === 1 ? `${stale[0]} is` : `${stale.length} review files are`;
+      problems.push(`${what} out of date; run \`blendx review\``);
+    }
+    const failed = examples?.failures.length ?? 0;
+    if (failed > 0) problems.push(`${failed} example${failed === 1 ? '' : 's'} failed`);
+    if (problems.length > 0) throw new CliError(problems.join('\n'));
+
     if (stale.length === 0) {
       io.out(`${shown(config.review)} is up to date\n`);
+      const passed = examples?.passed ?? 0;
+      if (passed > 0) io.out(`${passed} example${passed === 1 ? '' : 's'} passed\n`);
       return 0;
-    }
-    if (check) {
-      const what = stale.length === 1 ? `${stale[0]} is` : `${stale.length} review files are`;
-      throw new CliError(`${what} out of date; run \`blendx review\``);
     }
     io.out(report.map((line) => `${line}\n`).join(''));
     return 0;

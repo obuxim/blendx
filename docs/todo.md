@@ -88,7 +88,7 @@ One item ≈ one focused session. Work top to bottom (see "Todo loop" in `CLAUDE
 - [x] P10.2 `calculate` source + `writes` via the typescript6 program (default calculate → rules keys). Done: literal/spread/conditional tests.
 - [x] P10.3 YAML emitter (yaml Document API, `# from:` comments, `format: 1`, deterministic). Done: golden `review/addition_results.yaml`.
 - [x] P10.4 `blendx review` + `--check` (diff, exit codes). Done: drift test.
-- [ ] P10.5 Examples runner (validate → calculate → deep-equal), usable from bun test and inside `--check`. Done: pass case + readable failure.
+- [x] P10.5 Examples runner (validate → calculate → deep-equal), usable from bun test and inside `--check`. Done: pass case + readable failure.
 - [ ] P10.6 Fix-request workflow test (edit YAML → check fails → change blend → passes) + doc. Done: test + doc.
 
 ## P11 Conformance

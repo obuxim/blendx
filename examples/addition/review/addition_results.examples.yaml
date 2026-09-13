@@ -1,0 +1,15 @@
+# Human-owned: what each action must compute. `blendx review --check` runs these,
+# and so does test/examples.test.ts.
+store:
+  - name: adds a and b
+    input: { a: 4, b: 3 }
+    writes: { result: 7 }
+  - name: negative and fractional numbers
+    input: { a: -2, b: 0.5 }
+    writes: { result: -1.5 }
+  - name: both numbers are required
+    input: { a: 4 }
+    rejects: [/b]
+  - name: the result is calculated, never sent
+    input: { a: 4, b: 3, result: 99 }
+    rejects: [/result]
