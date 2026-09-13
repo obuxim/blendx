@@ -14,6 +14,7 @@ export const endpoints = {
     "update": "PATCH /orders/:id",
     "destroy": "DELETE /orders/:id",
     "restore": "POST /orders/:id/restore",
+    "purge": "DELETE /orders/:id/purge",
     "refund": "POST /orders/:id/refund",
   },
   "users": {

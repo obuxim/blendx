@@ -1,0 +1,90 @@
+{
+  "format": 1,
+  "fixture": "shop",
+  "cases": [
+    {
+      "id": "PURGE",
+      "title": "purge deletes a row for good, soft-deleted or not, under its own policy (D29)",
+      "steps": [
+        {
+          "request": {
+            "method": "DELETE",
+            "path": "/orders/1/purge",
+            "headers": { "x-user-id": "2" }
+          },
+          "expect": {
+            "status": 403,
+            "headers": { "content-type": "application/problem+json" },
+            "body": { "status": 403 }
+          }
+        },
+        {
+          "request": { "method": "DELETE", "path": "/orders/1", "headers": { "x-user-id": "1" } },
+          "expect": { "status": 204, "body": "$absent" }
+        },
+        {
+          "request": {
+            "method": "GET",
+            "path": "/orders?trashed=only",
+            "headers": { "x-user-id": "1" }
+          },
+          "expect": { "status": 200, "body": { "meta": { "total": 1 } } }
+        },
+        {
+          "request": {
+            "method": "DELETE",
+            "path": "/orders/1/purge",
+            "headers": { "x-user-id": "1" }
+          },
+          "expect": { "status": 204, "body": "$absent" }
+        },
+        {
+          "request": {
+            "method": "POST",
+            "path": "/orders/1/restore",
+            "headers": { "x-user-id": "1" }
+          },
+          "expect": {
+            "status": 404,
+            "headers": { "content-type": "application/problem+json" },
+            "body": { "status": 404 }
+          }
+        },
+        {
+          "request": {
+            "method": "GET",
+            "path": "/orders?trashed=with",
+            "headers": { "x-user-id": "1" }
+          },
+          "expect": { "status": 200, "body": { "data": [], "meta": { "total": 0 } } }
+        },
+        {
+          "request": {
+            "method": "POST",
+            "path": "/orders",
+            "headers": { "x-user-id": "1" },
+            "body": { "user_id": 1, "total": "4.00" }
+          },
+          "expect": { "status": 201, "body": { "deleted_at": null } },
+          "capture": { "order": "/id" }
+        },
+        {
+          "request": {
+            "method": "DELETE",
+            "path": "/orders/{order}/purge",
+            "headers": { "x-user-id": "1" }
+          },
+          "expect": { "status": 204, "body": "$absent" }
+        },
+        {
+          "request": {
+            "method": "GET",
+            "path": "/orders?trashed=with",
+            "headers": { "x-user-id": "1" }
+          },
+          "expect": { "status": 200, "body": { "data": [], "meta": { "total": 0 } } }
+        }
+      ]
+    }
+  ]
+}

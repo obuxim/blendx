@@ -42,10 +42,11 @@ The `actions` callback receives a builder, `a`, and returns the list of actions 
 | `a.update()` | `PATCH /<table>/:id` | validates a partial body and updates the row | 200, the record |
 | `a.destroy()` | `DELETE /<table>/:id` | soft-deletes the row, or deletes it when the table has no `deleted_at` | 204, no body |
 | `a.restore()` | `POST /<table>/:id/restore` | clears `deleted_at` on a soft-deleted row | 200, the record |
+| `a.purge()` | `DELETE /<table>/:id/purge` | deletes the row for good, soft-deleted or not | 204, no body |
 | `a.member(name, spec)` | `POST /<table>/:id/<name>` | loads the row and updates it with what `calculate` returns | 200, the record |
 | `a.collection(name, spec)` | `POST /<table>/<name>` | loads and saves nothing | 200, what `calculate` returns |
 
-- `a.restore()` exists only on a table with a nullable `deleted_at` timestamp. On any other table it is a type error.
+- `a.restore()` and `a.purge()` exist only on a table with a nullable `deleted_at` timestamp. On any other table they are a type error: destroy already deletes for good there. Purge has a policy of its own, like every action, so a blend can leave destroy to a row's owner and purge to an administrator ([cookbook pattern 10](../cookbook.md#10-soft-delete-restore-and-trashed-rows)).
 - Each action is listed once. Every call takes an optional spec: the hooks where the action differs from the defaults ([Hooks](hooks.md)), and the options below.
 - A collection action's route, such as `GET /expenses/quote`, is matched before `GET /expenses/:id`.
 
@@ -150,7 +151,7 @@ hidden: ['api_token'],
 actions: (a) => [a.store({ rules: ..., reveal: ['api_token'] }), a.show()],
 ```
 
-`reveal` is for actions that reply with one record: store, show, update, restore and member actions. It names only hidden columns, and index, destroy and collection actions take none, so no page ever carries the column. The action's reply type and its OpenAPI schema include what it reveals, and the review lists it under the action as `reveals` (docs/decisions.md D24).
+`reveal` is for actions that reply with one record: store, show, update, restore and member actions. It names only hidden columns, and index, destroy, purge and collection actions take none, so no page ever carries the column. The action's reply type and its OpenAPI schema include what it reveals, and the review lists it under the action as `reveals` (docs/decisions.md D24).
 
 ## Includes
 
@@ -188,9 +189,9 @@ The declaration is type-checked against what the action sends: the keys must mat
 - an action without a policy, or a policy for an action that is not listed;
 - a hidden column that is not a column;
 - a custom action that reuses a built-in name, has a name that is not lowercase letters, digits and `_`, or has an invalid path;
-- `restore`, or `trashed` on index, on a table without soft delete;
+- `restore`, `purge`, or `trashed` on index, on a table without soft delete;
 - a `reply` that is neither a zod schema nor `{ status, body }`;
 - a `scope` that is not a function;
-- a `reveal` that names a column that is not hidden, or sits on an action that does not reply with one record (index, destroy, a collection action).
+- a `reveal` that names a column that is not hidden, or sits on an action that does not reply with one record (index, destroy, purge, a collection action).
 
 Mistakes in types, such as a `calculate` that returns a column the table does not have, are caught earlier, by `tsc`.

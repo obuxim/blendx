@@ -112,6 +112,29 @@ describe('later (D27)', () => {
     });
   });
 
+  test('purge: the entry holds the deleted row as saved (D29)', async () => {
+    const [row] = await database.db
+      .insert(ordersTable)
+      .values({ user_id: 1, total: '3.00' })
+      .returning();
+    const orders = blend(shop.orders, {
+      policy: allow.public,
+      actions: (a) => [a.purge({ later: () => {} })],
+    });
+    const reply = await execute(
+      endpoint(orders, 'purge'),
+      request({ params: { id: String(row?.id) } }),
+      database,
+    );
+    expect(reply.status).toBe(204);
+    const [entry] = await entries();
+    expect(entry).toMatchObject({
+      action: 'purge',
+      payload: { saved: { id: row?.id, total: '3.00' }, record: { id: row?.id } },
+    });
+    expect(await database.db.$count(ordersTable, eq(ordersTable.id, row?.id ?? 0))).toBe(0);
+  });
+
   test('a write that fails leaves no entry', async () => {
     const later = () => {};
     const orders = blend(shop.orders, {

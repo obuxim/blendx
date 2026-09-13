@@ -153,6 +153,7 @@ function replies(endpoint: EndpointDefinition, warnings: string[]): JsonObject {
     case 'store':
       return reply(201, record);
     case 'destroy':
+    case 'purge':
       return reply(204);
     default:
       return reply(200, record);

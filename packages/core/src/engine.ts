@@ -185,10 +185,14 @@ async function withIncludes(
   return nest(out, sources[0]);
 }
 
+/** Built-in actions that delete: destroy, and purge on a soft-delete table (D29). */
+const deletes = (endpoint: Pick<EndpointDefinition, 'action' | 'builtin'>) =>
+  endpoint.builtin && (endpoint.action === 'destroy' || endpoint.action === 'purge');
+
 /** The schema-default reply, built from the already public record or page. */
 function defaultReply(endpoint: EndpointDefinition, out: unknown, result: unknown): Reply {
   if (endpoint.on === 'collection' && !endpoint.builtin) return { status: 200, body: result };
-  if (endpoint.action === 'destroy') return { status: 204, body: null };
+  if (deletes(endpoint)) return { status: 204, body: null };
   return { status: endpoint.action === 'store' ? 201 : 200, body: out };
 }
 
@@ -260,7 +264,7 @@ function dateTimeProblem(model: Model, typeBase: string | undefined, seen: Seen)
 
 /**
  * Constraint violations as problems (D4, D11): 23505 unique is 409; 23503 foreign key is
- * 422, or 409 when a destroy is still referenced; 23502 not null, 22P02 invalid value and
+ * 422, or 409 when a destroy or purge is still referenced; 23502 not null, 22P02 invalid value and
  * 22001 too long are 422. Pointers come from the constraint's columns in the model meta.
  * 22007 and 22008, a date or time the database cannot read, are 422 too (D23). Other
  * database errors stay errors.
@@ -291,7 +295,7 @@ function databaseProblem(
         errors: invalid('is already taken'),
       });
     case '23503':
-      return endpoint.action === 'destroy'
+      return deletes(endpoint)
         ? problem(409, {
             typeBase,
             detail: `${endpoint.resource} is still referenced by other records.`,
@@ -451,11 +455,11 @@ const INDEX_CONTROLS = new Set(['page', 'per_page', 'sort', 'trashed', 'include'
 
 /**
  * The schema-level load and save for an endpoint.
- * Load: a member by primary key, never a soft-deleted one (restore loads only those), or
- * a filtered, sorted page for index.
+ * Load: a member by primary key, never a soft-deleted one (restore loads only those, purge
+ * loads both), or a filtered, sorted page for index.
  * Save: store inserts with both timestamps; update and custom member actions update and
  * touch updated_at (no query when there is nothing to write); destroy sets deleted_at, or
- * deletes on tables without it; restore clears deleted_at.
+ * deletes on tables without it; restore clears deleted_at; purge deletes for good (D29).
  */
 export function defaultEffects(
   endpoint: EndpointDefinition,
@@ -481,7 +485,9 @@ export function defaultEffects(
   };
 
   async function loadMember(db: Db, id: string | undefined, lock: boolean): Promise<unknown> {
-    const scope = trashScope(action === 'restore' ? 'only' : undefined);
+    const scope = trashScope(
+      action === 'restore' ? 'only' : action === 'purge' ? 'with' : undefined,
+    );
     const select = db
       .select()
       .from(table)
@@ -547,7 +553,7 @@ export function defaultEffects(
     }
     const where = eq(primaryKey(), id);
 
-    if (action === 'destroy' && !deletedAt) {
+    if ((action === 'destroy' && !deletedAt) || action === 'purge') {
       const rows: unknown[] = await tx.delete(table).where(where).returning();
       return rows[0];
     }

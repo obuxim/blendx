@@ -18,6 +18,7 @@ What a client of a blendx app sees. The replies below come from [`examples/expen
 | update | `PATCH /<table>/:id` | 200, the record |
 | destroy | `DELETE /<table>/:id` | 204, no body |
 | restore | `POST /<table>/:id/restore` | 200, the record |
+| purge | `DELETE /<table>/:id/purge` | 204, no body |
 | member action | `POST /<table>/:id/<name>` | 200, the record |
 | collection action | `POST /<table>/<name>` | 200, what it calculated |
 
@@ -122,7 +123,7 @@ Every error is an RFC 9457 Problem Details object, served as `application/proble
 | 401 | The action's policy needs an identity, and the request has none. |
 | 403 | The policy or an authorize hook refuses. |
 | 404 | No route matches, or a member action's record does not exist (a soft-deleted one included). |
-| 409 | A unique value already exists, or a destroy hits a row other rows still reference. |
+| 409 | A unique value already exists, or a destroy or purge hits a row other rows still reference. |
 | 422 | The input is invalid, or the database refuses a value: a reference to a missing row, a required column left empty, a value its column cannot hold. |
 | 500 | Anything else. The client gets no details; the server's `onError` gets the error. |
 

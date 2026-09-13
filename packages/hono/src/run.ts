@@ -56,15 +56,15 @@ type QueryFromRules<Rules> = Rules extends z.ZodType
   : BlankInput;
 
 /**
- * What a request sends. index takes its filters and paging as a query; show, destroy and
- * restore take nothing; other GET actions take their rules as a query, DELETE ones
- * nothing, and the rest a JSON body, unless their rules accept nothing.
+ * What a request sends. index takes its filters and paging as a query; show, destroy,
+ * restore and purge take nothing; other GET actions take their rules as a query, DELETE
+ * ones nothing, and the rest a JSON body, unless their rules accept nothing.
  */
 export type InputOf<A> =
   A extends ActionDefinition<infer Name, infer Rules, unknown, infer Method>
     ? Name extends 'index'
       ? QueryInput
-      : Name extends 'show' | 'destroy' | 'restore'
+      : Name extends 'show' | 'destroy' | 'restore' | 'purge'
         ? BlankInput
         : Method extends 'get'
           ? QueryFromRules<Rules>

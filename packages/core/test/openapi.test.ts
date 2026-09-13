@@ -27,6 +27,7 @@ describe('buildOpenApi', () => {
       '/orders',
       '/orders/quote',
       '/orders/{id}',
+      '/orders/{id}/purge',
       '/orders/{id}/refund',
       '/orders/{id}/restore',
       '/users',
@@ -80,6 +81,8 @@ describe('buildOpenApi', () => {
     expect(statuses('/orders', 'post')).toContain('201');
     const destroyed = at(document, 'paths', '/orders/{id}', 'delete', 'responses', '204');
     expect(destroyed).toEqual({ description: 'No content' });
+    const purged = at(document, 'paths', '/orders/{id}/purge', 'delete', 'responses', '204');
+    expect(purged).toEqual({ description: 'No content' });
     const page = at(document, 'paths', '/orders', 'get', 'responses', '200', 'content');
     expect(Object.keys(at(page, 'application/json', 'schema', 'properties'))).toEqual([
       'data',

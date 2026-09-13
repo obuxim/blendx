@@ -1,7 +1,8 @@
 /**
  * P5.4: default saves. store inserts, update and custom member actions update and touch
  * updated_at, destroy soft-deletes (or deletes on tables without deleted_at), restore
- * clears deleted_at. calculate may only write the model's writable columns.
+ * clears deleted_at, purge deletes for good (P16.10, D29). calculate may only write the
+ * model's writable columns.
  */
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import {
@@ -65,6 +66,7 @@ const orders = blend(shop.orders, {
     a.update(),
     a.destroy(),
     a.restore(),
+    a.purge(),
     a.member('mark_paid', { calculate: () => ({ status: 'paid' as const }) }),
     a.member('noop', { calculate: () => ({}) }),
   ],
@@ -144,6 +146,36 @@ describe('default saves', () => {
     expect(
       (await execute(endpoint(orders, 'show'), request({ params: { id: '2' } }), database)).status,
     ).toBe(200);
+  });
+
+  test('purge deletes a soft-deleted row for good: 204, and restore no longer finds it', async () => {
+    await execute(endpoint(orders, 'destroy'), request({ params: { id: '3' } }), database);
+    expect((await rowOf(3))?.deleted_at).toBeString();
+    const purged = await execute(
+      endpoint(orders, 'purge'),
+      request({ params: { id: '3' } }),
+      database,
+    );
+    expect(purged).toEqual({ status: 204, body: null, headers: {} });
+    expect(await rowOf(3)).toBeUndefined();
+    expect(
+      (await execute(endpoint(orders, 'restore'), request({ params: { id: '3' } }), database))
+        .status,
+    ).toBe(404);
+  });
+
+  test('purge deletes a live row too, without passing through the trash', async () => {
+    expect((await rowOf(2))?.deleted_at).toBeNull();
+    const purged = await execute(
+      endpoint(orders, 'purge'),
+      request({ params: { id: '2' } }),
+      database,
+    );
+    expect(purged.status).toBe(204);
+    expect(await rowOf(2)).toBeUndefined();
+    expect(
+      (await execute(endpoint(orders, 'purge'), request({ params: { id: '2' } }), database)).status,
+    ).toBe(404);
   });
 
   test('destroy deletes the row on a table without deleted_at', async () => {

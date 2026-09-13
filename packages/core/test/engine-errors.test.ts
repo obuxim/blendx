@@ -16,7 +16,7 @@ import {
   resolveEndpoint,
   toEndpoints,
 } from '@blendx/core';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import {
   orders as ordersTable,
@@ -65,6 +65,7 @@ const orders = blend(shop.orders, {
     a.index(),
     a.store(),
     a.show(),
+    a.purge(),
     a.member('clear_total', { calculate: () => ({ total: null }) as never }),
   ],
 });
@@ -156,6 +157,26 @@ describe('constraint violations', () => {
       detail: 'users is still referenced by other records.',
     });
     expect(await database.db.$count(usersTable, eq(usersTable.id, 1))).toBe(1);
+  });
+
+  test('23503 on purge: a row other rows still reference answers 409 and stays', async () => {
+    // The shop's order_notes cascade, so a table of its own references the order (D29).
+    await database.db.execute(
+      sql.raw(
+        'create table order_refs (id serial primary key, order_id bigint references orders(id))',
+      ),
+    );
+    await database.db.execute(sql.raw('insert into order_refs (order_id) values (1)'));
+    const referenced = await execute(
+      endpoint(orders, 'purge'),
+      request({ params: { id: '1' } }),
+      database,
+    );
+    expect(referenced.status).toBe(409);
+    expect(referenced.body).toMatchObject({
+      detail: 'orders is still referenced by other records.',
+    });
+    expect(await database.db.$count(ordersTable, eq(ordersTable.id, 1))).toBe(1);
   });
 
   test('23502: a hook writing null into a NOT NULL column answers 422', async () => {

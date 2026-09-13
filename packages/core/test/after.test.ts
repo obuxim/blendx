@@ -129,6 +129,32 @@ describe('after (D26)', () => {
     expect(seen).toEqual([{ before: null, deleted: true }]);
   });
 
+  test('purge: saved is the row as deleted, once it is gone (D29)', async () => {
+    const [row] = await database.db
+      .insert(ordersTable)
+      .values({ user_id: 1, total: '2.00', deleted_at: '2020-01-01 00:00:00' })
+      .returning();
+    const seen: unknown[] = [];
+    const orders = blend(shop.orders, {
+      policy: allow.public,
+      actions: (a) => [
+        a.purge({
+          after: async ({ saved, record, db }) => {
+            const left = await db.$count(ordersTable, eq(ordersTable.id, saved.id));
+            seen.push({ id: saved.id, trashed: record.deleted_at !== null, left });
+          },
+        }),
+      ],
+    });
+    const reply = await execute(
+      endpoint(orders, 'purge'),
+      request({ params: { id: String(row?.id) } }),
+      database,
+    );
+    expect(reply.status).toBe(204);
+    expect(seen).toEqual([{ id: row?.id, trashed: true, left: 0 }]);
+  });
+
   test('after runs before respond', async () => {
     const order: string[] = [];
     const orders = blend(shop.orders, {

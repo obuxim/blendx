@@ -27,6 +27,7 @@ export const orders = blend(models.orders, {
     a.update(),
     a.destroy(),
     a.restore(),
+    a.purge(),
     a.collection('quote', {
       method: 'get',
       rules: () => z.object({ quantity: z.string() }),

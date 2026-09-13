@@ -26,6 +26,7 @@ const additions = blend(addition.addition_results, {
     a.update(),
     a.destroy(),
     a.restore(),
+    a.purge(),
   ],
 });
 
@@ -35,7 +36,8 @@ const routes = new Hono<BlendxEnv>()
   .get('/addition_results/:id', ...run(additions, 'show'))
   .patch('/addition_results/:id', ...run(additions, 'update'))
   .delete('/addition_results/:id', ...run(additions, 'destroy'))
-  .post('/addition_results/:id/restore', ...run(additions, 'restore'));
+  .post('/addition_results/:id/restore', ...run(additions, 'restore'))
+  .delete('/addition_results/:id/purge', ...run(additions, 'purge'));
 
 let database: TestDatabase;
 let server: Hono<BlendxEnv>;
@@ -87,6 +89,16 @@ describe('run(): the addition example over hand-written routes', () => {
     const restored = await send('POST', '/addition_results/1/restore');
     expect(restored.status).toBe(200);
     expect(await restored.json()).toMatchObject({ id: 1, deleted_at: null });
+  });
+
+  test('DELETE /:id/purge deletes for good: 204, and restore no longer finds the row (D29)', async () => {
+    const purged = await send('DELETE', '/addition_results/1/purge');
+    expect(purged.status).toBe(204);
+    expect(await purged.text()).toBe('');
+    expect((await send('POST', '/addition_results/1/restore')).status).toBe(404);
+    expect(await (await send('GET', '/addition_results')).json()).toMatchObject({
+      meta: { total: 0 },
+    });
   });
 
   test('errors are problems: 422 invalid input, 400 malformed JSON, 404 unknown id', async () => {

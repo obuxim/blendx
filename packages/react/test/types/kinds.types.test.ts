@@ -23,6 +23,7 @@ const kinds = blend(models.orders, {
     a.update(),
     a.destroy(),
     a.restore(),
+    a.purge(),
     a.member('refund', {
       rules: () => z.object({ reason: z.string() }),
       calculate: () => ({ status: 'refunded' as const }),
@@ -55,6 +56,7 @@ const routes = router()
   .patch('/orders/:id', ...run(kinds, 'update'))
   .delete('/orders/:id', ...run(kinds, 'destroy'))
   .post('/orders/:id/restore', ...run(kinds, 'restore'))
+  .delete('/orders/:id/purge', ...run(kinds, 'purge'))
   .post('/orders/:id/cancel', ...run(kinds, 'cancel'))
   .get('/orders/:id/history', ...run(kinds, 'history'))
   .post('/orders/:id/refund', ...run(kinds, 'refund'))
@@ -72,6 +74,7 @@ const endpoints = {
     update: 'PATCH /orders/:id',
     destroy: 'DELETE /orders/:id',
     restore: 'POST /orders/:id/restore',
+    purge: 'DELETE /orders/:id/purge',
     cancel: 'POST /orders/:id/cancel',
     history: 'GET /orders/:id/history',
     refund: 'POST /orders/:id/refund',
@@ -141,6 +144,7 @@ describe('every kind of action', () => {
       readonly update: 'mutation';
       readonly destroy: 'mutation';
       readonly restore: 'mutation';
+      readonly purge: 'mutation';
       readonly cancel: 'mutation';
       readonly history: 'query';
       readonly refund: 'mutation';
@@ -180,6 +184,8 @@ describe('every kind of action', () => {
     expectTypeOf<Mutation<'destroy'>>().toEqualTypeOf<Hc<Member['$delete'], 204>>();
     expectTypeOf<Mutation<'destroy'>['data']>().toEqualTypeOf<null>();
     expectTypeOf<Mutation<'restore'>>().toEqualTypeOf<Hc<Member['restore']['$post'], 200>>();
+    expectTypeOf<Mutation<'purge'>>().toEqualTypeOf<Hc<Member['purge']['$delete'], 204>>();
+    expectTypeOf<Mutation<'purge'>['data']>().toEqualTypeOf<null>();
   });
 
   test('custom mutations of every method take hc input and resolve to hc data', () => {

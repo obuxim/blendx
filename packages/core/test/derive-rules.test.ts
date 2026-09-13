@@ -194,8 +194,8 @@ describe('index rules', () => {
 });
 
 describe('actions without a body', () => {
-  test('DR-MEMBER-EMPTY: show, destroy and restore accept only an empty object', () => {
-    for (const name of ['show', 'destroy', 'restore']) {
+  test('DR-MEMBER-EMPTY: show, destroy, restore and purge accept only an empty object', () => {
+    for (const name of ['show', 'destroy', 'restore', 'purge']) {
       const rules = defaultRules(shop.orders, builtin(name));
       expect(ok(rules, {})).toBe(true);
       expect(issues(rules, { note: 'x' })).toEqual(unknownKeys);

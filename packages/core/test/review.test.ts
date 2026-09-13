@@ -20,6 +20,7 @@ const additions = blend(addition.addition_results, {
     a.show(),
     a.destroy(),
     a.restore(),
+    a.purge(),
   ],
 });
 
@@ -47,6 +48,7 @@ describe('reviewResource', () => {
       'GET /addition_results/:id',
       'DELETE /addition_results/:id',
       'POST /addition_results/:id/restore',
+      'DELETE /addition_results/:id/purge',
     ]);
   });
 
@@ -82,6 +84,17 @@ describe('reviewResource', () => {
       'the soft-deleted row by id, locked for update',
     );
     expect(action('restore')?.stages.save.default).toBe('clear deleted_at, touching updated_at');
+  });
+
+  test('purge on a soft-delete table (D29)', () => {
+    expect(action('purge')?.input).toEqual({});
+    expect(action('purge')?.stages.load.default).toBe(
+      'the row by id, soft-deleted or not, locked for update',
+    );
+    expect(action('purge')?.stages.save.default).toBe('delete the row for good');
+    expect(action('purge')?.stages.respond.default).toBe('204 with no body');
+    expect(action('purge')?.calculate).toBeUndefined();
+    expect(action('purge')?.reply).toEqual({ status: 204, body: 'none' });
   });
 
   test('index: its query as input, one line per parameter', () => {

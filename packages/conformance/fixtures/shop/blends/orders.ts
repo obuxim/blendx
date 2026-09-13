@@ -22,6 +22,7 @@ export default blend(models.orders, {
     a.update(),
     a.destroy(),
     a.restore(),
+    a.purge(),
     a.member('refund', {
       rules: () => z.object({ reason: z.string().min(3) }),
       calculate: () => ({ status: 'refunded' as const }),

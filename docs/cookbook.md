@@ -141,15 +141,22 @@ a.store({
 ```ts
 export default blend(models.orders, {
   // The owner rule needs a record, so index (which has none) gets a policy of its own.
-  policy: { default: allow.owner('user_id'), index: allow.authenticated },
-  actions: (a) => [a.index({ trashed: true }), a.show(), a.destroy(), a.restore()],
+  // Deleting for good is not for owners: purge has a policy of its own.
+  policy: {
+    default: allow.owner('user_id'),
+    index: allow.authenticated,
+    purge: allow.when(({ auth }) => auth?.role === 'admin'),
+  },
+  actions: (a) => [a.index({ trashed: true }), a.show(), a.destroy(), a.restore(), a.purge()],
 });
 ```
 
-On a table with a nullable `deleted_at`, destroy sets it instead of deleting, and the row disappears from index and show. `restore` clears it. `index({ trashed: true })` accepts `?trashed=with` or `?trashed=only`.
+On a table with a nullable `deleted_at`, destroy sets it instead of deleting, and the row disappears from index and show. `restore` clears it. `index({ trashed: true })` accepts `?trashed=with` or `?trashed=only`. `purge` (`DELETE /orders/:id/purge`) deletes a row for good, whether it is soft-deleted or not, and answers 204; a row other rows still reference answers 409. Both exist only on a soft-delete table: elsewhere destroy already deletes for good (docs/decisions.md D29).
 
 - [destroy soft-deletes: 204, the row stays with deleted_at set, show no longer finds it](../packages/core/test/engine-save.test.ts)
 - [restore clears deleted_at](../packages/core/test/engine-save.test.ts)
+- [purge deletes a soft-deleted row for good: 204, and restore no longer finds it](../packages/core/test/engine-save.test.ts)
+- [23503 on purge: a row other rows still reference answers 409 and stays](../packages/core/test/engine-errors.test.ts)
 - [?trashed works only where the resource enables it](../packages/core/test/engine-load.test.ts)
 
 ## 11. Do something once a write has committed

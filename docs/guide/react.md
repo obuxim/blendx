@@ -60,7 +60,7 @@ add.mutate({ json: { a: numberIn(form, 'a'), b: numberIn(form, 'b') } });
 ```
 
 - **Input** is what `hc` takes: `json` for a body, `param` for a member action's id, `query` for a GET action's input. An input with nothing required may be left out, as index's is above. Show needs its id: `api.orders.show.queryOptions({ param: { id: '1' } })`.
-- **Data** is the body of the action's success reply, typed as `hc` types it: a page for index (the example lists `results.data.data`), the record for store, show, update, restore and member actions, what calculate returns for a collection action, and `null` for destroy's 204.
+- **Data** is the body of the action's success reply, typed as `hc` types it: a page for index (the example lists `results.data.data`), the record for store, show, update, restore and member actions, what calculate returns for a collection action, and `null` for the 204 of destroy and purge.
 - The options are plain objects, so they work wherever TanStack Query takes options: `useQuery`, `useSuspenseQuery`, `queryClient.fetchQuery`, `prefetchQuery`, `ensureQueryData`, a router's loader. The adapter wraps none of them.
 - A query hands TanStack's abort signal to its request, so a query that TanStack cancels (its component unmounted, or the page called `cancelQueries`) aborts its request too. The signal goes in the call's `init`, which `hc` merges into the client's own `init` key by key. So give the client no `init.signal` of its own: an AbortSignal does not survive that merge.
 - Only the actions the blends list are on `api`; any other is a type error.

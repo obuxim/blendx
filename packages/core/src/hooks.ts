@@ -125,7 +125,7 @@ export interface CalculateContext<M extends Model, In, Rec> {
 }
 
 export interface SaveContext<M extends Model, Rec> {
-  /** Runs the default save (insert, update, delete or restore), optionally with other writes. */
+  /** Runs the default save (insert, update, delete, restore or purge), optionally with other writes. */
   runDefault: (writes?: Writes<M>) => Promise<Row<M>>;
   /** The transaction the action runs in. */
   tx: Db;
@@ -240,7 +240,7 @@ export type UpdateSpec<M extends Model, S extends z.ZodType, R, Hidden extends s
   SaveHook<M, Row<M>> &
   CommitHooks<M, Row<M>, Input<M, 'update', S>>;
 
-/** show, destroy and restore take no input, so they have no rules or calculate. */
+/** show, destroy, restore and purge take no input, so they have no rules or calculate. */
 export type RecordSpec<
   M extends Model,
   Action extends string,

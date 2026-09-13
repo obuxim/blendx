@@ -31,6 +31,13 @@ describe('after (D26)', () => {
         }),
         a.destroy({ after: ({ record }) => expectTypeOf(record).toEqualTypeOf<Order>() }),
         a.restore({ after: ({ saved }) => expectTypeOf(saved).toEqualTypeOf<Order>() }),
+        // purge (D29): saved is the row as deleted.
+        a.purge({
+          after: ({ saved, record }) => {
+            expectTypeOf(saved).toEqualTypeOf<Order>();
+            expectTypeOf(record).toEqualTypeOf<Order>();
+          },
+        }),
         a.member('refund', {
           rules: () => z.object({ reason: z.string() }),
           after: ({ input }) => expectTypeOf(input).toEqualTypeOf<{ reason: string }>(),

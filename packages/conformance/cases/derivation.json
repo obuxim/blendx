@@ -984,7 +984,7 @@
     },
     {
       "id": "DR-MEMBER-EMPTY",
-      "title": "show, destroy and restore accept only an empty object",
+      "title": "show, destroy, restore and purge accept only an empty object",
       "steps": [
         {
           "request": {

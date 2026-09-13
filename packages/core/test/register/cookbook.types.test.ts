@@ -105,8 +105,12 @@ test('the cookbook, compiled', () => {
     }),
     // 10. Soft delete, restore and trashed rows
     blend(models.orders, {
-      policy: { default: allow.owner('user_id'), index: allow.authenticated },
-      actions: (a) => [a.index({ trashed: true }), a.show(), a.destroy(), a.restore()],
+      policy: {
+        default: allow.owner('user_id'),
+        index: allow.authenticated,
+        purge: allow.when(({ auth }) => auth?.role === 'admin'),
+      },
+      actions: (a) => [a.index({ trashed: true }), a.show(), a.destroy(), a.restore(), a.purge()],
     }),
     // 11. Do something once a write has committed
     blend(models.orders, {

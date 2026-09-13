@@ -63,7 +63,7 @@ const meta = (body: unknown) => (body as { meta: unknown }).meta;
 
 const orders = blend(shop.orders, {
   policy: allow.public,
-  actions: (a) => [a.index(), a.show(), a.restore()],
+  actions: (a) => [a.index(), a.show(), a.restore(), a.purge()],
 });
 
 describe('member loads', () => {
@@ -91,6 +91,14 @@ describe('member loads', () => {
     const context = { db: database.db, query: {}, input: {}, auth: null };
     expect(await restore.load({ ...context, params: { id: '2' } })).toMatchObject({ id: 2 });
     expect(await restore.load({ ...context, params: { id: '1' } })).toBeUndefined();
+  });
+
+  test('purge loads the row whether it is soft-deleted or not', async () => {
+    const purge = endpoint(orders, 'purge');
+    const context = { db: database.db, query: {}, input: {}, auth: null };
+    expect(await purge.load({ ...context, params: { id: '1' } })).toMatchObject({ id: 1 });
+    expect(await purge.load({ ...context, params: { id: '2' } })).toMatchObject({ id: 2 });
+    expect(await purge.load({ ...context, params: { id: '999' } })).toBeUndefined();
   });
 });
 

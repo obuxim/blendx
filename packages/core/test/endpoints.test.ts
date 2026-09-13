@@ -11,7 +11,7 @@ describe('toEndpoints', () => {
   test('built-in actions come out in a fixed order, whatever order they were listed in', () => {
     const listed = blend(addition.addition_results, {
       policy: allow.public,
-      actions: (a) => [a.restore(), a.destroy(), a.store(), a.show(), a.index()],
+      actions: (a) => [a.purge(), a.restore(), a.destroy(), a.store(), a.show(), a.index()],
     });
     expect(summary(toEndpoints(listed))).toEqual([
       'GET /addition_results addition_results.index',
@@ -19,6 +19,7 @@ describe('toEndpoints', () => {
       'GET /addition_results/:id addition_results.show',
       'DELETE /addition_results/:id addition_results.destroy',
       'POST /addition_results/:id/restore addition_results.restore',
+      'DELETE /addition_results/:id/purge addition_results.purge',
     ]);
   });
 

@@ -148,5 +148,18 @@ describe('reveal (D24)', () => {
         ),
       );
     }
+    // purge answers 204 with no body, as destroy does (D29).
+    expect(() =>
+      blend(shop.orders, {
+        policy: allow.public,
+        hidden: ['meta'],
+        actions: (a) => [a.purge({ reveal: ['meta'] } as never)],
+      }),
+    ).toThrow(
+      new BlendxDefinitionError(
+        'orders',
+        'action "purge" cannot reveal: it does not reply with one record',
+      ),
+    );
   });
 });

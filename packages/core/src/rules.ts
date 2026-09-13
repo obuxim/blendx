@@ -30,7 +30,7 @@ export type UpdateRules<M extends Model> = z.ZodObject<
   z.core.$strict
 >;
 
-/** show, destroy, restore and custom actions start from an empty object. */
+/** show, destroy, restore, purge and custom actions start from an empty object. */
 export type EmptyRules = z.ZodObject<Record<never, never>, z.core.$strict>;
 
 /** The parsed index query: pagination, sorting, opt-in trashed, includes, and column filters. */

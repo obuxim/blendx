@@ -20,6 +20,7 @@ const BUILTINS: ReadonlySet<string> = new Set([
   'update',
   'destroy',
   'restore',
+  'purge',
 ]);
 
 const OPTIONS: ts.CompilerOptions = {

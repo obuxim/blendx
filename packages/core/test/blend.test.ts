@@ -171,6 +171,29 @@ describe('blend() rejects invalid definitions', () => {
     );
   });
 
+  test('purge on a table without soft delete (types forbid it; JS callers get an error)', () => {
+    expect(() =>
+      blend(shop.users, {
+        policy: allow.public,
+        actions: (a) => [(a as unknown as { purge(): never }).purge()],
+      }),
+    ).toThrow(
+      new BlendxDefinitionError(
+        'users',
+        'purge needs a soft-delete table (a nullable deleted_at timestamp); destroy already deletes for good',
+      ),
+    );
+  });
+
+  test('purge: DELETE /:id/purge, a built-in member action that writes (D29)', () => {
+    const resource = blend(shop.orders, {
+      policy: allow.public,
+      actions: (a) => [a.purge({ after: () => {}, later: () => {} })],
+    });
+    expect(routesOf(resource)).toEqual(['purge DELETE /:id/purge']);
+    expect(resource.actions[0]).toMatchObject({ on: 'member', builtin: true });
+  });
+
   test('a hidden column that does not exist', () => {
     expectError(
       () =>
@@ -220,6 +243,8 @@ describe('blend() types', () => {
     const typeOnly = () => {
       // @ts-expect-error users has no deleted_at, so there is no restore action
       blend(shop.users, { policy: allow.public, actions: (a) => [a.restore()] });
+      // @ts-expect-error users has no deleted_at, so there is no purge action either (D29)
+      blend(shop.users, { policy: allow.public, actions: (a) => [a.purge()] });
       // @ts-expect-error hidden columns must be columns of the model
       blend(shop.users, { policy: allow.public, hidden: ['passwrd'], actions: (a) => [a.show()] });
       // @ts-expect-error every resource needs a policy

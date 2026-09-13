@@ -42,7 +42,7 @@ import type { Policy } from './policy.ts';
 import { relationsOf } from './relations.ts';
 import type { DefaultRules, EmptyRules, IncludeRules, IndexRules, ResolvedRules } from './rules.ts';
 
-export type BuiltinAction = 'index' | 'show' | 'store' | 'update' | 'destroy' | 'restore';
+export type BuiltinAction = 'index' | 'show' | 'store' | 'update' | 'destroy' | 'restore' | 'purge';
 export type HttpMethod = 'get' | 'post' | 'patch' | 'delete';
 
 /** Hooks as stored at runtime. The engine calls them with the contexts in hooks.ts. */
@@ -75,7 +75,7 @@ export interface ActionDefinition<
   readonly name: Name;
   readonly on: 'collection' | 'member';
   readonly method: Method;
-  /** Path below the resource: '', '/:id', '/:id/restore', '/:id/refund', '/quote'. */
+  /** Path below the resource: '', '/:id', '/:id/restore', '/:id/purge', '/:id/refund', '/quote'. */
   readonly path: string;
   readonly builtin: boolean;
   readonly hooks: ActionHooks;
@@ -311,6 +311,14 @@ export type ActionBuilder<
           'post'
         >
       >;
+      /** Deletes the row for good, soft-deleted or not: `DELETE /:id/purge`, 204 (D29). */
+      purge<const R extends Reply, const X extends ReplySchema>(
+        spec?: RecordSpec<M, 'purge', R, Reply<204, null>, Hidden> & ReplyOption<X>,
+      ): Checked<
+        X,
+        Reply<204, null>,
+        ActionDefinition<'purge', EmptyRules, ResolvedReply<R, Reply<204, null>>, 'delete'>
+      >;
     }
   : unknown);
 
@@ -394,6 +402,7 @@ const BUILTIN: ReadonlySet<string> = new Set<BuiltinAction>([
   'update',
   'destroy',
   'restore',
+  'purge',
 ]);
 /** The hooks an action spec may hold: one per stage, and an index's scope (D22). */
 const HOOK_NAMES = [
@@ -521,6 +530,14 @@ function builderFor(model: Model) {
       }
       return make('restore', 'member', 'post', '/:id/restore', true, spec);
     },
+    purge: (spec?: AnySpec) => {
+      if (model.meta.softDelete === null) {
+        fail(
+          'purge needs a soft-delete table (a nullable deleted_at timestamp); destroy already deletes for good',
+        );
+      }
+      return make('purge', 'member', 'delete', '/:id/purge', true, spec);
+    },
     member: (name: string, spec?: AnySpec) => custom('member', name, spec),
     collection: (name: string, spec?: AnySpec) => custom('collection', name, spec),
   };
@@ -535,9 +552,11 @@ const isPolicy = (value: unknown): value is Policy =>
   typeof (value as Policy).check === 'function' &&
   typeof (value as Policy).kind === 'string';
 
-/** Replies with one record: store, and member actions other than destroy (D24). */
+/** Replies with one record: store, and member actions other than destroy and purge (D24). */
 const repliesWithOneRecord = (action: ActionDefinition) =>
-  action.on === 'member' ? action.name !== 'destroy' : action.name === 'store';
+  action.on === 'member'
+    ? !(action.builtin && (action.name === 'destroy' || action.name === 'purge'))
+    : action.name === 'store';
 
 /**
  * Declares a resource: the model, its policy, hidden columns and exposed actions.

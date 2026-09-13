@@ -137,6 +137,14 @@ function stageDefaults(
         save: `clear ${softDelete}${touch}`,
         respond: '200 with the restored record',
       };
+    case 'purge':
+      return {
+        rules: EMPTY,
+        load: `the row by id, soft-deleted or not${lock}`,
+        calculate: 'nothing',
+        save: 'delete the row for good',
+        respond: '204 with no body',
+      };
     case 'custom member':
       return {
         rules: EMPTY,
@@ -171,7 +179,9 @@ function replyOf(endpoint: EndpointDefinition): ReplyReview | string {
     return 'not described: it is what calculate returns; declare reply';
   }
   if (endpoint.builtin && endpoint.action === 'index') return { status, body: 'a page of records' };
-  if (endpoint.builtin && endpoint.action === 'destroy') return { status, body: 'none' };
+  if (endpoint.builtin && (endpoint.action === 'destroy' || endpoint.action === 'purge')) {
+    return { status, body: 'none' };
+  }
   // D24: a reply that reveals hidden columns says which.
   const revealed = endpoint.revealed ? `, with ${endpoint.revealed.join(', ')}` : '';
   return { status, body: `the record${revealed}` };

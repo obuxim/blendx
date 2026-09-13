@@ -26,6 +26,7 @@ const additions = blend(addition.addition_results, {
     a.update(),
     a.destroy(),
     a.restore(),
+    a.purge(),
     a.collection('quote', {
       method: 'get',
       rules: () => z.object({ a: z.string(), b: z.string() }),
@@ -56,6 +57,7 @@ const routes = new Hono<BlendxEnv>()
   .patch('/addition_results/:id', ...run(additions, 'update'))
   .delete('/addition_results/:id', ...run(additions, 'destroy'))
   .post('/addition_results/:id/restore', ...run(additions, 'restore'))
+  .delete('/addition_results/:id/purge', ...run(additions, 'purge'))
   .post('/addition_results/:id/double', ...run(additions, 'double'))
   .post('/addition_results/:id/halve', ...run(additions, 'halve'))
   .get('/users/:id', ...run(users, 'show'));
@@ -101,13 +103,17 @@ describe('P6.3 RPC types over run()', () => {
     expect(typeOnly).toBeFunction();
   });
 
-  test('show, destroy and restore take only the id; destroy answers 204', () => {
+  test('show, destroy, restore and purge take only the id; destroy and purge answer 204', () => {
     expectTypeOf<InferRequestType<Member['$get']>>().toEqualTypeOf<{ param: { id: string } }>();
     expectTypeOf<InferRequestType<Member['$delete']>>().toEqualTypeOf<{ param: { id: string } }>();
     expectTypeOf<InferRequestType<Member['restore']['$post']>>().toEqualTypeOf<{
       param: { id: string };
     }>();
     expectTypeOf<InferResponseType<Member['$delete'], 204>>().toEqualTypeOf<null>();
+    expectTypeOf<InferRequestType<Member['purge']['$delete']>>().toEqualTypeOf<{
+      param: { id: string };
+    }>();
+    expectTypeOf<InferResponseType<Member['purge']['$delete'], 204>>().toEqualTypeOf<null>();
   });
 
   test('custom actions: a GET takes its rules as the query, a POST as the JSON body', () => {

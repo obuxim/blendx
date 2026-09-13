@@ -30,6 +30,7 @@ const BUILTINS: ReadonlySet<string> = new Set([
   'update',
   'destroy',
   'restore',
+  'purge',
 ]);
 
 /** Blocks that hold a hook's source, and the lists printed on one line beside it. */
