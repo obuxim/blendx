@@ -144,8 +144,16 @@ describe('@blendx/react types', () => {
     api.orders.refund.mutationOptions({ optimistic: true });
     // @ts-expect-error the function returns a row of the table
     api.orders.refund.mutationOptions({ optimistic: () => ({ status: 'refunded' }) });
-    // @ts-expect-error store has no optimistic yet (N.11)
+    // store (N.11): true, or a function of the input giving what the new row holds besides it.
     api.orders.store.mutationOptions({ optimistic: true });
+    api.orders.store.mutationOptions({
+      optimistic: (input) => {
+        expectTypeOf(input.json.total).toEqualTypeOf<string>();
+        return { status: 'pending', quantity: 1 };
+      },
+    });
+    // @ts-expect-error what it adds are columns of the row
+    api.orders.store.mutationOptions({ optimistic: () => ({ colour: 'red' }) });
     // @ts-expect-error a collection action has no row
     api.orders.estimate?.mutationOptions({ optimistic: true });
     // @ts-expect-error order_notes has no show, so its row comes from index; a page is not a row

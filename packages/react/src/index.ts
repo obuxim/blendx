@@ -217,15 +217,21 @@ type RowOf<Client, E extends Tables, T extends keyof E> = E[T]['actions'] extend
       : Record<string, unknown>
     : Record<string, unknown>;
 
-/** What `optimistic` takes on an action: nothing on store (N.11) and collection actions yet. */
+/**
+ * What `optimistic` takes on an action (D30): `true` on update, destroy and purge; on store,
+ * `true` or a function of the input giving what the new row holds besides it; a function of
+ * the cached row and the input on any other member action; nothing on a collection action.
+ */
 type OptimisticOf<Client, E extends Tables, T extends keyof E, A, Route, F> = A extends
   | 'update'
   | 'destroy'
   | 'purge'
   ? true
-  : Route extends `${string} /${string}/:id${string}`
-    ? (row: RowOf<Client, E, T>, input: Variables<F>) => RowOf<Client, E, T>
-    : never;
+  : A extends 'store'
+    ? true | ((input: Variables<F>) => Partial<RowOf<Client, E, T>>)
+    : Route extends `${string} /${string}/:id${string}`
+      ? (row: RowOf<Client, E, T>, input: Variables<F>) => RowOf<Client, E, T>
+      : never;
 
 /** A GET action. */
 export interface QueryAction<K extends QueryKey, F> {
@@ -268,6 +274,9 @@ export type Api<Client, E extends Tables> = {
 
 /** An app's optimistic function, as stored: the cached row and the input to the new row (D30). */
 type RowFunction = (row: Record<string, unknown>, input: unknown) => Record<string, unknown>;
+
+/** An app's optimistic function on store, as stored: what the new row holds besides the input. */
+type RowMaker = (input: unknown) => Record<string, unknown>;
 
 /** An optimistic change to one cached row: its replacement, or null to remove it (D30). */
 type RowChange = (row: Record<string, unknown>) => Record<string, unknown> | null;
@@ -319,6 +328,90 @@ async function changeRows(
 }
 
 /** The change a mutation makes to its row before the reply, from its `optimistic` setting. */
+/** Index query keys that are not column filters (the engine's INDEX_CONTROLS). */
+const INDEX_CONTROLS = new Set(['page', 'per_page', 'sort', 'trashed', 'include']);
+
+/** The query of a cached index, from its key. */
+const queryOf = (queryKey: readonly unknown[]): Record<string, unknown> => {
+  const input = queryKey[2];
+  return isRow(input) && isRow(input.query) ? input.query : {};
+};
+
+/**
+ * Whether a new row belongs in a cached list (D30): every filter of the list matches the
+ * input by string equality, and none names a column the input leaves out; a list of trashed
+ * rows never holds a new one.
+ */
+function listTakes(query: Record<string, unknown>, json: Record<string, unknown>): boolean {
+  if (query.trashed === 'only') return false;
+  return Object.entries(query).every(
+    ([column, value]) =>
+      INDEX_CONTROLS.has(column) || (column in json && String(json[column]) === String(value)),
+  );
+}
+
+/** The page with the row added: at the top when the list sorts descending, else at the end. */
+function addToPage(page: unknown, row: Record<string, unknown>, descending: boolean): unknown {
+  if (!isRow(page) || !Array.isArray(page.data)) return page;
+  const meta = isRow(page.meta) ? page.meta : {};
+  const total = typeof meta.total === 'number' ? meta.total + 1 : meta.total;
+  return {
+    ...page,
+    data: descending ? [row, ...page.data] : [...page.data, row],
+    meta: { ...meta, total },
+  };
+}
+
+/** Every page's total grown by one, for the pages of an infinite query the row is not on. */
+const countOnPage = (page: unknown): unknown => {
+  if (!isRow(page) || !isRow(page.meta) || typeof page.meta.total !== 'number') return page;
+  return { ...page, meta: { ...page.meta, total: page.meta.total + 1 } };
+};
+
+const hasNext = (page: unknown) =>
+  isRow(page) &&
+  isRow(page.meta) &&
+  typeof page.meta.page === 'number' &&
+  typeof page.meta.per_page === 'number' &&
+  typeof page.meta.total === 'number' &&
+  page.meta.page * page.meta.per_page < page.meta.total;
+
+/**
+ * Puts a new row into the cached lists of its table (D30): those whose filters the input
+ * matches, in the first page of a plain query and the last loaded page of an infinite one
+ * when it has no next page, at the top when the list sorts descending, else at the end.
+ */
+async function addRow(
+  client: QueryClient,
+  table: string,
+  row: Record<string, unknown>,
+  json: Record<string, unknown>,
+) {
+  await client.cancelQueries({ queryKey: [table] });
+  for (const [queryKey, data] of client.getQueriesData({ queryKey: [table] })) {
+    if (queryKey[1] !== 'index' || !isRow(data)) continue;
+    const query = queryOf(queryKey);
+    if (!listTakes(query, json)) continue;
+    const descending = typeof query.sort === 'string' && query.sort.startsWith('-');
+    if (Array.isArray(data.pages)) {
+      const last = data.pages.length - 1;
+      if (last < 0 || hasNext(data.pages[last])) continue;
+      const pages = data.pages.map((page, index) =>
+        index === last ? addToPage(page, row, descending) : countOnPage(page),
+      );
+      client.setQueryData(queryKey, { ...data, pages });
+    } else if (query.page === undefined || query.page === '1') {
+      client.setQueryData(queryKey, addToPage(data, row, descending));
+    }
+  }
+}
+
+/** Temporary keys for optimistic rows: negative, so they never meet a real one (D30). */
+let nextTemporaryKey = -1;
+
+const temporaryKey = (key: Tables[string]['key']) =>
+  key.type === 'number' ? nextTemporaryKey-- : crypto.randomUUID();
+
 function changeOf(action: string, input: unknown, optimistic: true | RowFunction): RowChange {
   if (typeof optimistic === 'function') return (row) => optimistic(row, input);
   if (action === 'update') {
@@ -399,26 +492,49 @@ export function createBlendxClient<Client, E extends Tables>(
           : {
               // Invalidating inside the mutation function, not in onSuccess, lets an app spread
               // its own onSuccess over the options without losing it.
-              mutationOptions: (options?: MutationSettings<string, true | RowFunction>) =>
+              mutationOptions: (
+                options?: MutationSettings<string, true | RowFunction | RowMaker>,
+              ) =>
                 toMutationOptions([table, action], async (input, { client: queryClient }) => {
-                  // D30: the row changes before the request; a failure refetches the truth.
+                  // D30: the rows change before the request; a failure refetches the truth.
                   const { optimistic } = options ?? {};
-                  if (optimistic) {
+                  let temporary: unknown;
+                  if (optimistic && action === 'store') {
+                    // A new row: the input, what the function adds, and a temporary key.
+                    const json = isRow(input) && isRow(input.json) ? input.json : {};
+                    const extra =
+                      typeof optimistic === 'function' ? (optimistic as RowMaker)(input) : {};
+                    temporary = temporaryKey(key);
+                    await addRow(
+                      queryClient,
+                      table,
+                      { ...json, ...extra, [key.column]: temporary },
+                      json,
+                    );
+                  } else if (optimistic) {
                     const id = isRow(input) && isRow(input.param) ? input.param.id : undefined;
                     await changeRows(
                       queryClient,
                       table,
                       key,
                       id,
-                      changeOf(action, input, optimistic),
+                      changeOf(action, input, optimistic as true | RowFunction),
                     );
                   }
                   let data: unknown;
                   try {
                     data = await call(input);
                   } catch (error) {
+                    if (temporary !== undefined) {
+                      await changeRows(queryClient, table, key, temporary, () => null);
+                    }
                     if (optimistic) await invalidate(queryClient, tables, [table]);
                     throw error;
+                  }
+                  // The server's row takes the temporary one's place, until the refetch.
+                  if (temporary !== undefined && isRow(data)) {
+                    const saved = data;
+                    await changeRows(queryClient, table, key, temporary, () => saved);
                   }
                   await invalidate(queryClient, tables, [table, ...(options?.invalidates ?? [])]);
                   return data;

@@ -530,6 +530,121 @@ describe('optimistic updates (N.10, D30)', () => {
     }
   });
 
+  test("store: the new row is in the lists the input matches before the reply, and the server's row replaces it (N.11)", async () => {
+    const client = freshClient();
+    const { api, release } = gatedApi();
+    const { index } = api.orders;
+    const lists = {
+      plain: index.queryOptions({ query: { per_page: '100' } }),
+      newestFirst: index.queryOptions({ query: { sort: '-id', per_page: '100' } }),
+      mine: index.queryOptions({ query: { user_id: '1', per_page: '100' } }),
+      theirs: index.queryOptions({ query: { user_id: '2', per_page: '100' } }),
+      paid: index.queryOptions({ query: { status: 'paid', per_page: '100' } }),
+      second: index.queryOptions({ query: { page: '2' } }),
+      trashed: index.queryOptions({ query: { trashed: 'only' } }),
+    };
+    const infinite = index.infiniteQueryOptions({ query: { per_page: '100' } });
+    const before = Object.fromEntries(
+      await Promise.all(
+        Object.entries(lists).map(async ([name, options]) => [
+          name,
+          await client.fetchQuery(options),
+        ]),
+      ),
+    );
+    await client.fetchInfiniteQuery(infinite);
+    const rows = (options: { queryKey: readonly unknown[] }) =>
+      (
+        client.getQueryData(options.queryKey) as
+          | { data: { id: number; total: string }[] }
+          | undefined
+      )?.data ?? [];
+    const temporary = (options: { queryKey: readonly unknown[] }) =>
+      rows(options).find((row) => row.id < 0);
+
+    const store = new MutationObserver(
+      client,
+      api.orders.store.mutationOptions({ optimistic: true }),
+    );
+    const done = store.mutate({ json: { user_id: 1, total: '4.00' } });
+    while (!temporary(lists.plain)) await Bun.sleep(1);
+    expect(store.getCurrentResult().status).toBe('pending');
+    // The row: the input and a temporary key, nothing the server fills.
+    expect(temporary(lists.plain) as unknown).toEqual({
+      id: expect.any(Number),
+      user_id: 1,
+      total: '4.00',
+    });
+    // At the end of an ascending list, at the top of a descending one; totals grow by one.
+    expect(rows(lists.plain).at(-1)?.total).toBe('4.00');
+    expect(rows(lists.newestFirst)[0]?.total).toBe('4.00');
+    expect(client.getQueryData(lists.plain.queryKey)?.meta.total).toBe(
+      before.plain?.meta.total + 1,
+    );
+    // A filter the input matches takes it; one it does not, or one on a column it leaves out, does not.
+    expect(temporary(lists.mine)).toBeDefined();
+    expect(temporary(lists.theirs)).toBeUndefined();
+    expect(temporary(lists.paid)).toBeUndefined();
+    // Not a second page, not a list of trashed rows; the last loaded infinite page, which has no next.
+    expect(temporary(lists.second)).toBeUndefined();
+    expect(temporary(lists.trashed)).toBeUndefined();
+    const pages = client.getQueryData(infinite.queryKey)?.pages ?? [];
+    expect(pages.at(-1)?.data.at(-1)?.total).toBe('4.00');
+    expect(pages.at(-1)?.meta.total).toBe(before.plain?.meta.total + 1);
+
+    release();
+    const saved = await done;
+    // The server's row took the temporary one's place, in every list that held it.
+    for (const options of [lists.plain, lists.newestFirst, lists.mine]) {
+      expect(temporary(options)).toBeUndefined();
+      expect(rows(options).find((row) => row.id === saved.id)).toMatchObject({ total: '4.00' });
+    }
+    expect(
+      client
+        .getQueryData(infinite.queryKey)
+        ?.pages.at(-1)
+        ?.data.find((row) => row.id === saved.id),
+    ).toMatchObject({ total: '4.00' });
+  });
+
+  test('store: a function of the input adds what the new row holds besides it', async () => {
+    const client = freshClient();
+    const { api, release } = gatedApi();
+    const list = api.orders.index.queryOptions({ query: { per_page: '100' } });
+    await client.fetchQuery(list);
+    const options = api.orders.store.mutationOptions({
+      optimistic: ({ json }) => ({ status: 'pending', quantity: json.quantity ?? 1 }),
+    });
+    const done = new MutationObserver(client, options).mutate({
+      json: { user_id: 1, total: '6.00' },
+    });
+    while (!client.getQueryData(list.queryKey)?.data.some((row) => row.id < 0)) await Bun.sleep(1);
+    expect(client.getQueryData(list.queryKey)?.data.find((row) => row.id < 0) as unknown).toEqual({
+      id: expect.any(Number),
+      user_id: 1,
+      total: '6.00',
+      status: 'pending',
+      quantity: 1,
+    });
+    release();
+    await done;
+  });
+
+  test('store: the row is gone after a failure', async () => {
+    const client = freshClient();
+    const api = apiFor(2);
+    const list = api.orders.index.queryOptions({ query: { per_page: '100' } });
+    const { meta } = await client.fetchQuery(list);
+    const store = new MutationObserver(
+      client,
+      api.orders.store.mutationOptions({ optimistic: true }),
+    );
+    // User 2 may not place an order for user 1: 403, after the row was already in the list.
+    await rejection(store.mutate({ json: { user_id: 1, total: '7.00' } }));
+    expect(client.getQueryData(list.queryKey)?.data.some((row) => row.id < 0)).toBe(false);
+    expect(client.getQueryData(list.queryKey)?.meta.total).toBe(meta.total);
+  });
+
   test("the app's own onMutate and onSuccess, spread over the options, keep it", async () => {
     const client = freshClient();
     const { api, release } = gatedApi();
