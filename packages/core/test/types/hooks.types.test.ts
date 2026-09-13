@@ -48,6 +48,30 @@ describe('P3.4 hook signatures', () => {
     expect(typeOnly).toBeFunction();
   });
 
+  test("calculate's prev holds only the writable columns the rules accept (P15.4)", () => {
+    const typeOnly = () =>
+      blend(orders, {
+        policy: allow.public,
+        actions: (a) => [
+          a.update({
+            rules: ({ prev }) => prev.pick({ quantity: true }).extend({ coupon: z.string() }),
+            calculate: ({ prev }) => {
+              expectTypeOf<keyof typeof prev>().toEqualTypeOf<'quantity'>();
+              return { ...prev, total: '1.00' };
+            },
+          }),
+          a.member('refund', {
+            rules: () => z.object({ reason: z.string() }),
+            calculate: ({ prev }) => {
+              expectTypeOf<keyof typeof prev>().toEqualTypeOf<never>();
+              return { status: 'refunded' as const };
+            },
+          }),
+        ],
+      });
+    expect(typeOnly).toBeFunction();
+  });
+
   test('authorize sees the policy decision, identity, record and validated input', () => {
     const typeOnly = () =>
       blend(orders, {

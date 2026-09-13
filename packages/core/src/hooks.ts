@@ -108,10 +108,16 @@ export interface AuthorizeContext<Action extends string, In, Rec> {
   action: Action;
 }
 
+/**
+ * The default writes, typed from the input: the writable columns the rules accept. Typed as
+ * all of Writes<M>, a calculate spreading it would claim, in the review, every column.
+ */
+export type InputWrites<M extends Model, In> = Pick<Writes<M>, Extract<keyof In, keyof Writes<M>>>;
+
 /** Pure and synchronous: no database, no request. */
 export interface CalculateContext<M extends Model, In, Rec> {
   /** The default writes: the validated input's writable columns. */
-  prev: Writes<M>;
+  prev: InputWrites<M, In>;
   input: In;
   record: Rec;
 }

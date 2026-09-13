@@ -101,7 +101,7 @@ calculate is pure and synchronous: no database, no request, no identity, and not
 
 It returns only writable columns of its table; anything else is a type error, and a generated column that slips through fails the request rather than being dropped. Logic worth naming goes in a plain function in the blend file, as `price()` does in the expenses blend, and every calculate that needs it calls it.
 
-The review lists the columns a calculate writes, from its return type. `{ ...input, total }` names exactly the input's columns; `{ ...prev, total }` names every writable column of the table, because `prev` is typed as any of them ([Known issues](known-issues.md#the-review-lists-every-column-for-a-calculate-that-spreads-prev)).
+The review lists the columns a calculate writes, from its return type. `prev` is typed as the writable columns the rules accept, so `({ prev }) => ({ ...prev, total })` writes, and the review lists, exactly those columns and `total`. Spreading `input` instead also passes on fields that are not columns, which calculate may not return.
 
 ## save
 

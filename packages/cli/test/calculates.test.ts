@@ -43,8 +43,18 @@ describe('extractCalculates', () => {
     );
   });
 
+  test('a spread of prev under narrower rules yields only the columns they accept', () => {
+    expect(found?.get('reprice')?.keys).toEqual(['status', 'total']);
+  });
+
   test('only actions with a calculate hook appear', () => {
-    expect([...(found?.keys() ?? [])].sort()).toEqual(['pay', 'quote', 'store', 'update']);
+    expect([...(found?.keys() ?? [])].sort()).toEqual([
+      'pay',
+      'quote',
+      'reprice',
+      'store',
+      'update',
+    ]);
   });
 
   test('one program over the blend files stays quick', () => {

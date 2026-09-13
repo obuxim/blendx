@@ -6,7 +6,6 @@ What does not work yet, or not as it should, and what to do instead. Each was fo
 |---|---|---|
 | [A listing cannot be scoped to the requester](#a-listing-cannot-be-scoped-to-the-requester) | index, load hooks | P15.7 |
 | [A column cannot be shown once and hidden elsewhere](#a-column-cannot-be-shown-once-and-hidden-elsewhere) | `hidden` | P15.8 |
-| [The review lists every column for a calculate that spreads prev](#the-review-lists-every-column-for-a-calculate-that-spreads-prev) | review files | P15.4 |
 | [The review prints long patterns for string formats](#the-review-prints-long-patterns-for-string-formats) | review files | P15.5 |
 | [Custom actions without a body still need an empty body in the typed client](#custom-actions-without-a-body-still-need-an-empty-body-in-the-typed-client) | the typed client | P15.6 |
 
@@ -30,12 +29,6 @@ The client then lists its own rows with `GET /expenses?user_id=<its id>`, and an
 **What happens.** `hidden` applies to every reply of a resource, and a respond hook sees only the public record. A value that one reply must carry and every other reply must hide, such as an API token returned once at sign-up, has no way to say so.
 
 **What to do.** Leave the column visible and expose the table only through actions whose replies may carry it. The expenses app's `users` blend has only sign-up and a show that is for the user themselves, so no reply shows a token to anyone else. [Tutorial, step 4](tutorial.md#4-sign-up).
-
-## The review lists every column for a calculate that spreads prev
-
-**What happens.** The review file lists the columns a calculate writes, from its return type. `prev` is typed as any writable column of the table, so a calculate such as `({ prev, input }) => ({ ...prev, total })` is listed as writing every writable column, though at run time `prev` holds only the input's columns.
-
-**What to do.** Spread `input` instead: `({ input }) => ({ ...input, total })` writes the same columns, and the review names exactly those. [Hooks](hooks.md#calculate).
 
 ## The review prints long patterns for string formats
 

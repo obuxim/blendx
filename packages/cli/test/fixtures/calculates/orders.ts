@@ -5,9 +5,14 @@ import { models } from '../../../../dbml/test/golden/shop.schema.gen.ts';
 export default blend(models.orders, {
   policy: allow.public,
   actions: (a) => [
-    // A spread: the keys come from prev's type, every writable column.
+    // A spread: the keys come from prev's type; with the default rules, every writable column.
     a.store({
       calculate: ({ prev }) => ({ ...prev, quantity: 1 }),
+    }),
+    // A spread under narrower rules: prev holds only the writable columns they accept.
+    a.member('reprice', {
+      rules: () => z.object({ total: z.string(), note: z.string() }),
+      calculate: ({ prev }) => ({ ...prev, status: 'pending' as const }),
     }),
     // One literal key.
     a.update({
