@@ -32,12 +32,15 @@ function bounds(schema: JsonObject): string {
 function describeType(type: string, schema: JsonObject): string {
   switch (type) {
     case 'string': {
+      // A format says what a pattern for it would (zod adds one to email, uuid, date and
+      // more), and reads far better: `string (date)`, not a regular expression.
+      const format = typeof schema.format === 'string' ? schema.format : undefined;
       const details = [
         typeof schema.minLength === 'number' ? `at least ${schema.minLength} characters` : '',
         typeof schema.maxLength === 'number' ? `at most ${schema.maxLength} characters` : '',
-        typeof schema.pattern === 'string' ? `matching ${schema.pattern}` : '',
+        typeof schema.pattern === 'string' && !format ? `matching ${schema.pattern}` : '',
       ].filter(Boolean);
-      const name = typeof schema.format === 'string' ? `string (${schema.format})` : 'string';
+      const name = format ? `string (${format})` : 'string';
       return [name, ...details].join(', ');
     }
     case 'integer':

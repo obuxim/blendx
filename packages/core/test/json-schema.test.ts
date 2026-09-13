@@ -13,6 +13,12 @@ describe('describeSchema', () => {
     [{ type: 'number', maximum: 10 }, 'number up to 10'],
     [{ type: ['string', 'null'], maxLength: 255 }, 'string, at most 255 characters, or null'],
     [{ type: 'string', format: 'uuid' }, 'string (uuid)'],
+    // P15.5: a format says what zod's pattern for it would, so the pattern is left out.
+    [
+      { type: 'string', format: 'email', maxLength: 255, pattern: '^[^@]+@[^@]+$' },
+      'string (email), at most 255 characters',
+    ],
+    [{ type: 'string', format: 'date', pattern: '^\\d{4}-\\d{2}-\\d{2}$' }, 'string (date)'],
     [{ type: 'string', pattern: '^[1-9][0-9]*$' }, 'string, matching ^[1-9][0-9]*$'],
     [{ type: 'string', enum: ['pending', 'paid'] }, 'one of pending, paid'],
     [{ anyOf: [{ type: 'string', enum: ['a', 'b'] }, { type: 'null' }] }, 'one of a, b, or null'],

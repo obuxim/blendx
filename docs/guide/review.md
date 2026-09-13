@@ -50,7 +50,7 @@ actions:
 How to read it:
 
 - `record` is what a reply carries for one row, hidden columns already removed.
-- Each action has its `route`, the `input` it accepts (one line per field, from the resolved rules), and one line per pipeline stage saying what the default does. A field with a string format, such as `(date)` or `(email)`, is followed by zod's pattern for it, which can be skipped ([Known issues](known-issues.md#the-review-prints-long-patterns-for-string-formats)).
+- Each action has its `route`, the `input` it accepts (one line per field, from the resolved rules), and one line per pipeline stage saying what the default does. A string with a format reads as that format, such as `string (date)` or `string (email)`.
 - `# from: schema, action` marks a stage that a hook changed: here the action's own rules, authorize and calculate replaced or extended the schema's defaults. A stage without the comment does exactly what its line says.
 - The authorize line is the policy's description (`an approver`, `owner (user_id = auth.id)`). An authorize hook on top of it shows as `# from: schema, action`; its condition is in the blend.
 - `calculate` shows the hook exactly as written, and the columns it `writes` (for a collection action, the keys it `returns`).
