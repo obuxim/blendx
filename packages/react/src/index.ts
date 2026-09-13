@@ -10,7 +10,8 @@
  * A GET action gives queryOptions, any other method mutationOptions. Both resolve to the
  * body of the action's success reply (null for a 204), and reject with a ProblemDetailsError
  * for any other reply. A mutation that succeeds invalidates every query of its table, and of
- * the tables it names (D25 note, N.2).
+ * the tables it names (D25 note, N.2). Every action's fieldErrors(error) turns a refusal into
+ * the first problem with each field of its input, for a form to show (N.3).
  */
 import {
   mutationOptions,
@@ -92,6 +93,22 @@ type Variables<F> =
 /** The body of the action's success reply. */
 type Data<F> = InferResponseType<F, SuccessStatus>;
 
+/** The action's input, when it takes one. */
+type Input<F> = InputArgs<F> extends [(infer A)?] ? NonNullable<A> : never;
+
+/** A body's field names, and the paths below a field that holds an object or an array. */
+type Paths<J> = {
+  [K in keyof J & string]: K | (NonNullable<J[K]> extends object ? `${K}.${string}` : never);
+}[keyof J & string];
+
+/** The fields a refusal can name: a body field by its path, a query parameter by its name. */
+type Fields<I> =
+  | (I extends { json: infer J } ? Paths<J> : never)
+  | (I extends { query: infer Q } ? keyof Q & string : never);
+
+/** The first problem with each field of the action's input. */
+export type FieldErrors<F> = { [K in Fields<Input<F>>]?: string };
+
 /** A query's key: its table, its action and its input. */
 type Key<T extends string, A extends string> = readonly [
   table: T,
@@ -116,6 +133,8 @@ export interface MutationSettings<Table extends string> {
 /** A GET action. */
 export interface QueryAction<K extends QueryKey, F> {
   queryOptions(...input: InputArgs<F>): ReturnType<typeof toQueryOptions<K, Data<F>>>;
+  /** The first problem with each field of a refused input; `{}` for any other error. */
+  fieldErrors(error: unknown): FieldErrors<F>;
 }
 
 /** An action of any other method. `Tables` are the app's tables, which it may invalidate. */
@@ -123,6 +142,8 @@ export interface MutationAction<F, Tables extends string> {
   mutationOptions(
     options?: MutationSettings<Tables>,
   ): ReturnType<typeof toMutationOptions<Variables<F>, Data<F>>>;
+  /** The first problem with each field of a refused input; `{}` for any other error. */
+  fieldErrors(error: unknown): FieldErrors<F>;
 }
 
 /** Every action of the map, by table and name, typed by the hc client's route for it. */
@@ -150,6 +171,7 @@ export function createBlendxClient<Client, E extends Endpoints>(
           ? {
               queryOptions: (input?: Record<string, unknown>) =>
                 toQueryOptions([table, action, input ?? {}], () => call(input)),
+              fieldErrors,
             }
           : {
               // Invalidating inside the mutation function, not in onSuccess, lets an app spread
@@ -163,6 +185,7 @@ export function createBlendxClient<Client, E extends Endpoints>(
                   );
                   return data;
                 }),
+              fieldErrors,
             };
     }
   }
@@ -195,3 +218,22 @@ async function problemOf(response: Response): Promise<Problem> {
     status: response.status,
   };
 }
+
+/** The first problem with each field: a body field by its pointer's path, a query parameter by name. */
+function fieldErrors(error: unknown): Record<string, string> {
+  const fields: Record<string, string> = {};
+  if (!(error instanceof ProblemDetailsError)) return fields;
+  for (const { pointer, parameter, detail } of error.problem.errors ?? []) {
+    const field = pointer === undefined ? parameter : fieldOf(pointer);
+    if (field !== undefined && !Object.hasOwn(fields, field)) fields[field] = detail;
+  }
+  return fields;
+}
+
+/** A JSON pointer as a field path: `/items/0/name` is items.0.name (RFC 6901: ~1 is /, ~0 is ~). */
+const fieldOf = (pointer: string) =>
+  pointer
+    .split('/')
+    .slice(1)
+    .map((segment) => segment.replaceAll('~1', '/').replaceAll('~0', '~'))
+    .join('.');

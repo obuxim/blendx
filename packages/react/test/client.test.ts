@@ -57,10 +57,10 @@ describe('createBlendxClient', () => {
     const api = apiFor();
     expect(Object.keys(api)).toEqual(Object.keys(endpoints));
     expect(Object.keys(api.orders)).toEqual(Object.keys(endpoints.orders));
-    expect(Object.keys(api.orders.index)).toEqual(['queryOptions']);
-    expect(Object.keys(api.orders.quote)).toEqual(['queryOptions']);
-    expect(Object.keys(api.orders.store)).toEqual(['mutationOptions']);
-    expect(Object.keys(api.orders.refund)).toEqual(['mutationOptions']);
+    expect(Object.keys(api.orders.index)).toEqual(['queryOptions', 'fieldErrors']);
+    expect(Object.keys(api.orders.quote)).toEqual(['queryOptions', 'fieldErrors']);
+    expect(Object.keys(api.orders.store)).toEqual(['mutationOptions', 'fieldErrors']);
+    expect(Object.keys(api.orders.refund)).toEqual(['mutationOptions', 'fieldErrors']);
   });
 
   test('a query key is [table, action, input], and no input is {}', () => {
@@ -235,6 +235,67 @@ describe('invalidation (N.2)', () => {
     });
     expect(succeeded).toBe(true);
     expect(invalidated(client, index.queryKey)).toBe(true);
+  });
+});
+
+describe('fieldErrors (N.3)', () => {
+  const problem = (errors: { detail: string; pointer?: string; parameter?: string }[]) =>
+    new ProblemDetailsError({
+      type: 'about:blank',
+      title: 'Unprocessable Content',
+      status: 422,
+      errors,
+    });
+
+  test('a refused body: the first problem of each field, by its path', async () => {
+    const api = apiFor(2);
+    const store = new MutationObserver(queryClient(), api.orders.store.mutationOptions());
+    // What the types already refuse: no total, and a number among the tags.
+    const refused = await rejection(store.mutate({ json: { user_id: 2, tags: [1] } } as never));
+    const errors = api.orders.store.fieldErrors(refused);
+    expect(Object.keys(errors).sort()).toEqual(['tags.0', 'total']);
+    expect(errors.total).toBeString();
+  });
+
+  test('a refused query: each parameter by its name', async () => {
+    const api = apiFor();
+    const options = api.orders.quote.queryOptions({ query: { quantity: 'many' } });
+    const refused = await rejection(queryClient().fetchQuery(options));
+    expect(Object.keys(api.orders.quote.fieldErrors(refused))).toEqual(['quantity']);
+  });
+
+  test('a database refusal names the columns of its constraint', async () => {
+    const api = apiFor();
+    const store = new MutationObserver(queryClient(), api.users.store.mutationOptions());
+    const taken = await rejection(
+      store.mutate({ json: { email: 'ada@example.com', password: 'secret' } }),
+    );
+    expect(taken).toMatchObject({ status: 409 });
+    expect(Object.keys(api.users.store.fieldErrors(taken))).toEqual(['email']);
+  });
+
+  test('pointer segments are unescaped and joined with dots; the first detail wins', () => {
+    const errors = apiFor().orders.refund.fieldErrors(
+      problem([
+        { pointer: '/reason', detail: 'first' },
+        { pointer: '/reason', detail: 'second' },
+        { pointer: '/a~1b/0/c~0d', detail: 'nested' },
+      ]),
+    ) as Record<string, string>;
+    expect(errors).toEqual({ reason: 'first', 'a/b.0.c~d': 'nested' });
+  });
+
+  test('anything that is not a refusal with errors gives no field errors', () => {
+    const { refund } = apiFor().orders;
+    expect(refund.fieldErrors(null)).toEqual({});
+    expect(refund.fieldErrors(new Error('offline'))).toEqual({});
+    expect(refund.fieldErrors(problem([]))).toEqual({});
+    const forbidden = new ProblemDetailsError({
+      type: 'about:blank',
+      title: 'Forbidden',
+      status: 403,
+    });
+    expect(refund.fieldErrors(forbidden)).toEqual({});
   });
 });
 

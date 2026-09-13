@@ -78,6 +78,23 @@ describe('@blendx/react types', () => {
     api.orders.refund.mutationOptions({ invalidates: ['payments'] });
   });
 
+  test("field errors are keyed by the fields of the action's input", () => {
+    type Fields<T extends { fieldErrors: (error: unknown) => object }> = keyof ReturnType<
+      T['fieldErrors']
+    >;
+    expectTypeOf<Fields<typeof api.orders.refund>>().toEqualTypeOf<'reason'>();
+    expectTypeOf<Fields<typeof api.orders.quote>>().toEqualTypeOf<'quantity'>();
+    expectTypeOf<'total' | 'user_id' | `tags.${number}`>().toExtend<
+      Fields<typeof api.orders.store>
+    >();
+    // index filters by any column, so any name may come back.
+    expectTypeOf<'status'>().toExtend<Fields<typeof api.orders.index>>();
+
+    const errors = api.orders.refund.fieldErrors(null);
+    expectTypeOf(errors.reason).toEqualTypeOf<string | undefined>();
+    expectTypeOf(errors).not.toHaveProperty('reasn');
+  });
+
   test('only the actions the blends list', () => {
     expectTypeOf(api.order_notes).toHaveProperty('store');
     expectTypeOf(api.order_notes).not.toHaveProperty('show');
