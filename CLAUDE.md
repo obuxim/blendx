@@ -20,7 +20,7 @@ Status: the framework is under construction. Work is driven by `docs/todo.md` (s
 
 `packages/blendx` (facade: the only runtime import for app code), `spec` (Markdown only), `core` + `dbml` (portable), `hono` (adapter), `cli` (the `blendx` command; apps add it as a dev dependency, D18), `conformance` (cases, the shop fixture and the harness), `react` (`@blendx/react`: TanStack Query options for every action, D25); `examples/addition` (end-to-end proof, with `web/`, a React page through `@blendx/react`) and `examples/expenses` (a fuller app: a bearer-token identity, an approver role, state rules and pricing).
 
-Working on an app built with blendx rather than on the framework? Its own `CLAUDE.md` is the guide: `examples/addition/CLAUDE.md` is the template, with the recipes for adding a table and a custom action. `docs/guide/` is the app author's guide (getting started, a tutorial that builds `examples/expenses`, and reference pages), and `docs/cookbook.md` has fourteen blend patterns, each linked to the test that pins it. When behaviour the guide describes changes, update the guide with it.
+Working on an app built with blendx rather than on the framework? Its own `CLAUDE.md` is the guide: `examples/addition/CLAUDE.md` is the template, with the recipes for adding a table and a custom action. `docs/guide/` is the app author's guide (getting started, a tutorial that builds `examples/expenses`, and reference pages), and `docs/cookbook.md` has fifteen blend patterns, each linked to the test that pins it. When behaviour the guide describes changes, update the guide with it.
 
 ## Who writes what
 
@@ -90,4 +90,4 @@ Definition of done: `bun run check` passes. Besides Biome, tsc and the tests (th
 
 ## Roadmap
 
-The API (phases P0 to P15) and the React adapter (phase N: `@blendx/react`, TanStack Query options over `hc<AppType>` with actions called by name; D25) are done. Phase P16 builds what D10 left out of v1, one feature at a time, each decided first: the after stage (D26), later hooks with their outbox (D27), belongs-to includes (D28), force-delete (D29) and has-many includes (D31) are done; nested includes, composite primary keys and PUT are candidates, as is publishing to npm. Don't start one until asked; it becomes a todo item first.
+The API (phases P0 to P15) and the React adapter (phase N: `@blendx/react`, TanStack Query options over `hc<AppType>` with actions called by name; D25) are done. Phase P16 builds what D10 left out of v1, one feature at a time, each decided first: the after stage (D26), later hooks with their outbox (D27), belongs-to includes (D28), force-delete (D29), has-many includes (D31) and nested includes (D32) are done; composite primary keys and PUT are candidates, as is publishing to npm. Don't start one until asked; it becomes a todo item first.

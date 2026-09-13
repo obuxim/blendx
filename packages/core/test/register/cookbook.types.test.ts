@@ -30,6 +30,13 @@ const orderNotes = blend(models.order_notes, {
   actions: (a) => [a.show()],
 });
 
+/** Pattern 15's target: an orders blend with an include of its own, which a path follows. */
+const ordersWithUser = blend(models.orders, {
+  policy: allow.owner('user_id'),
+  includes: { user: users },
+  actions: (a) => [a.show()],
+});
+
 test('the cookbook, compiled', () => {
   const patterns = [
     // 1. Expose a table read-only, hiding a column
@@ -153,8 +160,14 @@ test('the cookbook, compiled', () => {
       includes: { notes: { blend: orderNotes, limit: 10, sort: '-created_at' } },
       actions: (a) => [a.index(), a.show()],
     }),
+    // 15. Nest an included row's own includes
+    blend(models.order_notes, {
+      policy: allow.authenticated,
+      includes: { order: ordersWithUser },
+      actions: (a) => [a.index(), a.show()],
+    }),
   ];
-  // Patterns 4 to 7 share one orders blend: eleven blends for fourteen patterns.
-  expect(patterns).toHaveLength(11);
+  // Patterns 4 to 7 share one orders blend: twelve blends for fifteen patterns.
+  expect(patterns).toHaveLength(12);
   expect(patterns.every((pattern) => pattern.kind === 'blendx/resource')).toBe(true);
 });

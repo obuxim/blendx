@@ -1,0 +1,2 @@
+ALTER TABLE "order_notes" ADD COLUMN "author_id" integer;--> statement-breakpoint
+ALTER TABLE "order_notes" ADD CONSTRAINT "order_notes_author_id_fkey" FOREIGN KEY ("author_id") REFERENCES "users"("id");

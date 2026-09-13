@@ -1,6 +1,6 @@
 # Blend cookbook
 
-Thirteen patterns that cover most of what a blend ever says. Each shows only what differs from the defaults; everything left out is derived from the schema. Every pattern links to the test that pins its behaviour.
+Fifteen patterns that cover most of what a blend ever says. Each shows only what differs from the defaults; everything left out is derived from the schema. Every pattern links to the test that pins its behaviour.
 
 The examples use the `shop` tables: `users` (with a `password`), and `orders` (with a `user_id` and soft delete). Every snippet also compiles, with a typed identity, in [the cookbook, compiled](../packages/core/test/register/cookbook.types.test.ts).
 
@@ -228,3 +228,21 @@ export default blend(models.orders, {
 - [show nests the rows that point at it, at most its limit, in its order, without their hidden columns](../packages/core/test/engine-include.test.ts)
 - [a row the target's show refuses is dropped, and still counts against the limit](../packages/core/test/engine-include.test.ts)
 - [by names the foreign key, and is required when the target points at the table twice](../packages/core/test/includes.test.ts)
+
+## 15. Nest an included row's own includes
+
+```ts
+import orders from './orders.ts';
+
+export default blend(models.order_notes, {
+  policy: allow.authenticated,
+  includes: { order: orders },
+  actions: (a) => [a.index(), a.show()],
+});
+```
+
+Nothing more is declared: once the orders blend includes `user` (pattern 13), `GET /order_notes/1?include=order.user` gives the note its order, and the order its user. A path follows the includes of the included blends, as far as they go, and asks its prefixes on the way. Each level goes through its own blend's show, so an order the requester may not see is `null` with nothing below it, and a has-many's limit applies at its level. The review of `order_notes` lists every path a request can follow, `order.user: users, through its show: ...`, so a reviewer sees what a note can reach without opening the orders blend. The conformance fixture does it the other way round, its notes including their `author`, so `GET /orders/1?include=notes.author` nests an author into each of an order's notes.
+
+- [a dotted path nests the include of an included row, and asks its prefixes](../packages/core/test/engine-include.test.ts)
+- [a refused or missing belongs-to nests nothing below it](../packages/core/test/engine-include.test.ts)
+- [a has-many under a has-many is bounded at each level](../packages/core/test/engine-include.test.ts)

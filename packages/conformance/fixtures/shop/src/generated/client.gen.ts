@@ -9,7 +9,9 @@ export const tables = {
       "store": "POST /order_notes",
       "show": "GET /order_notes/:id",
     },
-    "includes": {},
+    "includes": {
+      "author": "users",
+    },
     "key": {
       "column": "id",
       "type": "number",

@@ -28,7 +28,7 @@ You write two things: `schema.dbml`, which describes the tables, and one small b
 
 ## Elsewhere
 
-- [`docs/cookbook.md`](../cookbook.md): fourteen blend patterns, each linked to the test that pins it.
+- [`docs/cookbook.md`](../cookbook.md): fifteen blend patterns, each linked to the test that pins it.
 - [`packages/spec`](../../packages/spec): the normative spec: [pipeline](../../packages/spec/pipeline.md), [cascade](../../packages/spec/cascade.md), [errors](../../packages/spec/errors.md), [derivation rules](../../packages/spec/derivation-rules.md), [DBML](../../packages/spec/dbml.md) and [review format](../../packages/spec/review-format.md). This guide explains; the spec decides.
 - [`docs/decisions.md`](../decisions.md): why blendx works the way it does.
 - The examples: [`examples/addition`](../../examples/addition), a one-table app, and [`examples/expenses`](../../examples/expenses), the tutorial's app.

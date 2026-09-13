@@ -40,6 +40,7 @@ Table orders {
 Table order_notes {
   id int [pk, increment]
   order_id bigint [not null]
+  author_id int [ref: > users.id]
   body text [not null]
   created_at timestamp [not null, default: `now()`]
 }

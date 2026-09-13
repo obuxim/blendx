@@ -35,8 +35,10 @@
               "enum": [
                 "id",
                 "order_id",
+                "author_id",
                 "-id",
-                "-order_id"
+                "-order_id",
+                "-author_id"
               ],
               "type": "string"
             }
@@ -56,6 +58,23 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "author_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include",
+            "required": false,
+            "schema": {
+              "description": "comma-separated, of: author",
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -67,7 +86,55 @@
                   "properties": {
                     "data": {
                       "items": {
-                        "$ref": "#/components/schemas/order_notes"
+                        "additionalProperties": false,
+                        "properties": {
+                          "author": {
+                            "anyOf": [
+                              {
+                                "$ref": "#/components/schemas/users"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "author_id": {
+                            "anyOf": [
+                              {
+                                "maximum": 2147483647,
+                                "minimum": -2147483648,
+                                "type": "integer"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "body": {
+                            "type": "string"
+                          },
+                          "created_at": {
+                            "type": "string"
+                          },
+                          "id": {
+                            "maximum": 2147483647,
+                            "minimum": -2147483648,
+                            "type": "integer"
+                          },
+                          "order_id": {
+                            "maximum": 9007199254740991,
+                            "minimum": -9007199254740991,
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "order_id",
+                          "author_id",
+                          "body",
+                          "created_at"
+                        ],
+                        "type": "object"
                       },
                       "type": "array"
                     },
@@ -135,6 +202,18 @@
               "schema": {
                 "additionalProperties": false,
                 "properties": {
+                  "author_id": {
+                    "anyOf": [
+                      {
+                        "maximum": 2147483647,
+                        "minimum": -2147483648,
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "body": {
                     "type": "string"
                   },
@@ -224,6 +303,15 @@
               "minimum": -2147483648,
               "type": "integer"
             }
+          },
+          {
+            "in": "query",
+            "name": "include",
+            "required": false,
+            "schema": {
+              "description": "comma-separated, of: author",
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -231,7 +319,55 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/order_notes"
+                  "additionalProperties": false,
+                  "properties": {
+                    "author": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/components/schemas/users"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "author_id": {
+                      "anyOf": [
+                        {
+                          "maximum": 2147483647,
+                          "minimum": -2147483648,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "body": {
+                      "type": "string"
+                    },
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "maximum": 2147483647,
+                      "minimum": -2147483648,
+                      "type": "integer"
+                    },
+                    "order_id": {
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "order_id",
+                    "author_id",
+                    "body",
+                    "created_at"
+                  ],
+                  "type": "object"
                 }
               }
             },
@@ -374,7 +510,7 @@
             "name": "include",
             "required": false,
             "schema": {
-              "description": "comma-separated, of: user, notes",
+              "description": "comma-separated, of: user, notes, notes.author",
               "type": "string"
             }
           }
@@ -436,7 +572,55 @@
                           },
                           "notes": {
                             "items": {
-                              "$ref": "#/components/schemas/order_notes"
+                              "additionalProperties": false,
+                              "properties": {
+                                "author": {
+                                  "anyOf": [
+                                    {
+                                      "$ref": "#/components/schemas/users"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "author_id": {
+                                  "anyOf": [
+                                    {
+                                      "maximum": 2147483647,
+                                      "minimum": -2147483648,
+                                      "type": "integer"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "body": {
+                                  "type": "string"
+                                },
+                                "created_at": {
+                                  "type": "string"
+                                },
+                                "id": {
+                                  "maximum": 2147483647,
+                                  "minimum": -2147483648,
+                                  "type": "integer"
+                                },
+                                "order_id": {
+                                  "maximum": 9007199254740991,
+                                  "minimum": -9007199254740991,
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "order_id",
+                                "author_id",
+                                "body",
+                                "created_at"
+                              ],
+                              "type": "object"
                             },
                             "type": "array"
                           },
@@ -885,7 +1069,7 @@
             "name": "include",
             "required": false,
             "schema": {
-              "description": "comma-separated, of: user, notes",
+              "description": "comma-separated, of: user, notes, notes.author",
               "type": "string"
             }
           }
@@ -943,7 +1127,55 @@
                     },
                     "notes": {
                       "items": {
-                        "$ref": "#/components/schemas/order_notes"
+                        "additionalProperties": false,
+                        "properties": {
+                          "author": {
+                            "anyOf": [
+                              {
+                                "$ref": "#/components/schemas/users"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "author_id": {
+                            "anyOf": [
+                              {
+                                "maximum": 2147483647,
+                                "minimum": -2147483648,
+                                "type": "integer"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "body": {
+                            "type": "string"
+                          },
+                          "created_at": {
+                            "type": "string"
+                          },
+                          "id": {
+                            "maximum": 2147483647,
+                            "minimum": -2147483648,
+                            "type": "integer"
+                          },
+                          "order_id": {
+                            "maximum": 9007199254740991,
+                            "minimum": -9007199254740991,
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "order_id",
+                          "author_id",
+                          "body",
+                          "created_at"
+                        ],
+                        "type": "object"
                       },
                       "type": "array"
                     },
@@ -2004,6 +2236,18 @@
       "order_notes": {
         "additionalProperties": false,
         "properties": {
+          "author_id": {
+            "anyOf": [
+              {
+                "maximum": 2147483647,
+                "minimum": -2147483648,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "body": {
             "type": "string"
           },
@@ -2024,6 +2268,7 @@
         "required": [
           "id",
           "order_id",
+          "author_id",
           "body",
           "created_at"
         ],

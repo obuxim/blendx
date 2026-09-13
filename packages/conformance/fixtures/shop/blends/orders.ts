@@ -12,7 +12,8 @@ export default blend(models.orders, {
     quote: allow.public,
   },
   // ?include=user nests the order's user, as GET /users/:id would reply (D28), and
-  // ?include=notes its two newest notes, each as GET /order_notes/:id would reply (D31).
+  // ?include=notes its two newest notes, each as GET /order_notes/:id would reply (D31);
+  // ?include=notes.author follows the notes' own include to each note's author (D32).
   includes: { user: users, notes: { blend: orderNotes, limit: 2, sort: '-id' } },
   actions: (a) => [
     a.index({ trashed: true }),

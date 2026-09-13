@@ -12,6 +12,7 @@ import { recordSchema } from './derive-rules.ts';
 import {
   defaultStatus,
   type EndpointDefinition,
+  type IncludeDefinition,
   resolveIncludes,
   toEndpoints,
 } from './endpoints.ts';
@@ -246,16 +247,23 @@ export function reviewResource(resource: Resource, app: App): ResourceReview {
     });
   });
   // D28: what ?include= may nest, and who sees each row: the policy of the target's show.
-  // D31: a has-many include also says its bound and its order.
-  const includes = Object.entries(resolveIncludes(resource)).map(([name, include]) => {
-    const { target } = include;
-    const policy = target.policies.show?.description ?? 'no show';
-    const bound =
-      include.kind === 'hasMany'
-        ? `, at most ${include.limit}, by ${include.sort.column} ${include.sort.descending ? 'descending' : 'ascending'}`
-        : '';
-    return [name, `${target.model.name}${bound}, through its show: ${policy}`] as const;
-  });
+  // D31: a has-many include also says its bound and its order. D32: every path a dotted include
+  // may follow gets a line of its own, `order.user`, after the include it goes through.
+  const includes: [path: string, line: string][] = [];
+  const describe = (resolved: Readonly<Record<string, IncludeDefinition>>, prefix: string) => {
+    for (const [name, include] of Object.entries(resolved)) {
+      const { target } = include;
+      const policy = target.policies.show?.description ?? 'no show';
+      const bound =
+        include.kind === 'hasMany'
+          ? `, at most ${include.limit}, by ${include.sort.column} ${include.sort.descending ? 'descending' : 'ascending'}`
+          : '';
+      const path = `${prefix}${name}`;
+      includes.push([path, `${target.model.name}${bound}, through its show: ${policy}`]);
+      describe(resolveIncludes(target), `${path}.`);
+    }
+  };
+  describe(resolveIncludes(resource), '');
   return Object.freeze({
     format: 1,
     resource: resource.model.name,

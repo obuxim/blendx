@@ -37,9 +37,11 @@ export const orders = pgTable("orders", {
 export const order_notes = pgTable("order_notes", {
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
   order_id: bigint({ mode: "number" }).notNull(),
+  author_id: integer(),
   body: text().notNull(),
   created_at: timestamp({ mode: "string" }).notNull().defaultNow(),
 }, (t) => [
+  foreignKey({ name: "order_notes_author_id_fkey", columns: [t.author_id], foreignColumns: [users.id] }),
   foreignKey({ name: "order_notes_order_id_fkey", columns: [t.order_id], foreignColumns: [orders.id] }).onDelete("cascade"),
 ]);
 
@@ -83,6 +85,7 @@ export const models = {
       generated: ["id", "created_at"],
       constraints: {
         "order_notes_pkey": { kind: "primaryKey", columns: ["id"] },
+        "order_notes_author_id_fkey": { kind: "foreignKey", columns: ["author_id"], references: { table: "users", columns: ["id"] } },
         "order_notes_order_id_fkey": { kind: "foreignKey", columns: ["order_id"], references: { table: "orders", columns: ["id"] } },
       },
     },

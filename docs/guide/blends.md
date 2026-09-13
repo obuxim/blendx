@@ -169,7 +169,9 @@ export default blend(models.orders, {
 
 `GET /orders?include=user` then gives every order its `user`, the row `user_id` points to ([The HTTP API](http.md#includes)). A relation is named after its foreign key column without `_id`, so `user_id` gives `user`, and only single-column foreign keys ending in `_id` are relations. The types refuse a name that is not a relation of the table, and a blend of another table than the one it points to.
 
-Each included row goes through the target blend's show, as `GET /users/:id` would for the same requester: its policy and authorize hooks decide row by row, and its hidden columns are left out. A row that show would refuse or not find, such as a soft-deleted one, is `null`. So the target must expose show, and its show may not have a load hook. Includes are one level deep; two blends cannot include each other, because their files would import each other (docs/decisions.md D28).
+Each included row goes through the target blend's show, as `GET /users/:id` would for the same requester: its policy and authorize hooks decide row by row, and its hidden columns are left out. A row that show would refuse or not find, such as a soft-deleted one, is `null`. So the target must expose show, and its show may not have a load hook. Two blends cannot include each other, because their files would import each other (docs/decisions.md D28).
+
+An include nests the includes of its own target, so a request may follow a path: in the fixture, `order_notes` includes `author: users`, and `GET /orders/1?include=notes.author` gives each of the order's notes its author. Nothing more is declared: the paths a blend allows are those its targets' blends allow, and the review lists every one of them, `notes.author: users, through its show: ...`, beside the direct includes. Each level goes through its own blend's show, and a level that is `null` or dropped nests nothing below it (docs/decisions.md D32).
 
 ### The rows that point at a row
 

@@ -249,6 +249,30 @@ describe('includes in the review (D28)', () => {
       first: 'order_notes, at most 1, by id ascending, through its show: public',
     });
   });
+
+  test('every path a dotted include may follow gets a line of its own (D32)', () => {
+    const users = blend(shop.users, {
+      policy: allow.authenticated,
+      hidden: ['password'],
+      actions: (a) => [a.show()],
+    });
+    const notes = blend(shop.order_notes, { policy: allow.public, actions: (a) => [a.show()] });
+    const orders = blend(shop.orders, {
+      policy: allow.public,
+      includes: { user: users, notes: { blend: notes, limit: 5 } },
+      actions: (a) => [a.show()],
+    });
+    const notesWithOrder = blend(shop.order_notes, {
+      policy: allow.public,
+      includes: { order: orders },
+      actions: (a) => [a.show()],
+    });
+    expect(reviewResource(notesWithOrder, defineApp({})).includes).toEqual({
+      order: 'orders, through its show: public',
+      'order.user': `users, through its show: ${users.policies.show?.description}`,
+      'order.notes': 'order_notes, at most 5, by id ascending, through its show: public',
+    });
+  });
 });
 
 describe('later in the review (D27)', () => {

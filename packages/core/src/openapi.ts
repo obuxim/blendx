@@ -13,6 +13,7 @@ import { recordSchema } from './derive-rules.ts';
 import {
   defaultStatus,
   type EndpointDefinition,
+  type IncludeDefinition,
   resolveIncludes,
   toEndpoints,
 } from './endpoints.ts';
@@ -109,6 +110,29 @@ const page = (record: JsonObject): JsonObject => ({
   additionalProperties: false,
 });
 
+/** A model's public record as JSON Schema, dates marked. */
+const recordOf = (model: Model, hidden: readonly string[]): JsonObject =>
+  markDates(toJsonSchema(recordSchema(model, hidden), 'output'), model);
+
+/**
+ * What one include adds to a record: the target's component, or null (D28); an array of it for
+ * a has-many (D31). A target with includes of its own is inlined instead, with each of them as
+ * an optional property, so a dotted path is described where it nests (D32).
+ */
+function includeSchema(include: IncludeDefinition): JsonObject {
+  const { target } = include;
+  const nested = Object.entries(resolveIncludes(target));
+  let record: JsonObject = ref(target.model.name);
+  if (nested.length > 0) {
+    const own = recordOf(target.model, target.hidden);
+    const below = nested.map(([name, child]) => [name, includeSchema(child)]);
+    record = { ...own, properties: { ...propertiesOf(own), ...Object.fromEntries(below) } };
+  }
+  return include.kind === 'hasMany'
+    ? { type: 'array', items: record }
+    : { anyOf: [record, { type: 'null' }] };
+}
+
 /**
  * The success reply: the one the action declares (D14), its default, or an empty schema with
  * a warning when neither describes it.
@@ -121,21 +145,12 @@ function replies(endpoint: EndpointDefinition, warnings: string[]): JsonObject {
     },
   });
   // D24: a reply that reveals hidden columns is the record and those, not the component.
-  // D28: index and show with includes add each include's record, or null; D31: a has-many
-  // include adds an array of the target's record.
+  // D28, D31, D32: index and show with includes add each include's schema.
   const includes = Object.entries(endpoint.includes ?? {});
   let record: JsonObject = ref(endpoint.resource);
   if (endpoint.revealed || includes.length > 0) {
-    const own = markDates(
-      toJsonSchema(recordSchema(endpoint.model, endpoint.hidden), 'output'),
-      endpoint.model,
-    );
-    const nested = includes.map(([name, include]) => [
-      name,
-      include.kind === 'hasMany'
-        ? { type: 'array', items: ref(include.target.model.name) }
-        : { anyOf: [ref(include.target.model.name), { type: 'null' }] },
-    ]);
+    const own = recordOf(endpoint.model, endpoint.hidden);
+    const nested = includes.map(([name, include]) => [name, includeSchema(include)]);
     record = { ...own, properties: { ...propertiesOf(own), ...Object.fromEntries(nested) } };
   }
 
@@ -197,18 +212,20 @@ export function buildOpenApi({ app, resources, info }: OpenApiOptions): OpenApiR
   const paths: Record<string, JsonObject> = {};
   const schemas: Record<string, JsonObject> = { Problem: toJsonSchema(problemSchema, 'output') };
 
+  // D28: the record an include points to has a component, even without a blend of its own here;
+  // D32: so does every record a path below it reaches.
+  const withTargets = (resource: Resource) => {
+    for (const { target } of Object.values(resolveIncludes(resource))) {
+      schemas[target.model.name] ??= recordOf(target.model, target.hidden);
+      withTargets(target);
+    }
+  };
   const sorted = [...resources].sort((a, b) => byCodeUnit(a.model.name, b.model.name));
   for (const resource of sorted) {
     const { model } = resource;
-    const record = markDates(toJsonSchema(recordSchema(model, resource.hidden), 'output'), model);
+    const record = recordOf(model, resource.hidden);
     schemas[model.name] = record;
-    // D28: the record an include points to has a component, even without a blend of its own here.
-    for (const { target } of Object.values(resolveIncludes(resource))) {
-      schemas[target.model.name] ??= markDates(
-        toJsonSchema(recordSchema(target.model, target.hidden), 'output'),
-        target.model,
-      );
-    }
+    withTargets(resource);
     const idSchema = (model.meta.primaryKey && propertiesOf(record)[model.meta.primaryKey]) || {
       type: 'string',
     };

@@ -273,6 +273,38 @@ describe('invalidation (N.2)', () => {
     }
   });
 
+  test('a nested path is followed to every table it holds: a write to the last one refetches the queries that asked for it (D32)', async () => {
+    const client = freshClient();
+    const api = apiFor(1);
+    const withAuthors = api.orders.index.queryOptions({ query: { include: 'notes.author' } });
+    const withNotes = api.orders.index.queryOptions({ query: { include: 'notes' } });
+    const before = await client.fetchQuery(withAuthors);
+    // Each nested note carries its author: Bob wrote the seed's third note.
+    const notesBefore = before.data[0]?.notes ?? [];
+    expect(notesBefore.find((note) => note.id === 3)?.author).toMatchObject({ id: 2 });
+    for (const note of notesBefore) expect(note).toHaveProperty('author');
+    await client.fetchQuery(withNotes);
+    await new MutationObserver(client, api.users.update.mutationOptions()).mutate({
+      param: { id: '1' },
+      json: { display_name: 'Ada L.' },
+    });
+    expect(invalidated(client, withAuthors.queryKey)).toBe(true);
+    expect(invalidated(client, withNotes.queryKey)).toBe(false);
+    // A write to the table in the middle of the path refetches it too, before the mutation resolves.
+    const observer = new QueryObserver(client, withAuthors);
+    const unsubscribe = observer.subscribe(() => {});
+    try {
+      const stored = await new MutationObserver(
+        client,
+        api.order_notes.store.mutationOptions(),
+      ).mutate({ json: { order_id: 1, body: 'fifth' } });
+      const [newest] = observer.getCurrentResult().data?.data[0]?.notes ?? [];
+      expect(newest).toMatchObject({ id: stored.id, author: null });
+    } finally {
+      unsubscribe();
+    }
+  });
+
   test('a table a mutation names is followed to the queries that include it too', async () => {
     const client = freshClient();
     const api = apiFor(1);

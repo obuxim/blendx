@@ -68,7 +68,7 @@ The query parameters:
 | `sort` | a filterable column, or `-column` for descending; the primary key, ascending, by default |
 | a column | an exact match, for primary key, unique, foreign key and indexed columns: `?status=submitted` |
 | `trashed` | `with` or `only`, when the blend enables it ([index options](blends.md#index-options)) |
-| `include` | relations to nest, comma-separated, such as `user`, when the blend declares includes ([Includes](#includes)) |
+| `include` | relations to nest, comma-separated, such as `user`, or paths through them, such as `notes.author`, when the blend declares includes ([Includes](#includes)) |
 
 Soft-deleted rows are left out unless `trashed` says otherwise. Hidden columns can neither filter nor sort. Any other parameter is refused with 422. An index with a `scope` lists only the rows in it: in the expenses API, a claimant lists only their own claims, and asking for someone else's (`?user_id=2`) answers an empty page.
 
@@ -107,6 +107,24 @@ A has-many include ([Blends](blends.md#the-rows-that-point-at-a-row)) nests an a
 - The array holds at most the include's limit, in its order, and is `[]` where there are none. It is never `null`.
 - Each row is what `GET /order_notes/3` would answer the same requester; a row that request would refuse is left out. Without an identity the fixture's `notes` is `[]`, since its notes need a signed-in requester.
 - `AppType`, the React client and OpenAPI give it as an optional array of the target's record.
+
+A path follows an included row's own includes ([Blends](blends.md#includes)). The fixture's notes include their author, so `GET /orders/1?include=notes.author` from Ada answers:
+
+```json
+{
+  "id": 1,
+  "...": "...",
+  "notes": [
+    { "id": 3, "order_id": 1, "author_id": 2, "body": "third", "author": { "id": 2, "display_name": "Bob", "...": "..." } },
+    { "id": 2, "order_id": 1, "author_id": null, "body": "second", "author": null }
+  ]
+}
+```
+
+- A path asks its prefixes: `notes.author` nests `notes`, with `author` inside each. `notes.author,user` asks for two paths.
+- Each level is what its own show would answer the same requester, so a note Ada may not see is left out with its author, and an author she may not see is `null`.
+- An unknown segment, at any position, is refused with 422 naming the parameter. The paths a blend accepts are listed in its review, and in the parameter's description in OpenAPI.
+- Each path is one query for the whole reply.
 
 ## Errors
 

@@ -421,31 +421,67 @@ function changeOf(action: string, input: unknown, optimistic: true | RowFunction
   return () => null;
 }
 
-/** The names a query's input asked `?include=` for: comma-separated, as the server takes them. */
+/** The paths a query's input asked `?include=` for: comma-separated, as the server takes them. */
 function includesAsked(queryKey: readonly unknown[]): string[] {
   const input = queryKey[2] as { query?: { include?: unknown } } | undefined;
   const include = input?.query?.include;
   const parts = Array.isArray(include) ? include : [include];
-  return parts.flatMap((part) => (typeof part === 'string' ? part.split(',') : []));
+  return parts
+    .flatMap((part) => (typeof part === 'string' ? part.split(',') : []))
+    .map((path) => path.trim())
+    .filter(Boolean);
 }
 
 /**
- * Invalidates the queries a write to `written` may have changed (N.2, N.8): every query of
- * those tables, and, in each table that includes one of them, the queries whose input asked
- * for that include.
+ * The tables a path holds, walking the include map from the query's table (D32): `notes.author`
+ * on orders gives order_notes, then users. It stops at a segment the map does not know.
+ */
+function tablesOnPath(tables: Tables, table: string, path: string): string[] {
+  const held: string[] = [];
+  let current = table;
+  for (const segment of path.split('.')) {
+    const next = tables[current]?.includes[segment];
+    if (!next) break;
+    held.push(next);
+    current = next;
+  }
+  return held;
+}
+
+/** Every table a table's includes reach, at any depth. */
+function reachableFrom(tables: Tables, table: string): Set<string> {
+  const seen = new Set<string>();
+  const queue = [table];
+  for (let at = 0; at < queue.length; at++) {
+    const from = queue[at];
+    for (const target of Object.values(from ? (tables[from]?.includes ?? {}) : {})) {
+      if (seen.has(target)) continue;
+      seen.add(target);
+      queue.push(target);
+    }
+  }
+  return seen;
+}
+
+/**
+ * Invalidates the queries a write to `written` may have changed (N.2, N.8, D32): every query
+ * of those tables, and, in each table whose includes reach one of them, the queries whose
+ * input asked for a path that holds it.
  */
 async function invalidate(client: QueryClient, tables: Tables, written: Iterable<string>) {
   const changed = new Set(written);
   const own = [...changed].map((table) => client.invalidateQueries({ queryKey: [table] }));
-  const including = Object.entries(tables).flatMap(([table, { includes }]) => {
-    const names = Object.entries(includes)
-      .filter(([, target]) => changed.has(target))
-      .map(([name]) => name);
-    if (names.length === 0 || changed.has(table)) return [];
+  const including = Object.keys(tables).flatMap((table) => {
+    if (changed.has(table)) return [];
+    const reaches = reachableFrom(tables, table);
+    if (![...changed].some((target) => reaches.has(target))) return [];
     return [
       client.invalidateQueries({
         queryKey: [table],
-        predicate: (query) => includesAsked(query.queryKey).some((name) => names.includes(name)),
+        predicate: (query) =>
+          includesAsked(query.queryKey).some((path) =>
+            tablesOnPath(tables, table, path).some((held) => changed.has(held)),
+          ),
       }),
     ];
   });
