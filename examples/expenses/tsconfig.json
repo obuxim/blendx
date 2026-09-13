@@ -1,0 +1,8 @@
+{
+  "//": "Own project: src/generated/register.gen.ts augments blendx for the whole program.",
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["bun"]
+  },
+  "include": ["."]
+}

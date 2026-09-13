@@ -1,0 +1,20 @@
+{
+  "name": "@blendx/example-expenses",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The expenses example: people file expense claims, and approvers approve or reject them.",
+  "scripts": {
+    "generate": "blendx generate",
+    "migrate": "blendx migrate up",
+    "start": "bun server.ts"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "0.5.8",
+    "blendx": "workspace:*",
+    "pg": "8.23.0"
+  },
+  "devDependencies": {
+    "@blendx/cli": "workspace:*"
+  }
+}

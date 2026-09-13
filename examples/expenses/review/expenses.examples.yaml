@@ -1,0 +1,49 @@
+# Human-owned: what the expense actions must compute. `blendx review --check` runs these,
+# and so does test/examples.test.ts.
+store:
+  - name: meals carry 10% tax
+    input: { description: Team lunch, category: meals, amount: '40.00', spent_on: '2026-09-01' }
+    writes:
+      { description: Team lunch, category: meals, amount: '40.00', spent_on: '2026-09-01', tax: '4.00', total: '44.00' }
+  - name: travel carries none
+    input: { description: Train, category: travel, amount: '12.5', spent_on: '2026-09-02' }
+    writes:
+      { description: Train, category: travel, amount: '12.5', spent_on: '2026-09-02', tax: '0.00', total: '12.50' }
+  - name: tax is rounded to the cent
+    input: { description: Pens, category: office, amount: '0.99', spent_on: '2026-09-03' }
+    writes:
+      { description: Pens, category: office, amount: '0.99', spent_on: '2026-09-03', tax: '0.20', total: '1.19' }
+  - name: an amount is written as money, not as a number
+    input: { description: Taxi, category: travel, amount: 12.5, spent_on: '2026-09-04' }
+    rejects: [/amount]
+  - name: the claimant and the totals are never sent
+    input: { description: Taxi, category: travel, amount: '12.50', spent_on: '2026-09-04', user_id: 2, total: '1.00' }
+    rejects: [/total, /user_id]
+update:
+  - name: a new amount is priced with the claim's category
+    record: { category: office, amount: '10.00' }
+    input: { amount: '20.00' }
+    writes: { amount: '20.00', tax: '4.00', total: '24.00' }
+  - name: a new category prices the claim's amount again
+    record: { category: office, amount: '10.00' }
+    input: { category: travel }
+    writes: { category: travel, tax: '0.00', total: '10.00' }
+approve:
+  - record: { status: submitted, user_id: 1 }
+    input: {}
+    writes: { status: approved }
+reject:
+  - name: a rejection says why
+    record: { status: submitted, user_id: 1 }
+    input: { note: No receipt attached }
+    writes: { status: rejected, review_note: No receipt attached }
+  - name: a rejection without a note is refused
+    record: { status: submitted, user_id: 1 }
+    input: {}
+    rejects: [/note]
+quote:
+  - input: { amount: '40.00', category: meals }
+    returns: { tax: '4.00', total: '44.00' }
+  - name: a GET reads the query, so rejects name the parameter
+    input: { amount: '10', category: food }
+    rejects: [category]

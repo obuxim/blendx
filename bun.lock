@@ -28,6 +28,18 @@
         "@blendx/cli": "workspace:*",
       },
     },
+    "examples/expenses": {
+      "name": "@blendx/example-expenses",
+      "version": "0.0.0",
+      "dependencies": {
+        "@electric-sql/pglite": "0.5.8",
+        "blendx": "workspace:*",
+        "pg": "8.23.0",
+      },
+      "devDependencies": {
+        "@blendx/cli": "workspace:*",
+      },
+    },
     "packages/blendx": {
       "name": "blendx",
       "version": "0.0.0",
@@ -160,6 +172,8 @@
     "@blendx/dbml": ["@blendx/dbml@workspace:packages/dbml"],
 
     "@blendx/example-addition": ["@blendx/example-addition@workspace:examples/addition"],
+
+    "@blendx/example-expenses": ["@blendx/example-expenses@workspace:examples/expenses"],
 
     "@blendx/hono": ["@blendx/hono@workspace:packages/hono"],
 

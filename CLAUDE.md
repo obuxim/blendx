@@ -7,7 +7,7 @@ Status: the framework is under construction. Work is driven by `docs/todo.md` (s
 ## Commands
 
 - `bun install`
-- `bun run check`: Biome, then `tsc --noEmit` (root, `tsconfig.portable.json`, and each project that augments `Register` and so needs a program of its own: `packages/core/test/register`, `packages/cli/test/register`, `packages/cli/test/fixtures/shop-app`, `examples/addition`), then `blendx generate --check` on the example, then `bun test`. Must pass before ticking any todo item.
+- `bun run check`: Biome, then `tsc --noEmit` (root, `tsconfig.portable.json`, and each project that augments `Register` and so needs a program of its own: `packages/core/test/register`, `packages/cli/test/register`, `packages/cli/test/fixtures/shop-app`, `examples/addition`, `examples/expenses`), then `blendx generate --check` on the examples, then `bun test`. Must pass before ticking any todo item.
 - `bun run fix`: Biome autofix and format.
 - `bun test <path>`: run a subset. Tests use in-process PGlite. `BLENDX_TEST_DB=pg DATABASE_URL=postgres://postgres@localhost:5432/blendx_test bun test` also runs the real-PostgreSQL tests (`*.pg.test.ts`); they reset that database's public schema, so use a scratch database.
 - `DATABASE_URL=... bun run smoke:node`: the Node smoke test (Node 24, @hono/node-server, pg). It resets the same scratch database.
@@ -16,7 +16,7 @@ Status: the framework is under construction. Work is driven by `docs/todo.md` (s
 
 ## Layout
 
-`packages/blendx` (facade: the only runtime import for app code), `spec` (Markdown only), `core` + `dbml` (portable), `hono` (adapter), `cli` (the `blendx` command; apps add it as a dev dependency, D18), `conformance` (cases, the shop fixture and the harness); `examples/addition` (end-to-end proof).
+`packages/blendx` (facade: the only runtime import for app code), `spec` (Markdown only), `core` + `dbml` (portable), `hono` (adapter), `cli` (the `blendx` command; apps add it as a dev dependency, D18), `conformance` (cases, the shop fixture and the harness); `examples/addition` (end-to-end proof) and `examples/expenses` (a fuller app: a bearer-token identity, an approver role, state rules and pricing).
 
 Working on an app built with blendx rather than on the framework? Its own `CLAUDE.md` is the guide: `examples/addition/CLAUDE.md` is the template, with the recipes for adding a table and a custom action. `docs/cookbook.md` has ten blend patterns, each linked to the test that pins it.
 
@@ -82,7 +82,7 @@ When `blendx review --check` fails, a human has asked for a change (`packages/sp
 5. Tick the box and commit locally with the message `P5.3: <summary>`. One item per commit, then `git push` (origin is SSH: `git@github.com:obuxim/blendx.git`).
 6. Put discovered work in Inbox, not into the current item. Stop and ask when an item raises a design question that `docs/decisions.md` doesn't settle.
 
-Definition of done: `bun run check` passes. Besides Biome, tsc and the tests (the conformance suite on PGlite among them), it runs `blendx generate --check` on the example and the conformance fixture, and `blendx review --check` on the example.
+Definition of done: `bun run check` passes. Besides Biome, tsc and the tests (the conformance suite on PGlite among them), it runs `blendx generate --check` on the examples and the conformance fixture, and `blendx review --check` on the examples.
 
 ## Roadmap
 

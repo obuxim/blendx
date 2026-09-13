@@ -1,0 +1,15 @@
+# Human-owned: what signing up accepts. `blendx review --check` runs these, and so does
+# test/examples.test.ts.
+store:
+  - name: an email and a name
+    input: { email: ada@example.com, name: Ada }
+    writes: { email: ada@example.com, name: Ada }
+  - name: nobody makes themselves an approver
+    input: { email: ada@example.com, name: Ada, is_approver: true }
+    rejects: [/is_approver]
+  - name: nobody chooses their own token
+    input: { email: ada@example.com, name: Ada, api_token: 6f1c1e9e-8a2b-4c3d-9e4f-5a6b7c8d9e0f }
+    rejects: [/api_token]
+  - name: the email must be one
+    input: { email: ada, name: Ada }
+    rejects: [/email]

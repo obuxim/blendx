@@ -8,10 +8,10 @@
   ],
   "scripts": {
     "check": "bun run lint && bun run typecheck && bun run generated && bun test",
-    "generated": "blendx generate --check --cwd examples/addition && blendx review --check --cwd examples/addition && blendx generate --check --cwd packages/conformance/fixtures/shop",
+    "generated": "blendx generate --check --cwd examples/addition && blendx review --check --cwd examples/addition && blendx generate --check --cwd examples/expenses && blendx review --check --cwd examples/expenses && blendx generate --check --cwd packages/conformance/fixtures/shop",
     "lint": "biome check .",
     "fix": "biome check --write .",
-    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.portable.json && tsc --noEmit -p packages/core/test/register/tsconfig.json && tsc --noEmit -p packages/cli/test/register/tsconfig.json && tsc --noEmit -p packages/cli/test/fixtures/shop-app/tsconfig.json && tsc --noEmit -p examples/addition/tsconfig.json && tsc --noEmit -p packages/conformance/fixtures/shop/tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.portable.json && tsc --noEmit -p packages/core/test/register/tsconfig.json && tsc --noEmit -p packages/cli/test/register/tsconfig.json && tsc --noEmit -p packages/cli/test/fixtures/shop-app/tsconfig.json && tsc --noEmit -p examples/addition/tsconfig.json && tsc --noEmit -p examples/expenses/tsconfig.json &&tsc --noEmit -p packages/conformance/fixtures/shop/tsconfig.json",
     "test": "bun test",
     "smoke:node": "node packages/hono/test/node/smoke.ts",
     "conformance:node": "node packages/conformance/harness/node.ts"
