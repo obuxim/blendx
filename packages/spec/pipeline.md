@@ -6,7 +6,7 @@ Every endpoint runs the same stages in the same order. A resource changes a stag
 |---|---|---|---|---|
 | 1 | authenticate | the request | the identity, or null | the app's `auth` function; without one, no identity |
 | 2 | validate (`rules`) | the query (GET) or the JSON body | the parsed input | the derived rules (`derivation-rules.md`), strict |
-| 3 | load | the parsed input and the path id | the record, a page, or nothing | a row by primary key, never a soft-deleted one (restore loads only those, purge loads both); for index, a filtered, sorted page, within the action's `scope` (docs/decisions.md D22) |
+| 3 | load | the parsed input and the path's key segments (`:id`, or one per column of a composite key, docs/decisions.md D33) | the record, a page, or nothing | a row by primary key, never a soft-deleted one (restore loads only those, purge loads both); for index, a filtered, sorted page, within the action's `scope` (docs/decisions.md D22), ordered by the sort column and then every key column |
 | 4 | authorize | the policy's decision, the identity, the record and the input | allowed or not | the resource's policy for the action |
 | 5 | calculate | the default writes, the input and the record | the writes; for a collection action, the reply body | the input's writable columns |
 | 6 | save | the writes and the record | the saved row | store inserts, update and custom member actions update, destroy soft-deletes or deletes, restore clears `deleted_at`, purge deletes for good (docs/decisions.md D29) |
@@ -21,6 +21,10 @@ Tests:
 - [restore loads only trashed rows](../core/test/engine-load.test.ts)
 - [purge loads the row whether it is soft-deleted or not](../core/test/engine-load.test.ts)
 - [live rows sorted by primary key, with the page meta](../core/test/engine-load.test.ts)
+- [a composite key gives one path segment per column, in the key order](../core/test/engine-composite.test.ts)
+- [show loads the row both segments name](../core/test/engine-composite.test.ts)
+- [the index sorts by every key column in order](../core/test/engine-composite.test.ts)
+- [update saves the row the segments name and no other](../core/test/engine-composite.test.ts)
 - [store inserts, fills defaults and sets both timestamps](../core/test/engine-save.test.ts)
 - [update writes the input and touches updated_at](../core/test/engine-save.test.ts)
 - [destroy soft-deletes: 204, the row stays with deleted_at set, show no longer finds it](../core/test/engine-save.test.ts)
@@ -90,7 +94,7 @@ A request stops at the first stage that fails, so the statuses come in a fixed o
 
 1. 401: the action's policy needs an identity and the request has none. This is decided before the input is read.
 2. 422: validation fails. Every invalid field is listed, not only the first.
-3. 404: a member action's record does not exist, or its id cannot be a primary key.
+3. 404: a member action's record does not exist, or a key segment cannot be its column's type.
 4. 403: the policy, or an authorize hook, refuses.
 5. 409, or 422: the database refuses the writes (`errors.md`).
 
@@ -100,6 +104,7 @@ Tests:
 - [401 comes before validation when the policy needs an identity](../core/test/engine.test.ts)
 - [422 lists each invalid field with a JSON pointer](../core/test/engine.test.ts)
 - [404 when the record does not exist](../core/test/engine.test.ts)
+- [a pair of segments that names no row is 404](../core/test/engine-composite.test.ts)
 - [403 when the policy refuses an identified request](../core/test/engine.test.ts)
 - [malformed JSON is a 400 problem; an empty body is undefined](../hono/test/server.test.ts)
 

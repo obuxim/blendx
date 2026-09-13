@@ -34,7 +34,7 @@ Tests:
 | 400 | The body is not valid JSON. |
 | 401 | The action's policy needs an identity and the request has none. |
 | 403 | The policy or an authorize hook refuses. |
-| 404 | No route matches, or a member action's record does not exist (an id that cannot be a primary key included). |
+| 404 | No route matches, or a member action's record does not exist (a key segment that cannot be its column's type included). |
 | 409 | A unique value already exists (SQLSTATE 23505), or a destroy or purge hits a row that other rows still reference (23503). |
 | 422 | The input is invalid; or the database refuses a value: a reference to a missing row (23503), a NOT NULL column left null (23502), a value its column cannot hold (22P02), a value too long (22001), a date or time it cannot read (22007, 22008). |
 | 500 | Anything else. The message is not sent to the client. |
@@ -55,6 +55,7 @@ Tests:
 - [23502: a hook writing null into a NOT NULL column answers 422](../core/test/engine-errors.test.ts)
 - [22001: a hook writing past varchar(n) answers 422](../core/test/engine-errors.test.ts)
 - [an id that cannot be a primary key names no record: 404](../core/test/engine-errors.test.ts)
+- [a segment that cannot be its column's type is 404](../core/test/engine-composite.test.ts)
 - [22P02 elsewhere, like a filter value outside an enum, answers 422](../core/test/engine-errors.test.ts)
 - [a unique violation from bun-sql answers 409, pointing at the column](../core/test/engine-errors-bun-sql.test.ts)
 - [an error with no SQLSTATE anywhere is not hidden](../core/test/engine-errors-bun-sql.test.ts)

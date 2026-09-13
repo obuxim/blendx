@@ -16,7 +16,7 @@ import { Pool } from 'pg';
 
 const coreDir = join(import.meta.dir, '..', '..');
 
-export const goldenSchema = (name: 'addition' | 'shop') =>
+export const goldenSchema = (name: 'addition' | 'shop' | 'kitchen-sink') =>
   join(coreDir, '..', 'dbml', 'test', 'golden', `${name}.schema.gen.ts`);
 
 /** BLENDX_TEST_DB=pg with DATABASE_URL (a scratch database) enables the real PostgreSQL tests. */

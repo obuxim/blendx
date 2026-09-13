@@ -591,14 +591,11 @@ export function defaultEffects(
     }
     return key as PgColumn[];
   };
-  const primaryKey = () => {
-    const key = keyColumns();
-    // P16.16b serves composite keys: their routes carry one segment per column.
-    if (key.length > 1) {
-      throw new Error(`${model.name} has a composite primary key, which P16.16b serves`);
-    }
-    return key[0] as PgColumn;
-  };
+  /** The path parameters that name a record: `id`, or one per column of a composite key (D33). */
+  const segments = model.meta.primaryKey.length > 1 ? model.meta.primaryKey : ['id'];
+  /** The row the path names: every key column equal to its segment. */
+  const byPath = (params: Readonly<Record<string, string>>) =>
+    keyColumns().map((column, index) => eq(column, params[segments[index] ?? '']));
 
   /** Live rows by default; `only` for trashed rows; `with` for both. */
   const trashScope = (trashed: 'with' | 'only' | undefined) => {
@@ -606,14 +603,18 @@ export function defaultEffects(
     return trashed === 'only' ? isNotNull(deletedAt) : isNull(deletedAt);
   };
 
-  async function loadMember(db: Db, id: string | undefined, lock: boolean): Promise<unknown> {
+  async function loadMember(
+    db: Db,
+    params: Readonly<Record<string, string>>,
+    lock: boolean,
+  ): Promise<unknown> {
     const scope = trashScope(
       action === 'restore' ? 'only' : action === 'purge' ? 'with' : undefined,
     );
     const select = db
       .select()
       .from(table)
-      .where(and(eq(primaryKey(), id), scope))
+      .where(and(...byPath(params), scope))
       .limit(1);
     const rows: unknown[] = await (lock ? select.for('update') : select);
     return rows[0];
@@ -703,7 +704,7 @@ export function defaultEffects(
 
   return {
     load: ({ db, params, input, lock, auth }) =>
-      action === 'index' ? loadPage(db, input, auth) : loadMember(db, params.id, lock === true),
+      action === 'index' ? loadPage(db, input, auth) : loadMember(db, params, lock === true),
     save: ({ tx, writes, record }) => saveRow(tx, writes, record),
   };
 }

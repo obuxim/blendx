@@ -10,6 +10,7 @@ import { Hono } from 'hono';
 import { hc, type InferRequestType, type InferResponseType } from 'hono/client';
 import { z } from 'zod';
 import { models as addition } from '../../../dbml/test/golden/addition.schema.gen.ts';
+import { models as kitchen } from '../../../dbml/test/golden/kitchen-sink.schema.gen.ts';
 import { models as shop } from '../../../dbml/test/golden/shop.schema.gen.ts';
 
 type Addition = typeof addition.addition_results;
@@ -56,7 +57,15 @@ const orders = blend(shop.orders, {
   actions: (a) => [a.show()],
 });
 
+// A composite key: one segment per key column (D33).
+const items = blend(kitchen.order_items, {
+  policy: allow.public,
+  actions: (a) => [a.show(), a.update()],
+});
+
 const routes = new Hono<BlendxEnv>()
+  .get('/order_items/:order_id/:line', ...run(items, 'show'))
+  .patch('/order_items/:order_id/:line', ...run(items, 'update'))
   .get('/addition_results', ...run(additions, 'index'))
   .post('/addition_results', ...run(additions, 'store'))
   .get('/addition_results/quote', ...run(additions, 'quote'))
@@ -149,6 +158,31 @@ describe('P6.3 RPC types over run()', () => {
     expectTypeOf<InferRequestType<Member['halve']['$post']>>().toEqualTypeOf<{
       param: { id: string };
     }>();
+  });
+
+  test('a composite key takes one param per column, and its columns in the body (D33)', () => {
+    type Item = Client['order_items'][':order_id'][':line'];
+    // hono types the params as one object per segment, intersected: the keys are what matter.
+    type Get = InferRequestType<Item['$get']>;
+    expectTypeOf<keyof Get>().toEqualTypeOf<'param'>();
+    expectTypeOf<keyof Get['param']>().toEqualTypeOf<'order_id' | 'line'>();
+    expectTypeOf<Get['param']['order_id']>().toEqualTypeOf<string>();
+    expectTypeOf<Get['param']['line']>().toEqualTypeOf<string>();
+    type Patch = InferRequestType<Item['$patch']>;
+    expectTypeOf<keyof Patch['param']>().toEqualTypeOf<'order_id' | 'line'>();
+    expectTypeOf<Patch['json']['sku']>().toEqualTypeOf<string | undefined>();
+    // The key columns are input, as a non-generated single key is (D33).
+    expectTypeOf<Patch['json']['line']>().toEqualTypeOf<number | undefined>();
+    expectTypeOf<InferResponseType<Item['$get'], 200>>().toEqualTypeOf<
+      PublicRow<typeof kitchen.order_items>
+    >();
+    const typeOnly = () => {
+      const item = hc<typeof routes>('http://blendx.test').order_items[':order_id'][':line'];
+      item.$get({ param: { order_id: '1', line: '2' } });
+      // @ts-expect-error every segment of the key is needed
+      item.$get({ param: { order_id: '1' } });
+    };
+    expect(typeOnly).toBeFunction();
   });
 
   test('hidden columns are not in the reply type', () => {

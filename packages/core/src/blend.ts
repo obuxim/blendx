@@ -76,7 +76,10 @@ export interface ActionDefinition<
   readonly name: Name;
   readonly on: 'collection' | 'member';
   readonly method: Method;
-  /** Path below the resource: '', '/:id', '/:id/restore', '/:id/purge', '/:id/refund', '/quote'. */
+  /**
+   * Path below the resource: '', '/:id', '/:id/restore', '/:id/purge', '/:id/refund', '/quote'.
+   * A composite key has one segment per column instead of ':id': '/:order_id/:line' (D33).
+   */
   readonly path: string;
   readonly builtin: boolean;
   readonly hooks: ActionHooks;
@@ -528,10 +531,20 @@ function define(
   });
 }
 
+/**
+ * The path of one record below its resource (D33): ':id' for a single-column key, whatever the
+ * column is called; one segment per column, named by it, for a composite key.
+ */
+export function memberPath(model: Model): string {
+  const key = model.meta.primaryKey;
+  return key.length > 1 ? key.map((column) => `/:${column}`).join('') : '/:id';
+}
+
 function builderFor(model: Model) {
   const fail = (message: string): never => {
     throw new BlendxDefinitionError(model.name, message);
   };
+  const record = memberPath(model);
   /** define(), with the spec's reply checked and normalized. */
   const make = (
     name: string,
@@ -565,7 +578,7 @@ function builderFor(model: Model) {
       name,
       on,
       spec.method ?? 'post',
-      on === 'member' ? `/:id/${segment}` : `/${segment}`,
+      on === 'member' ? `${record}/${segment}` : `/${segment}`,
       false,
       spec,
     );
@@ -580,15 +593,15 @@ function builderFor(model: Model) {
       }
       return make('index', 'collection', 'get', '', true, spec);
     },
-    show: (spec?: AnySpec) => make('show', 'member', 'get', '/:id', true, spec),
+    show: (spec?: AnySpec) => make('show', 'member', 'get', record, true, spec),
     store: (spec?: AnySpec) => make('store', 'collection', 'post', '', true, spec),
-    update: (spec?: AnySpec) => make('update', 'member', 'patch', '/:id', true, spec),
-    destroy: (spec?: AnySpec) => make('destroy', 'member', 'delete', '/:id', true, spec),
+    update: (spec?: AnySpec) => make('update', 'member', 'patch', record, true, spec),
+    destroy: (spec?: AnySpec) => make('destroy', 'member', 'delete', record, true, spec),
     restore: (spec?: AnySpec) => {
       if (model.meta.softDelete === null) {
         fail('restore needs a soft-delete table (a nullable deleted_at timestamp)');
       }
-      return make('restore', 'member', 'post', '/:id/restore', true, spec);
+      return make('restore', 'member', 'post', `${record}/restore`, true, spec);
     },
     purge: (spec?: AnySpec) => {
       if (model.meta.softDelete === null) {
@@ -596,7 +609,7 @@ function builderFor(model: Model) {
           'purge needs a soft-delete table (a nullable deleted_at timestamp); destroy already deletes for good',
         );
       }
-      return make('purge', 'member', 'delete', '/:id/purge', true, spec);
+      return make('purge', 'member', 'delete', `${record}/purge`, true, spec);
     },
     member: (name: string, spec?: AnySpec) => custom('member', name, spec),
     collection: (name: string, spec?: AnySpec) => custom('collection', name, spec),
