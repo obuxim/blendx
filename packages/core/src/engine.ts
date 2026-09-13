@@ -390,14 +390,20 @@ export function defaultEffects(
     return rows[0];
   }
 
-  async function loadPage(db: Db, input: unknown): Promise<unknown> {
+  async function loadPage(db: Db, input: unknown, auth: unknown): Promise<unknown> {
     const query = (input ?? {}) as IndexQuery;
     const page = query.page ?? 1;
     const perPage = query.per_page ?? options.perPage ?? 25;
     const filters = Object.entries(query)
       .filter(([key, value]) => !INDEX_CONTROLS.has(key) && value !== undefined && columns[key])
       .map(([key, value]) => eq(columns[key] as never, value));
-    const where = and(...filters, trashScope(query.trashed));
+    // D22: the action's scope, one equality per column; a missing value matches no row.
+    const scope = Object.entries(endpoint.hooks.scope?.({ auth }) ?? {}).map(([key, value]) => {
+      const column = columns[key];
+      if (!column) throw new Error(`${model.name}.${action}: scope names "${key}", not a column`);
+      return value === undefined || value === null ? sql`false` : eq(column as never, value);
+    });
+    const where = and(...filters, ...scope, trashScope(query.trashed));
     const pk = primaryKey();
     const sort = query.sort ?? model.meta.primaryKey ?? '';
     const column = columns[sort.replace(/^-/, '')] ?? pk;
@@ -463,8 +469,8 @@ export function defaultEffects(
   }
 
   return {
-    load: ({ db, params, input, lock }) =>
-      action === 'index' ? loadPage(db, input) : loadMember(db, params.id, lock === true),
+    load: ({ db, params, input, lock, auth }) =>
+      action === 'index' ? loadPage(db, input, auth) : loadMember(db, params.id, lock === true),
     save: ({ tx, writes, record }) => saveRow(tx, writes, record),
   };
 }

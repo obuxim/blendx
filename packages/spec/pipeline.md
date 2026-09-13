@@ -6,7 +6,7 @@ Every endpoint runs the same stages in the same order. A resource changes a stag
 |---|---|---|---|---|
 | 1 | authenticate | the request | the identity, or null | the app's `auth` function; without one, no identity |
 | 2 | validate (`rules`) | the query (GET) or the JSON body | the parsed input | the derived rules (`derivation-rules.md`), strict |
-| 3 | load | the parsed input and the path id | the record, a page, or nothing | a row by primary key, never a soft-deleted one (restore loads only those); for index, a filtered, sorted page |
+| 3 | load | the parsed input and the path id | the record, a page, or nothing | a row by primary key, never a soft-deleted one (restore loads only those); for index, a filtered, sorted page, within the action's `scope` (docs/decisions.md D22) |
 | 4 | authorize | the policy's decision, the identity, the record and the input | allowed or not | the resource's policy for the action |
 | 5 | calculate | the default writes, the input and the record | the writes; for a collection action, the reply body | the input's writable columns |
 | 6 | save | the writes and the record | the saved row | store inserts, update and custom member actions update, destroy soft-deletes or deletes, restore clears `deleted_at` |
@@ -25,6 +25,9 @@ Tests:
 - [store answers 201 with the saved row and no hidden columns](../core/test/engine-respond.test.ts)
 - [a collection action answers 200 with what calculate returned](../core/test/engine-respond.test.ts)
 - [resolves the identity for every request and hands routes the database](../hono/test/server.test.ts)
+- [scope (D22): only the rows in scope, and pages and totals count only those](../core/test/engine-load.test.ts)
+- [scope: a missing value matches no row; an empty scope scopes nothing](../core/test/engine-load.test.ts)
+- [scope: a load hook calling runDefault gets the scoped page](../core/test/engine-load.test.ts)
 
 ## The order of failures
 

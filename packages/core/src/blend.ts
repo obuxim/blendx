@@ -43,6 +43,8 @@ export interface ActionHooks {
   readonly calculate?: (context: CalculateContext<Model, unknown, unknown>) => unknown;
   readonly save?: (context: SaveContext<Model, unknown>) => Promise<unknown>;
   readonly respond?: (context: RespondContext<Reply, unknown, unknown>) => Reply;
+  /** index only: the column values the listing is limited to, from the identity (D22). */
+  readonly scope?: (context: { auth: unknown }) => Readonly<Record<string, unknown>>;
 }
 
 declare const rulesType: unique symbol;
@@ -272,7 +274,8 @@ const BUILTIN: ReadonlySet<string> = new Set<BuiltinAction>([
   'destroy',
   'restore',
 ]);
-const HOOK_NAMES = ['rules', 'load', 'authorize', 'calculate', 'save', 'respond'] as const;
+/** The hooks an action spec may hold: one per stage, and an index's scope (D22). */
+const HOOK_NAMES = ['rules', 'load', 'authorize', 'calculate', 'save', 'respond', 'scope'] as const;
 
 type AnySpec = { [K in (typeof HOOK_NAMES)[number]]?: ActionHooks[K] } & {
   method?: HttpMethod;
@@ -362,6 +365,9 @@ function builderFor(model: Model) {
     index: (spec?: AnySpec) => {
       if (spec?.trashed && model.meta.softDelete === null) {
         fail('trashed needs a soft-delete table (a nullable deleted_at timestamp)');
+      }
+      if (spec?.scope !== undefined && typeof spec.scope !== 'function') {
+        fail('scope must be a function of the identity');
       }
       return make('index', 'collection', 'get', '', true, spec);
     },

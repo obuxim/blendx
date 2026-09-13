@@ -5,11 +5,19 @@
  */
 import { describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
-import { extractCalculates } from '../src/calculates.ts';
+import { extractCalculates, extractHooks } from '../src/calculates.ts';
 
 const file = join(import.meta.dir, 'fixtures', 'calculates', 'orders.ts');
 
 describe('extractCalculates', () => {
+  test('an index scope yields its source and the columns it scopes by (D22)', () => {
+    const scopes = extractHooks([file], ['scope']).get(file)?.get('scope');
+    expect(scopes?.get('index')).toEqual({
+      source: '({ auth }) => ({ user_id: (auth as { id: number } | null)?.id })',
+      keys: ['user_id'],
+    });
+  });
+
   const started = performance.now();
   const found = extractCalculates([file]).get(file);
   const elapsed = performance.now() - started;

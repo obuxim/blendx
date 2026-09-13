@@ -261,10 +261,21 @@ export interface IndexPage<Row> {
   meta: { page: number; per_page: number; total: number };
 }
 
-/** index: opt in to ?trashed, and override load (to scope the listing) or respond. */
+/**
+ * The column values an index is scoped to (D22): each an equality the default load adds to
+ * its filters. An undefined or null value matches no row, so a scope that cannot be worked
+ * out fails closed; `{}` scopes nothing.
+ */
+export type Scope<M extends Model> = {
+  readonly [K in keyof Row<M>]?: Row<M>[K] | null | undefined;
+};
+
+/** index: opt in to ?trashed, scope the listing, and override load or respond. */
 export type IndexSpec<M extends Model, R, Hidden extends string> = {
   /** Accept ?trashed=with|only. Soft-delete tables only. */
   trashed?: boolean;
+  /** The rows the listing is limited to, worked out from the identity (D22). */
+  scope?: (context: { auth: RegisteredAuth | null }) => Scope<M>;
 } & Pick<
   ValueHooks<
     M,

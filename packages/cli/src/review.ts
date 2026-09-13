@@ -9,7 +9,7 @@ import { existsSync } from 'node:fs';
 import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join, relative, resolve } from 'node:path';
 import { reviewResource } from '@blendx/core';
-import { extractCalculates } from './calculates.ts';
+import { extractHooks } from './calculates.ts';
 import { CliError, type Command } from './command.ts';
 import { loadConfig } from './config.ts';
 import { unifiedDiff } from './diff.ts';
@@ -53,13 +53,18 @@ export const review: Command = {
       file: resolve(config.generated, blend.specifier),
     }));
     const app = await loadApp(config);
-    const calculates = extractCalculates(blends.map((blend) => blend.file));
+    // One TypeScript 6 program reads every calculate, and every index's scope (D22).
+    const hooks = extractHooks(
+      blends.map((blend) => blend.file),
+      ['calculate', 'scope'],
+    );
     const wanted = new Map(
       blends.map((blend) => [
         `${blend.resource.model.name}.yaml`,
         emitReview({
           review: reviewResource(blend.resource, app),
-          calculates: calculates.get(blend.file),
+          calculates: hooks.get(blend.file)?.get('calculate'),
+          scopes: hooks.get(blend.file)?.get('scope'),
           source: shown(blend.file),
         }),
       ]),

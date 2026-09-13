@@ -22,6 +22,12 @@ const BUILTINS: ReadonlySet<string> = new Set([
   'restore',
 ]);
 
+/** Blocks that hold a hook's source, and the lists printed on one line beside it. */
+const SOURCE_BLOCKS = [
+  ['scope', ['columns']],
+  ['calculate', ['writes', 'returns']],
+] as const;
+
 const indentOf = (line: string) => line.length - line.trimStart().length;
 
 /** Removes the indentation the hook had in the blend file from its later lines. */
@@ -44,17 +50,32 @@ function calculateOf(action: ActionReview, found: CalculateSource | undefined): 
   return undefined;
 }
 
+/** An index's scope as the reviewer reads it: the function and its columns (D22). */
+function scopeOf(action: ActionReview, found: CalculateSource | undefined): unknown {
+  if (found) return { source: found.source, columns: found.keys };
+  if (action.scoped) return 'not read: write scope inline in the blend file';
+  return undefined;
+}
+
 export interface ReviewInput {
   review: ResourceReview;
-  /** calculate hooks by action name, from extractCalculates(). */
+  /** calculate hooks by action name, from extractCalculates() or extractHooks(). */
   calculates?: ReadonlyMap<string, CalculateSource>;
+  /** scope functions by action name, from extractHooks(). */
+  scopes?: ReadonlyMap<string, CalculateSource>;
   /** The blend file, relative to the app root. */
   source: string;
 }
 
 /** The text of review/<resource>.yaml. */
-export function emitReview({ review, calculates = new Map(), source }: ReviewInput): string {
+export function emitReview({
+  review,
+  calculates = new Map(),
+  scopes = new Map(),
+  source,
+}: ReviewInput): string {
   const actions = review.actions.map((action) => {
+    const scope = scopeOf(action, scopes.get(action.name));
     const calculate = calculateOf(action, calculates.get(action.name));
     return [
       action.name,
@@ -62,6 +83,7 @@ export function emitReview({ review, calculates = new Map(), source }: ReviewInp
         route: action.route,
         ...(Object.keys(action.input).length > 0 ? { input: action.input } : {}),
         stages: Object.fromEntries(STAGES.map((stage) => [stage, action.stages[stage].default])),
+        ...(scope === undefined ? {} : { scope }),
         ...(calculate === undefined ? {} : { calculate }),
         reply: action.reply,
       },
@@ -94,15 +116,16 @@ export function emitReview({ review, calculates = new Map(), source }: ReviewInp
       if (from.length > 1 && isScalar(node)) node.comment = ` from: ${from.join(', ')}`;
     }
 
-    const calculate = pair.value.get('calculate');
-    if (isMap(calculate)) {
-      const hook = calculate.get('source', true);
+    for (const [block, lists] of SOURCE_BLOCKS) {
+      const found = pair.value.get(block);
+      if (!isMap(found)) continue;
+      const hook = found.get('source', true);
       if (isScalar(hook)) {
         hook.value = dedent(String(hook.value));
         hook.type = 'BLOCK_LITERAL';
       }
-      for (const key of ['writes', 'returns']) {
-        const keys = calculate.get(key);
+      for (const key of lists) {
+        const keys = found.get(key);
         if (isSeq(keys)) keys.flow = true;
       }
     }

@@ -161,13 +161,12 @@ describe(`expenses example on ${realPostgres ? 'PostgreSQL' : 'PGlite'}`, () => 
 
   test('listing: approvers see every claim; others list their own', async () => {
     const ada = users.ada.token;
-    expect((await send('GET', '/expenses', { token: ada })).status).toBe(403);
-    expect((await send('GET', `/expenses?user_id=${users.bob.id}`, { token: ada })).status).toBe(
-      403,
-    );
-    const own = await send('GET', `/expenses?user_id=${users.ada.id}`, { token: ada });
+    const own = await send('GET', '/expenses', { token: ada });
     expect(own.status).toBe(200);
     expect(own.body).toMatchObject({ data: [{ id: 1 }], meta: { total: 1 } });
+    // A filter applies within the scope: Ada cannot list Bob's claims.
+    const bobs = await send('GET', `/expenses?user_id=${users.bob.id}`, { token: ada });
+    expect(bobs.body).toMatchObject({ data: [], meta: { total: 0 } });
 
     const all = await send('GET', '/expenses?status=draft&sort=-id', { token: users.cy.token });
     expect(all.body).toMatchObject({ data: [{ id: 2 }, { id: 1 }], meta: { total: 2 } });

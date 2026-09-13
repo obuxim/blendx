@@ -63,7 +63,7 @@ Index and member actions load; store and collection actions don't. A member acti
 - `params`, `query`: the path parameters and the query string. `input`: the validated input.
 - `lock`: true when the action will write. A load that replaces the default should then select the row `FOR UPDATE`, as the default does.
 
-[Cookbook pattern 7](../cookbook.md#7-scope-a-listing-to-the-requester) filters the default page to the requester's rows. It filters one page after loading it, so `meta.total` and the page sizes are off once the rows span pages. Until the default load takes a filter, [`examples/expenses`](tutorial.md#6-who-sees-what) asks for the filter in the query and checks it in authorize ([Known issues](known-issues.md#a-listing-cannot-be-scoped-to-the-requester)).
+To limit a listing to the requester, give index a `scope` rather than filtering in a load hook: the default load adds the scope to its query, so pages and totals stay right ([Blends](blends.md#scope), [cookbook pattern 7](../cookbook.md#7-scope-a-listing-to-the-requester)). A load hook that calls `runDefault()` gets the scoped page.
 
 ## authorize
 
@@ -82,10 +82,10 @@ a.member('submit', {
   calculate: () => ({ status: 'submitted' as const }),
 }),
 
-// Approvers list every claim; everyone else lists their own, with ?user_id=<their id>.
-a.index({
-  authorize: ({ prev, auth, input }) =>
-    prev && (auth?.is_approver === true || input.user_id === String(auth?.id)),
+// Only a submitted claim is reviewed, and never by the person who filed it.
+a.member('approve', {
+  authorize: ({ prev, auth, record }) => prev && reviewable(record, auth),
+  calculate: () => ({ status: 'approved' as const }),
 }),
 ```
 
@@ -199,6 +199,7 @@ a.store({
 | add a condition on the input or the record's state | `authorize` |
 | compute columns from the input and the record | `calculate` |
 | use the identity, the clock or another query while writing | `save` |
+| limit a listing to the requester | `scope` on index |
 | change what is loaded | `load` |
 | change the status, the headers or the body | `respond`, with `reply` |
 | apply a rule to every action of a table | resource `hooks` |

@@ -31,11 +31,15 @@ actions:
       spent_on: string (date), optional
     stages:
       rules: page, per_page, sort, and filters on key and indexed columns
-      load: a filtered, sorted page of rows that are not soft-deleted
-      authorize: authenticated # from: schema, action
+      load: a filtered, sorted page of rows that are not soft-deleted # from: schema, action
+      authorize: authenticated
       calculate: nothing
       save: nothing
       respond: 200 with a page of records
+    scope:
+      source: |-
+        ({ auth }) => (auth?.is_approver ? {} : { user_id: auth?.id })
+      columns: [user_id]
     reply:
       status: 200
       body: a page of records

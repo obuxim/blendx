@@ -56,6 +56,30 @@ describe('emitReview', () => {
     expect(store.reply).toEqual({ status: 201, body: 'the record' });
   });
 
+  test('a scoped index shows its scope, and its load says the action shaped it (D22)', () => {
+    const orders = blend(shop.orders, {
+      policy: allow.authenticated,
+      actions: (a) => [
+        a.index({ scope: ({ auth }) => ({ user_id: (auth as { id: number } | null)?.id }) }),
+      ],
+    });
+    const scoped = reviewResource(orders, defineApp({}));
+    const source = '({ auth }) => ({ user_id: auth?.id })';
+    const text = emitReview({
+      review: scoped,
+      scopes: new Map([['index', { source, keys: ['user_id'] }]]),
+      source: 'blends/orders.ts',
+    });
+    expect(text).toContain(
+      'load: a filtered, sorted page of rows that are not soft-deleted # from: schema, action',
+    );
+    expect(parse(text).actions.index.scope).toEqual({ source, columns: ['user_id'] });
+    const unread = emitReview({ review: scoped, source: 'blends/orders.ts' });
+    expect(parse(unread).actions.index.scope).toBe(
+      'not read: write scope inline in the blend file',
+    );
+  });
+
   test('hidden columns, resource hooks, and a default calculate', () => {
     const users = blend(shop.users, {
       policy: allow.when(({ auth }) => auth !== null, { description: 'signed-in users' }),

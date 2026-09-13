@@ -41,9 +41,8 @@ export default blend(models.expenses, {
   },
   actions: (a) => [
     a.index({
-      // Approvers list every claim. Everyone else lists their own, with ?user_id=<their id>.
-      authorize: ({ prev, auth, input }) =>
-        prev && (auth?.is_approver === true || input.user_id === String(auth?.id)),
+      // Approvers list every claim; everyone else, their own.
+      scope: ({ auth }) => (auth?.is_approver ? {} : { user_id: auth?.id }),
     }),
     a.store({
       rules: ({ prev }) =>

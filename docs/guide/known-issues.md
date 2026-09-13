@@ -4,23 +4,7 @@ What does not work yet, or not as it should, and what to do instead. Each was fo
 
 | Issue | Affects | Fixed by |
 |---|---|---|
-| [A listing cannot be scoped to the requester](#a-listing-cannot-be-scoped-to-the-requester) | index, load hooks | P15.7 |
 | [A column cannot be shown once and hidden elsewhere](#a-column-cannot-be-shown-once-and-hidden-elsewhere) | `hidden` | P15.8 |
-
-## A listing cannot be scoped to the requester
-
-**What happens.** A load hook's `runDefault()` takes no filter, so an index hook cannot ask the default query for "only this user's rows". [Cookbook pattern 7](../cookbook.md#7-scope-a-listing-to-the-requester) filters the page after it is loaded, which leaves `meta.total` counting every row and pages shorter than `per_page` once the rows span pages.
-
-**What to do.** Ask the client for the filter, and check it in authorize. The column must be filterable: a key, a foreign key or an indexed column.
-
-```ts
-a.index({
-  authorize: ({ prev, auth, input }) =>
-    prev && (auth?.is_approver === true || input.user_id === String(auth?.id)),
-}),
-```
-
-The client then lists its own rows with `GET /expenses?user_id=<its id>`, and anything else is a 403. [Tutorial, step 6](tutorial.md#6-who-sees-what).
 
 ## A column cannot be shown once and hidden elsewhere
 

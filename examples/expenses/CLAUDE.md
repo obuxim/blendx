@@ -31,7 +31,7 @@ Done means `bunx blendx generate --check`, `bunx blendx review --check`, `bunx t
 
 - The identity is the user whose `api_token` is the request's `Authorization: Bearer` token (`src/app.ts`). It carries `id` and `is_approver`.
 - `blends/users.ts`: signing up takes only `email` and `name`, and the 201 reply is how a user gets their token. A user sees only their own record. There is no listing of users, because a record carries its token.
-- `blends/expenses.ts`: the claimant is the signed-in user (the store `save` hook), never the input. Tax and total are calculated from the category's rate and never sent. Only a draft is updated, deleted or submitted; only a submitted claim is approved or rejected, by an approver who did not file it. Non-approvers list their own claims with `?user_id=<their id>`.
+- `blends/expenses.ts`: the claimant is the signed-in user (the store `save` hook), never the input. Tax and total are calculated from the category's rate and never sent. Only a draft is updated, deleted or submitted; only a submitted claim is approved or rejected, by an approver who did not file it. Non-approvers list only their own claims: that is the index's `scope`.
 - Money columns are `numeric(10,2)`, so they are strings in JSON; `price()` works in cents.
 
 ## Hook rules

@@ -98,18 +98,13 @@ A collection action loads and saves nothing: calculate's result is the reply. `r
 ## 7. Scope a listing to the requester
 
 ```ts
-a.index({
-  load: async ({ runDefault, auth }) => {
-    const page = await runDefault();
-    const mine = page.data.filter((row) => row.user_id === auth?.id);
-    return { data: mine, meta: { ...page.meta, total: mine.length } };
-  },
-}),
+a.index({ scope: ({ auth }) => ({ user_id: auth?.id }) }),
 ```
 
-`load` receives `runDefault()`: calling it extends the default load, not calling it replaces it.
+`scope` returns column values, and the default load adds each as an equality, so pages and `meta.total` count only the requester's rows; filters from the query still apply within them. A value that is `undefined` or `null` matches no row, so a scope that cannot be worked out lists nothing, and `{}` scopes nothing: `auth?.is_admin ? {} : { user_id: auth?.id }`.
 
-- [a load hook can scope the listing to the requester](../packages/core/test/engine-load.test.ts)
+- [scope (D22): only the rows in scope, and pages and totals count only those](../packages/core/test/engine-load.test.ts)
+- [scope: a missing value matches no row; an empty scope scopes nothing](../packages/core/test/engine-load.test.ts)
 
 ## 8. Reshape the reply
 

@@ -35,6 +35,8 @@ export default blend(models.orders, {
         return { total: input.quantity * 10, discount: 0 };
       },
     }),
+    // A scope: its source, and the columns the listing is scoped by (D22).
+    a.index({ scope: ({ auth }) => ({ user_id: (auth as { id: number } | null)?.id }) }),
     // No calculate at all.
     a.destroy(),
   ],

@@ -55,6 +55,21 @@ What each default does in detail (which columns store accepts, how index filters
 
 `a.index({ trashed: true })` also accepts `?trashed=with` (live and soft-deleted rows) and `?trashed=only` (soft-deleted rows). It needs a soft-delete table.
 
+### Scope
+
+`a.index({ scope })` limits a listing to the rows the requester may see. `scope` receives the identity and returns column values; the default load adds each as an equality, so pages and `meta.total` count only those rows, and query filters still apply within them. From [`examples/expenses`](../../examples/expenses/blends/expenses.ts):
+
+```ts
+a.index({
+  // Approvers list every claim; everyone else, their own.
+  scope: ({ auth }) => (auth?.is_approver ? {} : { user_id: auth?.id }),
+}),
+```
+
+- The keys are columns and the values their types; `tsc` refuses anything else.
+- A value that is `undefined` or `null` matches no row, so a scope that cannot be worked out, such as one reading an identity that is missing, lists nothing. `{}` scopes nothing.
+- The review file shows the scope as written, and the columns it scopes by.
+
 ### Custom actions
 
 `a.member(name, spec)` acts on one record, and `a.collection(name, spec)` on the table. A name is lowercase letters, digits and `_`, and not a built-in action's name. Two options shape the route:

@@ -12,6 +12,7 @@ The file is generated. A header comment says so, and says that an edit is a fix 
   - `route`: `POST /addition_results`.
   - `input`, when the action takes any: one line per field, described from the resolved rules. For example `a: number` or `status: one of pending, paid, refunded, optional`.
   - `stages`: one line per stage, saying what the schema level does, such as `insert, setting created_at and updated_at`. For authorize, the line is the policy. A stage that more than the schema shaped carries a `# from: schema, action` comment (`cascade.md`).
+  - `scope`, for an index with one (docs/decisions.md D22): the function exactly as written, as a literal block, with the `columns` it scopes by. The index's load stage then carries `# from: schema, action`.
   - `calculate`, for actions that calculate: the hook exactly as written, as a literal block, with the columns it `writes` (`returns` for a collection action). Without a hook, the default's writes.
   - `reply`: the status and the body, or why the reply is not described (a custom reply with no declared `reply` schema).
 
@@ -27,6 +28,8 @@ Tests:
 - [the addition example](../cli/test/emit-review.test.ts)
 - [the same review twice is the same text](../cli/test/emit-review.test.ts)
 - [stages shaped by a hook say so; calculate shows its source and writes](../cli/test/emit-review.test.ts)
+- [a scoped index shows its scope, and its load says the action shaped it (D22)](../cli/test/emit-review.test.ts)
+- [an index scope yields its source and the columns it scopes by (D22)](../cli/test/calculates.test.ts)
 - [writes one file per blend](../cli/test/review.test.ts)
 - [--check: an edited file and a file without a blend drift; nothing is written](../cli/test/review.test.ts)
 

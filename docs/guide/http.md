@@ -68,7 +68,7 @@ The query parameters:
 | a column | an exact match, for primary key, unique, foreign key and indexed columns: `?status=submitted` |
 | `trashed` | `with` or `only`, when the blend enables it ([index options](blends.md#index-options)) |
 
-Soft-deleted rows are left out unless `trashed` says otherwise. Hidden columns can neither filter nor sort. Any other parameter is refused with 422.
+Soft-deleted rows are left out unless `trashed` says otherwise. Hidden columns can neither filter nor sort. Any other parameter is refused with 422. An index with a `scope` lists only the rows in it: in the expenses API, a claimant lists only their own claims, and asking for someone else's (`?user_id=2`) answers an empty page.
 
 ## Errors
 

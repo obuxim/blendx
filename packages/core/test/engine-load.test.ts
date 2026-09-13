@@ -169,6 +169,78 @@ describe('index loads', () => {
     expect(ids(listed.body)).toEqual([4, 5]);
   });
 
+  test('scope (D22): only the rows in scope, and pages and totals count only those', async () => {
+    const mine = blend(shop.orders, {
+      policy: allow.authenticated,
+      actions: (a) => [
+        a.index({ scope: ({ auth }) => ({ user_id: (auth as { id: number } | null)?.id }) }),
+      ],
+    });
+    const first = await execute(endpoint(mine, 'index', 1), request({ auth: { id: 1 } }), database);
+    expect(ids(first.body)).toEqual([1]);
+    expect(meta(first.body)).toEqual({ page: 1, per_page: 1, total: 2 });
+    const second = await execute(
+      endpoint(mine, 'index', 1),
+      request({ auth: { id: 1 }, query: { page: '2' } }),
+      database,
+    );
+    expect(ids(second.body)).toEqual([3]);
+    // Filters still apply, within the scope: order 4 is someone else's.
+    const filtered = await execute(
+      endpoint(mine, 'index'),
+      request({ auth: { id: 1 }, query: { id: '4' } }),
+      database,
+    );
+    expect(meta(filtered.body)).toEqual({ page: 1, per_page: 25, total: 0 });
+  });
+
+  test('scope: a missing value matches no row; an empty scope scopes nothing', async () => {
+    const open = blend(shop.orders, {
+      policy: allow.public,
+      actions: (a) => [
+        a.index({ scope: ({ auth }) => (auth === null ? { user_id: undefined } : {}) }),
+      ],
+    });
+    const anonymous = await execute(endpoint(open, 'index'), request(), database);
+    expect(meta(anonymous.body)).toEqual({ page: 1, per_page: 25, total: 0 });
+    const identified = await execute(
+      endpoint(open, 'index'),
+      request({ auth: { id: 1 } }),
+      database,
+    );
+    expect(ids(identified.body)).toEqual([1, 3, 4, 5]);
+  });
+
+  test('scope: a load hook calling runDefault gets the scoped page', async () => {
+    const hooked = blend(shop.orders, {
+      policy: allow.authenticated,
+      actions: (a) => [
+        a.index({
+          scope: ({ auth }) => ({ user_id: (auth as { id: number } | null)?.id }),
+          load: ({ runDefault }) => runDefault(),
+        }),
+      ],
+    });
+    const listed = await execute(endpoint(hooked, 'index'), request({ auth: { id: 2 } }), database);
+    expect(ids(listed.body)).toEqual([4, 5]);
+  });
+
+  test('scope: a key that is not a column fails loudly, and a scope is a function', async () => {
+    const wrong = blend(shop.orders, {
+      policy: allow.public,
+      actions: (a) => [a.index({ scope: () => ({ owner: 1 }) as never })],
+    });
+    await expect(execute(endpoint(wrong, 'index'), request(), database)).rejects.toThrow(
+      'orders.index: scope names "owner", not a column',
+    );
+    expect(() =>
+      blend(shop.orders, {
+        policy: allow.public,
+        actions: (a) => [a.index({ scope: 'mine' as never })],
+      }),
+    ).toThrow(new BlendxDefinitionError('orders', 'scope must be a function of the identity'));
+  });
+
   test('trashed needs a soft-delete table', () => {
     expect(() =>
       blend(shop.users, { policy: allow.public, actions: (a) => [a.index({ trashed: true })] }),

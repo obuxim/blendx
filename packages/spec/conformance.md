@@ -11,6 +11,7 @@ The conformance suite defines blendx's behaviour over HTTP, independent of any l
 - the owner policy: an order belongs to its `user_id`, and users update only themselves;
 - an action-level authorize hook: an order can only be placed for oneself;
 - index filters and sorting, soft delete, `?trashed` and restore;
+- a scoped index: users list only themselves (`scope`, docs/decisions.md D22);
 - a custom member action (`POST /orders/:id/refund`) and a custom collection action (`GET /orders/quote`, with a declared reply).
 
 The identity is the `x-user-id` request header: a positive integer is that user, anything else is no identity.

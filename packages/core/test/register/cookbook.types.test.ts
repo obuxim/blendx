@@ -59,13 +59,7 @@ test('the cookbook, compiled', () => {
           reply: z.object({ total: z.number() }),
         }),
         // 7. Scope a listing to the requester
-        a.index({
-          load: async ({ runDefault, auth }) => {
-            const page = await runDefault();
-            const mine = page.data.filter((row) => row.user_id === auth?.id);
-            return { data: mine, meta: { ...page.meta, total: mine.length } };
-          },
-        }),
+        a.index({ scope: ({ auth }) => ({ user_id: auth?.id }) }),
       ],
     }),
     // 8. Reshape the reply

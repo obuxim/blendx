@@ -83,8 +83,11 @@ export function resolveEndpoint(
   const resourceHooks = endpoint.resourceHooks;
   const actionHooks = endpoint.hooks;
 
-  const has = (hooks: object, stage: Stage) =>
-    typeof (hooks as Record<string, unknown>)[stage] === 'function';
+  const has = (hooks: object, name: string) =>
+    typeof (hooks as Record<string, unknown>)[name] === 'function';
+  // An index's scope shapes its load at the action level, as a load hook would (D22).
+  const byAction = (stage: Stage) =>
+    has(actionHooks, stage) || (stage === 'load' && has(actionHooks, 'scope'));
   const provenance = Object.fromEntries(
     STAGES.map((stage) => [
       stage,
@@ -92,7 +95,7 @@ export function resolveEndpoint(
         'schema',
         ...(has(appHooks, stage) ? ['app'] : []),
         ...(has(resourceHooks, stage) ? ['resource'] : []),
-        ...(has(actionHooks, stage) ? ['action'] : []),
+        ...(byAction(stage) ? ['action'] : []),
       ]),
     ]),
   ) as Record<Stage, readonly Level[]>;

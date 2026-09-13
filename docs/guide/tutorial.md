@@ -275,9 +275,8 @@ export default blend(models.expenses, {
   },
   actions: (a) => [
     a.index({
-      // Approvers list every claim. Everyone else lists their own, with ?user_id=<their id>.
-      authorize: ({ prev, auth, input }) =>
-        prev && (auth?.is_approver === true || input.user_id === String(auth?.id)),
+      // Approvers list every claim; everyone else, their own.
+      scope: ({ auth }) => (auth?.is_approver ? {} : { user_id: auth?.id }),
     }),
     // store and show as before, then the actions of the next steps
   ],
@@ -286,20 +285,20 @@ export default blend(models.expenses, {
 
 - `default: allow.owner('user_id')` covers every action without its own entry: update, destroy, restore and submit. The owner rule needs a record, so the actions without one (index, store, the `quote` of step 9) get their own policy.
 - `allow.when` takes any rule. Its `description` is what the review file will show, and `requiresAuth: true` makes an anonymous request a 401 rather than a 403.
-- Listing needs more than the policy: `allow.authenticated` lets anyone signed in list, and the authorize hook adds the rest. It receives the policy's decision as `prev`, and the validated query as `input`: approvers may list anything; anyone else must ask for `?user_id=` with their own id. (Index filter values are strings, hence `String(auth?.id)`.)
+- Listing is limited by a `scope` rather than a policy: `allow.authenticated` lets anyone signed in list, and `scope` says which rows. It receives the identity and returns column values, which the default load adds to its query: approvers get `{}`, every claim; anyone else `{ user_id: <their id> }`, their own. Pages and totals count only those rows ([Blends](blends.md#scope)).
 
 ```
 $ curl -s localhost:3000/expenses/1 -H "authorization: Bearer $BOB"
 {"type":"about:blank","title":"Forbidden","status":403}
 
 $ curl -s localhost:3000/expenses -H "authorization: Bearer $ADA"
-{"type":"about:blank","title":"Forbidden","status":403}
-
-$ curl -s 'localhost:3000/expenses?user_id=1' -H "authorization: Bearer $ADA"
 {"data":[{"id":1,"user_id":1,"description":"Team lunch","category":"meals","amount":"40.00","tax":"4.00","total":"44.00","status":"draft","spent_on":"2026-09-01","review_note":null,"created_at":"2026-09-13 12:48:15.212","updated_at":"2026-09-13 12:48:15.212","deleted_at":null}],"meta":{"page":1,"per_page":25,"total":1}}
+
+$ curl -s 'localhost:3000/expenses?user_id=2' -H "authorization: Bearer $ADA"
+{"data":[],"meta":{"page":1,"per_page":25,"total":0}}
 ```
 
-Asking for the filter is a workaround: the default listing cannot yet be scoped to the requester in a load hook without breaking its pages ([Known issues](known-issues.md#a-listing-cannot-be-scoped-to-the-requester)).
+A filter applies within the scope: Ada asking for Bob's claims gets an empty page, not his claims.
 
 ## 7. Drafts
 
@@ -519,7 +518,7 @@ bun test
 | `schema.dbml` | 46 |
 | `src/app.ts` | 23 |
 | `blends/users.ts` | 16 |
-| `blends/expenses.ts` | 90 |
+| `blends/expenses.ts` | 89 |
 
 About 175 lines, plus a script and the tests. From them, blendx generated about 1,700 lines of routes, types, OpenAPI and review files, and serves these routes, each validated, authorized, transactional and documented:
 
@@ -527,7 +526,7 @@ About 175 lines, plus a script and the tests. From them, blendx generated about 
 |---|---|
 | `POST /users` | anyone |
 | `GET /users/:id` | the user |
-| `GET /expenses` | approvers; others with `?user_id=<their id>` |
+| `GET /expenses` | anyone signed in: approvers see every claim, others their own |
 | `POST /expenses` | anyone signed in |
 | `GET /expenses/quote` | anyone signed in |
 | `GET /expenses/:id` | the claimant, or an approver |

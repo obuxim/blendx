@@ -186,6 +186,24 @@
       ]
     },
     {
+      "id": "INDEX-SCOPE",
+      "title": "a scoped index lists only the rows in scope: users list only themselves",
+      "steps": [
+        {
+          "request": { "method": "GET", "path": "/users", "headers": { "x-user-id": "1" } },
+          "expect": { "status": 200, "body": { "data": [{ "id": 1 }], "meta": { "total": 1 } } }
+        },
+        {
+          "request": { "method": "GET", "path": "/users", "headers": { "x-user-id": "2" } },
+          "expect": { "status": 200, "body": { "data": [{ "id": 2 }], "meta": { "total": 1 } } }
+        },
+        {
+          "request": { "method": "GET", "path": "/users?id=2", "headers": { "x-user-id": "1" } },
+          "expect": { "status": 200, "body": { "data": [], "meta": { "total": 0 } } }
+        }
+      ]
+    },
+    {
       "id": "DR-DATE-FORMAT",
       "title": "a date names a real day; a timestamp filter is ISO 8601 or PostgreSQL's text form",
       "steps": [

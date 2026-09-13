@@ -44,6 +44,8 @@ export interface ActionReview {
    * hook, the input's writable columns; with one, it is left for the CLI to fill in.
    */
   readonly calculate?: CalculateReview;
+  /** An index with a scope (D22); the CLI adds the scope's source and columns. */
+  readonly scoped?: true;
   /** The reply, or why it is not described. */
   readonly reply: ReplyReview | string;
 }
@@ -198,6 +200,7 @@ export function reviewResource(resource: Resource, app: App): ResourceReview {
       input,
       stages: Object.freeze(stages),
       ...(calculate ? { calculate: Object.freeze(calculate) } : {}),
+      ...(definition.hooks.scope ? { scoped: true as const } : {}),
       reply: replyOf(definition),
     });
   });

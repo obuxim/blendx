@@ -72,6 +72,29 @@ describe('P3.4 hook signatures', () => {
     expect(typeOnly).toBeFunction();
   });
 
+  test('index scope: column values, typed by the model (D22)', () => {
+    const typeOnly = () =>
+      blend(orders, {
+        policy: allow.authenticated,
+        actions: (a) => [a.index({ scope: () => ({ user_id: 1, status: 'paid' as const }) })],
+      });
+    const wrongKey = () =>
+      blend(orders, {
+        policy: allow.authenticated,
+        // @ts-expect-error a scope names only columns
+        actions: (a) => [a.index({ scope: () => ({ owner: 1 }) })],
+      });
+    const wrongType = () =>
+      blend(orders, {
+        policy: allow.authenticated,
+        // @ts-expect-error a column's value has the column's type
+        actions: (a) => [a.index({ scope: () => ({ user_id: 'one' }) })],
+      });
+    expect([typeOnly, wrongKey, wrongType].every((check) => typeof check === 'function')).toBe(
+      true,
+    );
+  });
+
   test('authorize sees the policy decision, identity, record and validated input', () => {
     const typeOnly = () =>
       blend(orders, {

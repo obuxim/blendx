@@ -49,12 +49,12 @@ function actionCall(
   return undefined;
 }
 
-/** The calculate hook of a spec object: a property holding a function, or a method. */
-function calculateOf(spec: ts.Expression | undefined): ts.Node | undefined {
+/** A hook of a spec object, by name: a property holding a function, or a method. */
+function hookOf(spec: ts.Expression | undefined, name: string): ts.Node | undefined {
   if (!spec || !ts.isObjectLiteralExpression(spec)) return undefined;
   for (const property of spec.properties) {
     const named = property.name && ts.isIdentifier(property.name) && property.name.text;
-    if (named !== 'calculate') continue;
+    if (named !== name) continue;
     if (ts.isMethodDeclaration(property)) return property;
     if (ts.isPropertyAssignment(property)) return property.initializer;
   }
@@ -72,27 +72,41 @@ function keysOf(checker: ts.TypeChecker, fn: ts.Node): string[] {
   return [...new Set(keys)].sort();
 }
 
-/** For each blend file, its actions' calculate hooks by action name. */
-export function extractCalculates(
+/**
+ * For each blend file, the named hooks of its actions, such as calculate and an index's
+ * scope (D22): by file, then hook name, then action. One program reads them all.
+ */
+export function extractHooks(
   files: readonly string[],
-): Map<string, Map<string, CalculateSource>> {
+  names: readonly string[],
+): Map<string, Map<string, Map<string, CalculateSource>>> {
   const program = ts.createProgram([...files], OPTIONS);
   const checker = program.getTypeChecker();
-  const byFile = new Map<string, Map<string, CalculateSource>>();
+  const byFile = new Map<string, Map<string, Map<string, CalculateSource>>>();
   for (const file of files) {
     const source = program.getSourceFile(file);
     if (!source) throw new Error(`${file} is not in the review program`);
-    const found = new Map<string, CalculateSource>();
+    const byHook = new Map(names.map((name) => [name, new Map<string, CalculateSource>()]));
     const visit = (node: ts.Node) => {
       const call = actionCall(node);
-      const hook = call && calculateOf(call.spec);
-      if (call && hook) {
-        found.set(call.action, { source: hook.getText(source), keys: keysOf(checker, hook) });
+      for (const [name, found] of byHook) {
+        const hook = call && hookOf(call.spec, name);
+        if (call && hook) {
+          found.set(call.action, { source: hook.getText(source), keys: keysOf(checker, hook) });
+        }
       }
       ts.forEachChild(node, visit);
     };
     visit(source);
-    byFile.set(file, found);
+    byFile.set(file, byHook);
   }
   return byFile;
+}
+
+/** For each blend file, its actions' calculate hooks by action name. */
+export function extractCalculates(
+  files: readonly string[],
+): Map<string, Map<string, CalculateSource>> {
+  const hooks = extractHooks(files, ['calculate']);
+  return new Map([...hooks].map(([file, byHook]) => [file, byHook.get('calculate') ?? new Map()]));
 }
