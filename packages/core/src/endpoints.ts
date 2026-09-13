@@ -39,6 +39,12 @@ export interface EndpointDefinition {
 
 const BUILTIN_ORDER = ['index', 'store', 'show', 'update', 'destroy', 'restore'];
 
+/** The status of the default reply: 201 for store, 204 for destroy, 200 otherwise. */
+export function defaultStatus(endpoint: Pick<EndpointDefinition, 'action' | 'builtin'>): number {
+  if (!endpoint.builtin) return 200;
+  return endpoint.action === 'store' ? 201 : endpoint.action === 'destroy' ? 204 : 200;
+}
+
 /**
  * Collection routes come first, so /orders/quote is not swallowed by /orders/:id.
  * Built-in actions keep a fixed order; custom actions sort by name.

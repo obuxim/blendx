@@ -10,12 +10,13 @@ import type { App } from './app.ts';
 import type { Resource } from './blend.ts';
 import { type ResolvedEndpoint, resolveEndpoint } from './cascade.ts';
 import { recordSchema } from './derive-rules.ts';
-import { type EndpointDefinition, toEndpoints } from './endpoints.ts';
+import { defaultStatus, type EndpointDefinition, toEndpoints } from './endpoints.ts';
 import { defaultEffects } from './engine.ts';
+import { type JsonObject, toJsonSchema } from './json-schema.ts';
 import type { Model } from './model.ts';
 import { PROBLEM_CONTENT_TYPE } from './problems.ts';
 
-export type JsonObject = { [key: string]: unknown };
+export type { JsonObject } from './json-schema.ts';
 
 export interface OpenApiOptions {
   app: App;
@@ -61,14 +62,6 @@ const DESCRIPTIONS: Record<number, string> = {
 /** Policies that never answer 403 on their own. */
 const OPEN_POLICIES: ReadonlySet<string> = new Set(['public', 'authenticated']);
 
-/** Plain JSON without $schema; this also drops zod's non-enumerable ~standard (D8 note). */
-function jsonSchema(schema: z.ZodType, io: 'input' | 'output'): JsonObject {
-  const converted = JSON.parse(
-    JSON.stringify(z.toJSONSchema(schema, { target: 'draft-2020-12', io })),
-  ) as JsonObject;
-  return Object.fromEntries(Object.entries(converted).filter(([key]) => key !== '$schema'));
-}
-
 const propertiesOf = (schema: JsonObject) =>
   (schema.properties ?? {}) as Record<string, JsonObject>;
 
@@ -111,8 +104,6 @@ const page = (record: JsonObject): JsonObject => ({
   additionalProperties: false,
 });
 
-const DEFAULT_STATUS: Readonly<Record<string, number>> = { store: 201, destroy: 204 };
-
 /**
  * The success reply: the one the action declares (D14), its default, or an empty schema with
  * a warning when neither describes it.
@@ -127,9 +118,11 @@ function replies(endpoint: EndpointDefinition, warnings: string[]): JsonObject {
   const record = ref(endpoint.resource);
 
   if (endpoint.reply) {
-    const fallback = endpoint.builtin ? DEFAULT_STATUS[endpoint.action] : undefined;
-    const status = endpoint.reply.status ?? fallback ?? 200;
-    return reply(status, status === 204 ? undefined : jsonSchema(endpoint.reply.schema, 'output'));
+    const status = endpoint.reply.status ?? defaultStatus(endpoint);
+    return reply(
+      status,
+      status === 204 ? undefined : toJsonSchema(endpoint.reply.schema, 'output'),
+    );
   }
   if (endpoint.hooks.respond) {
     warnings.push(`${endpoint.id}: its respond hook builds the reply; describe it with reply`);
@@ -179,12 +172,12 @@ const byCodeUnit = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 export function buildOpenApi({ app, resources, info }: OpenApiOptions): OpenApiResult {
   const warnings: string[] = [];
   const paths: Record<string, JsonObject> = {};
-  const schemas: Record<string, JsonObject> = { Problem: jsonSchema(problemSchema, 'output') };
+  const schemas: Record<string, JsonObject> = { Problem: toJsonSchema(problemSchema, 'output') };
 
   const sorted = [...resources].sort((a, b) => byCodeUnit(a.model.name, b.model.name));
   for (const resource of sorted) {
     const { model } = resource;
-    const record = markDates(jsonSchema(recordSchema(model, resource.hidden), 'output'), model);
+    const record = markDates(toJsonSchema(recordSchema(model, resource.hidden), 'output'), model);
     schemas[model.name] = record;
     const idSchema = (model.meta.primaryKey && propertiesOf(record)[model.meta.primaryKey]) || {
       type: 'string',
@@ -196,7 +189,7 @@ export function buildOpenApi({ app, resources, info }: OpenApiOptions): OpenApiR
         defaults: defaultEffects(definition, { perPage: app.index.perPage }),
       });
       const body = definition.method === 'post' || definition.method === 'patch';
-      const input = jsonSchema(endpoint.rules, 'input');
+      const input = toJsonSchema(endpoint.rules, 'input');
       const fields = propertiesOf(input);
       const required = new Set((input.required ?? []) as string[]);
 

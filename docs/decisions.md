@@ -127,6 +127,9 @@ Confirmed with hono 4.13.7: an explicitly typed `readonly [MiddlewareHandler, Ha
 - `blendx generate` also writes `openapi.json` (P9.3), from the blends and the app module's `defineApp()`. Each reply the document can't describe prints as a `warning:` line on stderr; warnings never fail `generate` or `--check`.
 - Clients import `hc` and its inference types from `blendx/client`, a facade subpath over `hono/client`. `AppType` is built from the hono that blendx depends on, so a client on that same copy can't drift from it; the facade depends on hono for this. Tests drive `hc` through `server.request`, casting its `fetch` option as the P1.1 note explains.
 
+### D9 note: P10.1 review model (2026-09-13)
+`reviewResource(resource, app)` is the plain data behind `review/<resource>.yaml`. Per resource: `format: 1`, the resource, its hidden columns, and the fields of a record in a reply (listed once). Per action, in route order: the route; the input, one line per field, described from the resolved rules' JSON Schema (for example `string, at most 255 characters, or null`); every stage with `from` (the cascade levels that shaped it, `schema` first) and what the schema level does in words, where authorize's default is the policy's description; and the reply's status and body, or why it is not described. The default wording mirrors the engine's `defaultEffects`. The review never runs a hook: the CLI adds calculate's source and writes (P10.2).
+
 ## D10: Out of scope for v1 (2026-09-13)
 Composite PKs, `?include=` relations, force-delete, PUT, and a post-commit side-effect stage (future: outbox or an `after` stage). The React adapter is the next phase.
 

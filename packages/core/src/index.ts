@@ -46,7 +46,7 @@ export {
   defineConfig,
 } from './config.ts';
 export { type DeriveOptions, defaultRules, recordSchema } from './derive-rules.ts';
-export { type EndpointDefinition, toEndpoints } from './endpoints.ts';
+export { defaultStatus, type EndpointDefinition, toEndpoints } from './endpoints.ts';
 export {
   type DefaultEffectOptions,
   defaultEffects,
@@ -77,6 +77,7 @@ export type {
   StoreSpec,
   UpdateSpec,
 } from './hooks.ts';
+export { describeFields, describeSchema, toJsonSchema } from './json-schema.ts';
 export type {
   Column,
   ConstraintKind,
@@ -114,6 +115,13 @@ export {
   problem,
   validationProblem,
 } from './problems.ts';
+export {
+  type ActionReview,
+  type ReplyReview,
+  type ResourceReview,
+  reviewResource,
+  type StageReview,
+} from './review.ts';
 export type {
   DefaultRules,
   EmptyRules,

@@ -84,7 +84,7 @@ One item ≈ one focused session. Work top to bottom (see "Todo loop" in `CLAUDE
 - [x] P9.4 `reply` on an action (D14): a type-checked schema for a reply blendx can't derive, so OpenAPI describes it instead of warning. Done: type tests + OpenAPI snapshot.
 
 ## P10 Review
-- [ ] P10.1 Review model: resolved stages + provenance + compact rules from JSON Schema. Done: unit test.
+- [x] P10.1 Review model: resolved stages + provenance + compact rules from JSON Schema. Done: unit test.
 - [ ] P10.2 `calculate` source + `writes` via the typescript6 program (default calculate → rules keys). Done: literal/spread/conditional tests.
 - [ ] P10.3 YAML emitter (yaml Document API, `# from:` comments, `format: 1`, deterministic). Done: golden `review/addition_results.yaml`.
 - [ ] P10.4 `blendx review` + `--check` (diff, exit codes). Done: drift test.

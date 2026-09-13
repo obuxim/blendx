@@ -50,7 +50,7 @@ export class HttpProblem extends Error {
 }
 
 /** Actions that write: everything except index, show and collection actions. */
-const saves = (endpoint: EndpointDefinition) =>
+export const saves = (endpoint: Pick<EndpointDefinition, 'on' | 'action'>) =>
   endpoint.on === 'member' ? endpoint.action !== 'show' : endpoint.action === 'store';
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
