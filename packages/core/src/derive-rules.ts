@@ -19,7 +19,10 @@ export interface DeriveOptions {
   maxPerPage?: number;
   /** Accept ?trashed=with|only on a soft-delete table. Off unless the resource enables it. */
   trashed?: boolean;
-  /** The names `?include=` accepts on index and show: the blend's includes (D28). */
+  /**
+   * The paths `?include=` accepts on index and show: the blend's includes (D28), and behind each
+   * the paths of its target's includes, `user.team` (D32).
+   */
   includes?: readonly string[];
 }
 
@@ -100,23 +103,37 @@ const count = (max?: number) =>
  */
 /**
  * DR-INCLUDE: `?include=user,order`, comma-separated names of the blend's includes, parsed into
- * a list without repeats (D28). Any other name is refused.
+ * a list without repeats (D28). A dotted path follows the includes of the included blends, and
+ * asks its prefixes: `user.team` gives `user` then `user.team` (D32). Any other name is refused.
  */
-function includeRule(names: readonly string[]): z.ZodType {
+function includeRule(paths: readonly string[]): z.ZodType {
   return z
     .string()
     .transform((value, context) => {
-      const asked = [...new Set(value.split(',').map((name) => name.trim()))].filter(Boolean);
-      const unknown = asked.filter((name) => !names.includes(name));
-      if (unknown.length === 0) return asked;
-      context.addIssue({
-        code: 'custom',
-        message: `not an include: ${unknown.join(', ')} (one of ${names.join(', ')})`,
-      });
-      return z.NEVER;
+      const asked = value
+        .split(',')
+        .map((path) => path.trim())
+        .filter(Boolean);
+      const unknown = asked.filter((path) => !paths.includes(path));
+      if (unknown.length > 0) {
+        context.addIssue({
+          code: 'custom',
+          message: `not an include: ${unknown.join(', ')} (one of ${paths.join(', ')})`,
+        });
+        return z.NEVER;
+      }
+      const withPrefixes: string[] = [];
+      for (const path of asked) {
+        const segments = path.split('.');
+        for (let depth = 1; depth <= segments.length; depth++) {
+          const prefix = segments.slice(0, depth).join('.');
+          if (!withPrefixes.includes(prefix)) withPrefixes.push(prefix);
+        }
+      }
+      return withPrefixes;
     })
     .optional()
-    .describe(`comma-separated, of: ${names.join(', ')}`);
+    .describe(`comma-separated, of: ${paths.join(', ')}`);
 }
 
 function indexRules(model: Model, options: DeriveOptions): z.ZodObject {

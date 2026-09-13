@@ -132,10 +132,15 @@ type PageReply<M extends Model, Hidden extends string, Extra = unknown> = Reply<
   IndexPage<Public<M, Hidden> & Extra>
 >;
 
-/** A target blend's public record (D28): its columns, minus its hidden ones. */
+/**
+ * A target blend's public record (D28): its columns, minus its hidden ones, and its own includes
+ * as optional fields (D32), which a dotted path fills. A blend typed as a plain `Resource` has
+ * `string` keys in its includes, and adds none.
+ */
 type IncludedRow<T> =
-  T extends Resource<infer TM, readonly ActionDefinition[], infer TH>
-    ? PublicRow<TM, Extract<TH[number], Column<TM>>>
+  T extends Resource<infer TM, readonly ActionDefinition[], infer TH, infer TI>
+    ? PublicRow<TM, Extract<TH[number], Column<TM>>> &
+        (string extends keyof TI ? unknown : Included<TI>)
     : never;
 
 /** What one include adds: a has-many's rows as an array (D31), a belongs-to's record or null (D28). */

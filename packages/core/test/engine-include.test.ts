@@ -4,6 +4,8 @@
  * by row) with its hidden columns removed, and are nested under the relation's name, or null.
  * P16.12 (D31): a has-many include nests the rows that point at each row, at most its limit
  * per row, in its order, as an array; a row the target's show refuses is dropped.
+ * P16.14 (D32): a dotted path follows the includes of the included blends, level by level,
+ * each level through its own show, one query per path for the whole reply.
  */
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import {
@@ -395,5 +397,199 @@ describe('has-many includes (D31)', () => {
       database,
     );
     expect(reply.body).toEqual({ bodies: ['first', 'third', 'fourth', 'fifth'] });
+  });
+});
+
+describe('nested includes (D32)', () => {
+  // notes -> orders -> users: each note's order, and the order's user, through `orders` above.
+  const notesWithOrder = blend(shop.order_notes, {
+    policy: allow.public,
+    includes: { order: orders },
+    actions: (a) => [a.index(), a.show()],
+  });
+  // orders -> notes (has-many) -> order -> user: three levels down from an order.
+  const ordersNested = blend(shop.orders, {
+    policy: allow.public,
+    includes: { notes: { blend: notesWithOrder, limit: 2, sort: '-id' } },
+    actions: (a) => [a.index(), a.show()],
+  });
+  // users -> orders (has-many) -> notes (has-many): a limit at each level.
+  const ordersWithNotes = blend(shop.orders, {
+    policy: allow.public,
+    includes: { notes: { blend: notesWithOrder, limit: 2, sort: '-id' } },
+    actions: (a) => [a.show()],
+  });
+  const usersWithOrders = blend(shop.users, {
+    policy: allow.public,
+    includes: { orders: { blend: ordersWithNotes, limit: 2 } },
+    actions: (a) => [a.show()],
+  });
+  const orderOf = (row: unknown) => (row as { order: Row | null }).order;
+  const notesOf = (row: unknown) => ((row as { notes: Row[] }).notes ?? []).map((note) => note.id);
+
+  test('a dotted path nests the include of an included row, and asks its prefixes', async () => {
+    const reply = await execute(
+      endpoint(notesWithOrder, 'show'),
+      request({ params: { id: '1' }, query: { include: 'order.user' }, auth: ada }),
+      database,
+    );
+    expect(reply.status).toBe(200);
+    expect(reply.body).toMatchObject({
+      id: 1,
+      order: { id: 1, user_id: 1, user: { id: 1, display_name: 'Ada' } },
+    });
+    expect((orderOf(reply.body) as { user: object }).user).not.toHaveProperty('password');
+  });
+
+  test('a refused or missing belongs-to nests nothing below it', async () => {
+    // Note 2 points at order 2, which is soft-deleted: null, and no query for its user.
+    log.length = 0;
+    const missing = await execute(
+      endpoint(notesWithOrder, 'show'),
+      request({ params: { id: '2' }, query: { include: 'order.user' }, auth: ada }),
+      database,
+    );
+    expect(orderOf(missing.body)).toBeNull();
+    expect(log.filter((query) => query.startsWith('select') && query.includes('"users"'))).toEqual(
+      [],
+    );
+    // Anonymous: the order is public, its user is not.
+    const refused = await execute(
+      endpoint(notesWithOrder, 'show'),
+      request({ params: { id: '1' }, query: { include: 'order.user' } }),
+      database,
+    );
+    expect(orderOf(refused.body)).toMatchObject({ id: 1, user: null });
+  });
+
+  test("a has-many's rows nest their own includes, at most its limit", async () => {
+    const reply = await execute(
+      endpoint(ordersNested, 'show'),
+      request({ params: { id: '1' }, query: { include: 'notes.order.user' }, auth: ada }),
+      database,
+    );
+    expect(notesOf(reply.body)).toEqual([5, 4]);
+    const [first] = (reply.body as { notes: Row[] }).notes;
+    expect(first).toMatchObject({ id: 5, order: { id: 1, user: { id: 1, display_name: 'Ada' } } });
+  });
+
+  test('a has-many under a has-many is bounded at each level', async () => {
+    const reply = await execute(
+      endpoint(usersWithOrders, 'show'),
+      request({ params: { id: '1' }, query: { include: 'orders.notes' } }),
+      database,
+    );
+    const orders = (reply.body as { orders: Row[] }).orders;
+    expect(orders.map((order) => [order.id, notesOf(order)])).toEqual([
+      [1, [5, 4]],
+      [3, []],
+    ]);
+  });
+
+  test('one query per path, for the whole page', async () => {
+    log.length = 0;
+    await execute(endpoint(ordersNested, 'index'), request({ query: {} }), database);
+    const selects = () => log.filter((query) => query.startsWith('select'));
+    const plain = selects().length;
+    log.length = 0;
+    await execute(
+      endpoint(ordersNested, 'index'),
+      request({ query: { include: 'notes.order.user' }, auth: ada }),
+      database,
+    );
+    // Three paths, three more queries: notes, notes.order and notes.order.user.
+    expect(selects()).toHaveLength(plain + 3);
+    expect(selects().filter((query) => query.includes('"users"'))).toHaveLength(1);
+    expect(selects().filter((query) => query.includes('"order_notes"'))).toHaveLength(1);
+  });
+
+  test('a nested row goes through its own show, and loses its hidden columns', async () => {
+    const guardedUsers = blend(shop.users, {
+      policy: allow.public,
+      hidden: ['password'],
+      actions: (a) => [
+        a.show({ authorize: ({ prev, record }) => prev && record.display_name !== 'Bob' }),
+      ],
+    });
+    const ordersWithGuarded = blend(shop.orders, {
+      policy: allow.public,
+      includes: { user: guardedUsers },
+      actions: (a) => [a.show()],
+    });
+    const listed = blend(shop.order_notes, {
+      policy: allow.public,
+      includes: { order: ordersWithGuarded },
+      actions: (a) => [a.index()],
+    });
+    // Order 1 is Ada's, order 2 is Bob's but soft-deleted; so add a note on order 4, Bob's.
+    await database.db.insert(notesTable).values([{ order_id: 4, body: 'sixth' }]);
+    const reply = await execute(
+      endpoint(listed, 'index'),
+      request({ query: { include: 'order.user', sort: 'id' } }),
+      database,
+    );
+    const users = rowsOf(reply.body).map((note) => {
+      const order = orderOf(note);
+      return [note.id, order?.id ?? null, idOf(order?.user)];
+    });
+    expect(users).toEqual([
+      [1, 1, 1],
+      [2, null, null],
+      [3, 1, 1],
+      [4, 1, 1],
+      [5, 1, 1],
+      [6, 4, null],
+    ]);
+    const first = orderOf(rowsOf(reply.body)[0]) as { user: object };
+    expect(first.user).not.toHaveProperty('password');
+  });
+
+  test('a hidden foreign key still nests a path', async () => {
+    const hiding = blend(shop.order_notes, {
+      policy: allow.public,
+      hidden: ['order_id'],
+      includes: { order: orders },
+      actions: (a) => [a.show()],
+    });
+    const reply = await execute(
+      endpoint(hiding, 'show'),
+      request({ params: { id: '1' }, query: { include: 'order.user' }, auth: ada }),
+      database,
+    );
+    expect(reply.body).not.toHaveProperty('order_id');
+    expect(reply.body).toMatchObject({ order: { id: 1, user: { id: 1 } } });
+  });
+
+  test('an unknown segment answers 422 naming the parameter', async () => {
+    for (const include of ['order.customer', 'customer.user', 'order.user.team']) {
+      const reply = await execute(
+        endpoint(notesWithOrder, 'index'),
+        request({ query: { include } }),
+        database,
+      );
+      expect(reply.status).toBe(422);
+      expect(reply.body).toMatchObject({ errors: [{ parameter: 'include' }] });
+    }
+  });
+
+  test('respond receives the record with its nested includes', async () => {
+    const shaped = blend(shop.order_notes, {
+      policy: allow.public,
+      includes: { order: orders },
+      actions: (a) => [
+        a.show({
+          respond: ({ prev, record }) => ({
+            ...prev,
+            body: { who: record.order?.user?.display_name ?? null },
+          }),
+        }),
+      ],
+    });
+    const reply = await execute(
+      endpoint(shaped, 'show'),
+      request({ params: { id: '1' }, query: { include: 'order.user' }, auth: ada }),
+      database,
+    );
+    expect(reply.body).toEqual({ who: 'Ada' });
   });
 });

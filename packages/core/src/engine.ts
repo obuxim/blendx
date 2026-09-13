@@ -115,24 +115,26 @@ function publicPage(page: unknown, hidden: readonly string[]): unknown {
   return { ...page, data: page.data.map((row) => publicRow(row, hidden)) };
 }
 
-/** The relations `?include=` names, as the rules parsed them (D28). */
+/** The paths `?include=` names, as the rules parsed them, each with its prefixes (D28, D32). */
 const includesOf = (input: unknown): string[] =>
   isObject(input) && Array.isArray(input.include) ? (input.include as string[]) : [];
+
+type Row = Record<string, unknown>;
 
 /**
  * One relation's rows, by key (D28): a single query for every key the rows hold, live rows
  * only, each through the target's show as GET /<table>/:id decides it; a refused row is null.
- * The included record is the target's public one, so reveal does not apply.
+ * The rows come back raw: hidden columns leave once the level below has taken its keys (D32).
  */
 async function includedRows(
   db: Db,
   include: IncludedTarget,
-  rows: readonly Record<string, unknown>[],
+  rows: readonly Row[],
   auth: RegisteredAuth | null,
-): Promise<Map<unknown, unknown>> {
+): Promise<Map<unknown, Row | null>> {
   const { show } = include;
   const { model } = show;
-  const found = new Map<unknown, unknown>();
+  const found = new Map<unknown, Row | null>();
   const keys = [...new Set(rows.map((row) => row[include.column]))].filter(
     (key) => key !== null && key !== undefined,
   );
@@ -145,11 +147,10 @@ async function includedRows(
   const targets = (await db
     .select()
     .from(model.table as never)
-    .where(deletedAt ? and(byKey, isNull(deletedAt)) : byKey)) as Record<string, unknown>[];
-  const hidden = [...show.hidden, ...(show.revealed ?? [])];
+    .where(deletedAt ? and(byKey, isNull(deletedAt)) : byKey)) as Row[];
   for (const target of targets) {
     const allowed = await show.authorize({ auth, record: target, input: {} });
-    found.set(target[key], allowed ? publicRow(target, hidden) : null);
+    found.set(target[key], allowed ? target : null);
   }
   return found;
 }
@@ -158,16 +159,17 @@ async function includedRows(
  * A has-many include's rows, by the parent key they point at (D31): one query for every
  * parent, numbered per parent in the include's order by a window function and cut at its
  * limit, live rows only. Each row goes through the target's show; a refused one is dropped.
+ * The rows come back raw, as includedRows gives them.
  */
 async function hasManyRows(
   db: Db,
   include: Extract<IncludedTarget, { kind: 'hasMany' }>,
-  rows: readonly Record<string, unknown>[],
+  rows: readonly Row[],
   auth: RegisteredAuth | null,
-): Promise<Map<unknown, unknown[]>> {
+): Promise<Map<unknown, Row[]>> {
   const { show, limit, sort } = include;
   const { model } = show;
-  const found = new Map<unknown, unknown[]>();
+  const found = new Map<unknown, Row[]>();
   const keys = [...new Set(rows.map((row) => row[include.key]))].filter(
     (key) => key !== null && key !== undefined,
   );
@@ -193,57 +195,99 @@ async function hasManyRows(
     .select()
     .from(ranked)
     .where(sql`${ranked.rn} <= ${limit}`)
-    .orderBy(sql`${ranked.rn}`)) as Record<string, unknown>[];
-  const hidden = [...show.hidden, ...(show.revealed ?? [])];
+    .orderBy(sql`${ranked.rn}`)) as Row[];
   for (const { rn: _rn, ...target } of targets) {
     const allowed = await show.authorize({ auth, record: target, input: {} });
     if (!allowed) continue;
     const parent = target[include.column];
     const list = found.get(parent) ?? [];
-    list.push(publicRow(target, hidden));
+    list.push(target);
     found.set(parent, list);
   }
   return found;
 }
 
-/** The public record or page with each named relation nested: a row or null, or an array. */
+/** Paths by their first segment, the rest behind it: `user` and `user.team` give `user: ['team']`. */
+function groupPaths(paths: readonly string[]): Map<string, string[]> {
+  const groups = new Map<string, string[]>();
+  for (const path of paths) {
+    const dot = path.indexOf('.');
+    const name = dot === -1 ? path : path.slice(0, dot);
+    const rest = groups.get(name) ?? [];
+    if (dot !== -1) rest.push(path.slice(dot + 1));
+    groups.set(name, rest);
+  }
+  return groups;
+}
+
+/**
+ * One level of includes (D28, D31, D32): for each path's first segment, the relation's rows
+ * are loaded in one query for every source row, and the rest of the path nests into them the
+ * same way before their hidden columns leave. Each out row gets its value: a row or null, or an
+ * array. The keys come from the raw rows, so a hidden foreign key still includes.
+ */
+async function nestLevel(
+  db: Db,
+  included: Readonly<Record<string, IncludedTarget>>,
+  paths: readonly string[],
+  sources: readonly Row[],
+  outs: readonly unknown[],
+  auth: RegisteredAuth | null,
+): Promise<unknown[]> {
+  const added: [name: string, values: unknown[]][] = [];
+  for (const [name, below] of groupPaths(paths)) {
+    const include = included[name];
+    if (!include) {
+      added.push([name, sources.map(() => null)]);
+      continue;
+    }
+    const hidden = [...include.show.hidden, ...(include.show.revealed ?? [])];
+    // The level's rows, raw and public, then the paths below nested into the public ones.
+    const nested = async (raw: Row[]) => {
+      const publics = raw.map((row) => publicRow(row, hidden));
+      const filled = await nestLevel(db, include.show.included, below, raw, publics, auth);
+      return new Map(raw.map((row, index) => [row, filled[index]]));
+    };
+    if (include.kind === 'hasMany') {
+      const found = await hasManyRows(db, include, sources, auth);
+      const rows = await nested([...found.values()].flat());
+      added.push([
+        name,
+        sources.map((source) => (found.get(source[include.key]) ?? []).map((row) => rows.get(row))),
+      ]);
+    } else {
+      const found = await includedRows(db, include, sources, auth);
+      const rows = await nested([...found.values()].filter((row) => row !== null));
+      added.push([
+        name,
+        sources.map((source) => {
+          const row = found.get(source[include.column]);
+          return row ? rows.get(row) : null;
+        }),
+      ]);
+    }
+  }
+  return outs.map((out, index) =>
+    isObject(out)
+      ? { ...out, ...Object.fromEntries(added.map(([name, values]) => [name, values[index]])) }
+      : out,
+  );
+}
+
+/** The public record or page with each named path nested: a row or null, or an array. */
 async function withIncludes(
   db: Db,
   endpoint: ResolvedEndpoint,
-  names: readonly string[],
+  paths: readonly string[],
   raw: unknown,
   out: unknown,
   auth: RegisteredAuth | null,
 ): Promise<unknown> {
   const page = isObject(raw) && Array.isArray(raw.data);
-  // The keys come from the loaded rows: a hidden foreign key still includes.
   const sources = (page ? (raw.data as unknown[]) : [raw]).map((row) => (isObject(row) ? row : {}));
-  const nested = new Map<string, Map<unknown, unknown>>();
-  for (const name of names) {
-    const include = endpoint.included[name];
-    if (include?.kind === 'hasMany') {
-      nested.set(name, await hasManyRows(db, include, sources, auth));
-    } else if (include) {
-      nested.set(name, await includedRows(db, include, sources, auth));
-    }
-  }
-  const nest = (row: unknown, source: Record<string, unknown> | undefined) => {
-    if (!isObject(row) || !source) return row;
-    const added = names.map((name) => {
-      const include = endpoint.included[name];
-      if (!include) return [name, null] as const;
-      // D31: a has-many is looked up by the parent's key, and an empty one is [].
-      if (include.kind === 'hasMany') {
-        return [name, nested.get(name)?.get(source[include.key]) ?? []] as const;
-      }
-      return [name, nested.get(name)?.get(source[include.column]) ?? null] as const;
-    });
-    return { ...row, ...Object.fromEntries(added) };
-  };
-  if (page && isObject(out) && Array.isArray(out.data)) {
-    return { ...out, data: out.data.map((row, index) => nest(row, sources[index])) };
-  }
-  return nest(out, sources[0]);
+  const outs = page && isObject(out) && Array.isArray(out.data) ? out.data : [out];
+  const nested = await nestLevel(db, endpoint.included, paths, sources, outs, auth);
+  return page && isObject(out) ? { ...out, data: nested } : nested[0];
 }
 
 /** Built-in actions that delete: destroy, and purge on a soft-delete table (D29). */

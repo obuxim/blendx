@@ -217,6 +217,23 @@ describe('actions without a body', () => {
     expect(issues(plain, { include: 'user' })).toEqual(unknownKeys);
   });
 
+  test('DR-INCLUDE: a dotted path follows the includes of the included blends, and asks its prefixes (D32)', () => {
+    // The paths come from the resolved include tree: a target's includes, prefixed by the name.
+    const options = { includes: ['user', 'user.team', 'notes', 'notes.author'] };
+    const index = defaultRules(shop.orders, builtin('index'), options);
+    expect(index.parse({ include: 'user.team' })).toEqual({ include: ['user', 'user.team'] });
+    expect(index.parse({ include: 'notes.author,user,notes' })).toEqual({
+      include: ['notes', 'notes.author', 'user'],
+    });
+    expect(issues(index, { include: 'user.nope' })).toEqual([{ code: 'custom', path: 'include' }]);
+    expect(issues(index, { include: 'nope.team' })).toEqual([{ code: 'custom', path: 'include' }]);
+    expect(issues(index, { include: 'user.team.lead' })).toEqual([
+      { code: 'custom', path: 'include' },
+    ]);
+    const show = defaultRules(shop.orders, builtin('show'), options);
+    expect(show.parse({ include: 'notes.author' })).toEqual({ include: ['notes', 'notes.author'] });
+  });
+
   test('DR-CUSTOM-EMPTY: custom actions start from an empty object', () => {
     const refund = defaultRules(shop.orders, { name: 'refund', builtin: false });
     expect(ok(refund, {})).toBe(true);

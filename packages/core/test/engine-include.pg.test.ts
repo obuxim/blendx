@@ -1,7 +1,8 @@
 /**
  * P16.12 (D31) on real PostgreSQL: a has-many include's rows come from one query with a
- * window function, at most the limit per row, in the declared order. Runs only with
- * BLENDX_TEST_DB=pg and DATABASE_URL (a scratch database).
+ * window function, at most the limit per row, in the declared order. P16.14 (D32): a has-many
+ * under a has-many runs one window function per level. Runs only with BLENDX_TEST_DB=pg and
+ * DATABASE_URL (a scratch database).
  */
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import {
@@ -82,6 +83,30 @@ describe.skipIf(!realPostgres)('has-many includes on real PostgreSQL (D31)', () 
     const rows = (reply.body as { data: { id: number; notes: { body: string }[] }[] }).data;
     expect(rows.map((order) => [order.id, order.notes.map((note) => note.body)])).toEqual([
       [1, ['four', 'three']],
+      [2, ['two']],
+    ]);
+  });
+
+  test('a has-many under a has-many is bounded at each level, in each order (D32)', async () => {
+    if (!database) throw new Error('no database');
+    const ordersWithNotes = blend(shop.orders, {
+      policy: allow.public,
+      includes: { notes: { blend: notes, limit: 2, sort: '-id' } },
+      actions: (a) => [a.show()],
+    });
+    const users = blend(shop.users, {
+      policy: allow.public,
+      includes: { orders: { blend: ordersWithNotes, limit: 1, sort: '-id' } },
+      actions: (a) => [a.show()],
+    });
+    const reply = await execute(
+      endpoint(users, 'show'),
+      request({ params: { id: '1' }, query: { include: 'orders.notes' } }),
+      database,
+    );
+    expect(reply.status).toBe(200);
+    const orders = (reply.body as { orders: { id: number; notes: { body: string }[] }[] }).orders;
+    expect(orders.map((order) => [order.id, order.notes.map((note) => note.body)])).toEqual([
       [2, ['two']],
     ]);
   });

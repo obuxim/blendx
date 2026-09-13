@@ -217,3 +217,48 @@ describe('has-many includes (P16.11, D31)', () => {
     expectTypeOf(refused).toBeFunction();
   });
 });
+
+describe('nested includes in the types (P16.14, D32)', () => {
+  const guarded = blend(models.users, {
+    policy: allow.public,
+    hidden: ['password'],
+    actions: (a) => [a.show()],
+  });
+  const orders = blend(models.orders, {
+    policy: allow.public,
+    includes: { user: guarded },
+    actions: (a) => [a.show()],
+  });
+  const notesWithOrder = blend(models.order_notes, {
+    policy: allow.public,
+    includes: { order: orders },
+    actions: (a) => [a.index(), a.show()],
+  });
+  const withNotes = blend(models.orders, {
+    policy: allow.public,
+    includes: { notes: { blend: notesWithOrder, limit: 5 } },
+    actions: (a) => [a.show(), a.update()],
+  });
+  type NoteAction<N> = Extract<(typeof notesWithOrder)['actions'][number], { name: N }>;
+  type OrderAction<N> = Extract<(typeof withNotes)['actions'][number], { name: N }>;
+  type User = PublicRow<typeof models.users, 'password'>;
+
+  test('an included record carries its own includes as optional fields, recursively', () => {
+    type Order = NonNullable<ActionReply<NoteAction<'show'>>['body']['order']>;
+    expectTypeOf<Order['id']>().toEqualTypeOf<number>();
+    expectTypeOf<Order['user']>().toEqualTypeOf<User | null | undefined>();
+    type Listed = NonNullable<ActionReply<NoteAction<'index'>>['body']['data'][number]['order']>;
+    expectTypeOf<Listed['user']>().toEqualTypeOf<User | null | undefined>();
+    // Under a has-many: each note's order, and the order's user.
+    type Note = NonNullable<ActionReply<OrderAction<'show'>>['body']['notes']>[number];
+    expectTypeOf<Note['body']>().toEqualTypeOf<string>();
+    expectTypeOf<NonNullable<Note['order']>['user']>().toEqualTypeOf<User | null | undefined>();
+    expectTypeOf<ActionReply<OrderAction<'update'>>['body']>().not.toHaveProperty('notes');
+  });
+
+  test("show's query still takes include as one string", () => {
+    expectTypeOf<z.input<ActionRules<NoteAction<'show'>>>>().toEqualTypeOf<{
+      include?: string | undefined;
+    }>();
+  });
+});

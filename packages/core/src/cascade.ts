@@ -10,7 +10,7 @@ import { z } from 'zod';
 import type { App, RegisteredAuth } from './app.ts';
 import { defaultRules } from './derive-rules.ts';
 import type { EndpointDefinition, IncludeDefinition } from './endpoints.ts';
-import { toEndpoints } from './endpoints.ts';
+import { includePaths, toEndpoints } from './endpoints.ts';
 import { defaultEffects, saves } from './engine.ts';
 import type { Db, Reply } from './hooks.ts';
 
@@ -151,7 +151,7 @@ export function resolveEndpoint(
       hidden: endpoint.hidden,
       maxPerPage: app.index.maxPerPage,
       trashed: endpoint.trashed,
-      includes: Object.keys(endpoint.includes ?? {}),
+      includes: includePaths(endpoint.includes ?? {}),
     },
   );
   if (appHooks.rules) rules = appHooks.rules({ prev: rules, model, action });

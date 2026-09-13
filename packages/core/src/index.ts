@@ -49,6 +49,7 @@ export { type DeriveOptions, defaultRules, recordSchema } from './derive-rules.t
 export {
   defaultStatus,
   type EndpointDefinition,
+  includePaths,
   resolveIncludes,
   toEndpoints,
 } from './endpoints.ts';

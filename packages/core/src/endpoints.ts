@@ -73,6 +73,18 @@ export function resolveIncludes(resource: Resource): Readonly<Record<string, Inc
   );
 }
 
+/**
+ * Every path `?include=` may take (D32): each include's name, then the paths of its target's
+ * own includes behind it, `user` and `user.team`. Finite, since a blend exists before another
+ * includes it.
+ */
+export function includePaths(includes: Readonly<Record<string, IncludeDefinition>>): string[] {
+  return Object.entries(includes).flatMap(([name, { target }]) => [
+    name,
+    ...includePaths(resolveIncludes(target)).map((path) => `${name}.${path}`),
+  ]);
+}
+
 export interface EndpointDefinition {
   /** `<table>.<action>`: a stable id for OpenAPI operation ids, review files and logs. */
   readonly id: string;

@@ -70,6 +70,20 @@ Tests:
 - [respond receives the record with its rows](../core/test/engine-include.test.ts)
 - [each row gets at most the limit, in the declared order](../core/test/engine-include.pg.test.ts)
 
+A dotted path (docs/decisions.md D32) follows the includes of the included blends: `notes.order.user` nests each note's order, and each order's user. Asking a path asks its prefixes. The paths are nested level by level: a level's rows are loaded in one query for every row of the level above, so the reply runs one query per path, and each level goes through its own blend's show, losing its hidden columns once the level below has taken its keys, so a hidden foreign key still nests. A belongs-to that is null nests nothing below it, a dropped has-many row nests nothing, and a has-many's limit and sort apply at its level. An unknown segment at any position is a 422 on `include`.
+
+Tests:
+- [a dotted path nests the include of an included row, and asks its prefixes](../core/test/engine-include.test.ts)
+- [a refused or missing belongs-to nests nothing below it](../core/test/engine-include.test.ts)
+- [a has-many's rows nest their own includes, at most its limit](../core/test/engine-include.test.ts)
+- [a has-many under a has-many is bounded at each level](../core/test/engine-include.test.ts)
+- [one query per path, for the whole page](../core/test/engine-include.test.ts)
+- [a nested row goes through its own show, and loses its hidden columns](../core/test/engine-include.test.ts)
+- [a hidden foreign key still nests a path](../core/test/engine-include.test.ts)
+- [an unknown segment answers 422 naming the parameter](../core/test/engine-include.test.ts)
+- [respond receives the record with its nested includes](../core/test/engine-include.test.ts)
+- [a has-many under a has-many is bounded at each level, in each order (D32)](../core/test/engine-include.pg.test.ts)
+
 ## The order of failures
 
 A request stops at the first stage that fails, so the statuses come in a fixed order:
