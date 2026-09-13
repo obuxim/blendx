@@ -98,7 +98,7 @@ One item ≈ one focused session. Work top to bottom (see "Todo loop" in `CLAUDE
 - [x] P11.4a Harness: serve the shop fixture in-process (committed migration, reset = truncate + `seed.sql`), load `cases/*.json`, raw `text` request bodies; one case per error status (400, 401, 403, 404, 409, 422). Done: the suite passes on Bun + PGlite.
 - [x] P11.4b One case per derivation rule. Done: coverage meta-test (every DR id and every error status has a case) passes.
 - [x] P11.5 Matrix: Bun + PGlite, Bun + pg, Node + pg. Done: all three pass (locally, and as CI jobs).
-- [ ] P11.6 bun-sql opt-in run, results recorded. Done: ADR entry.
+- [x] P11.6 bun-sql opt-in run, results recorded. Done: ADR entry.
 
 ## P12 Docs & polish
 - [ ] P12.1 Spec docs: pipeline, cascade, errors, review-format (each linked to test ids). Done: docs exist, links resolve.
@@ -113,6 +113,7 @@ Discovered work goes here. Triage it into a phase before starting it.
 - [ ] Remove the postMessage workaround in `packages/dbml/src/dbml-core.ts` once `packages/dbml/test/bun-42512.test.ts` fails (Bun fixed oven-sh/bun#42512).
 - [x] P4.1: decide whether to drop drizzle-zod's ±2^47 bounds on `doublePrecision` columns (real doubles like 1e20 are rejected today). Decided in D13: dropped.
 - [x] P9.1: add `format: date-time` / `date` to string-mode timestamp and date columns in OpenAPI output. Decided in the D8 P9.1 note: `format: date` on date columns only; Postgres timestamps are not RFC 3339, so they stay plain strings.
+- [ ] P11.6 follow-up: `databaseError` (engine) also reads the SQLSTATE from `errno` when `code` is not one, as bun-sql's `PostgresError` has it (D16); then add bun-sql to the conformance matrix.
 - [ ] P12.5: the `blendx` facade depends on `@blendx/cli` for its bin (D9 note), so production installs also get the CLI's dependencies (drizzle-kit, typescript6 once review lands). Decide before publishing whether to make them optional or lazy.
 
 ## Next: React adapter (not in current scope; don't start until asked)
