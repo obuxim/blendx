@@ -4,7 +4,7 @@ The conformance suite defines blendx's behaviour over HTTP, independent of any l
 
 ## The shop fixture
 
-`packages/conformance/fixtures/shop` is the app every runtime serves for the suite. It is the `shop` schema (users; orders with an enum, a foreign key, soft delete and indexes; order notes) and three blends. Between them they exercise:
+`packages/conformance/fixtures/shop` is the app every runtime serves for the suite. It is the `shop` schema (users; orders with an enum, a foreign key, a double precision `weight`, soft delete and indexes; order notes) and three blends. Between them they exercise:
 
 - a hidden column (`users.password`) and a unique one (`users.email`);
 - foreign keys, from orders to users and from order notes to orders;

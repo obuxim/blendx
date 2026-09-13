@@ -447,6 +447,12 @@
                     "maximum": 2147483647,
                     "minimum": -2147483648,
                     "type": "integer"
+                  },
+                  "weight": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
                   }
                 },
                 "required": [
@@ -814,6 +820,12 @@
                     "maximum": 2147483647,
                     "minimum": -2147483648,
                     "type": "integer"
+                  },
+                  "weight": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
                   }
                 },
                 "type": "object"
@@ -1679,6 +1691,12 @@
             "maximum": 2147483647,
             "minimum": -2147483648,
             "type": "integer"
+          },
+          "weight": {
+            "type": [
+              "number",
+              "null"
+            ]
           }
         },
         "required": [
@@ -1691,6 +1709,7 @@
           "meta",
           "public_id",
           "placed_on",
+          "weight",
           "created_at",
           "updated_at",
           "deleted_at"

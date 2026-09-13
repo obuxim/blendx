@@ -1,0 +1,454 @@
+{
+  "format": 1,
+  "fixture": "shop",
+  "cases": [
+    {
+      "id": "DR-STORE-INSERT",
+      "title": "store accepts the insert columns",
+      "steps": [
+        {
+          "request": {
+            "method": "POST",
+            "path": "/users",
+            "body": {
+              "email": "carol@example.com",
+              "password": "carol-secret",
+              "display_name": "Carol"
+            }
+          },
+          "expect": {
+            "status": 201,
+            "body": {
+              "id": 3,
+              "email": "carol@example.com",
+              "display_name": "Carol",
+              "is_active": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "DR-STORE-GENERATED",
+      "title": "generated columns are never input",
+      "steps": [
+        {
+          "request": {
+            "method": "POST",
+            "path": "/users",
+            "body": {
+              "email": "dan@example.com",
+              "password": "d",
+              "id": 9,
+              "created_at": "2020-01-01 00:00:00"
+            }
+          },
+          "expect": {
+            "status": 422,
+            "body": { "errors": [{ "pointer": "/id" }, { "pointer": "/created_at" }] }
+          }
+        }
+      ]
+    },
+    {
+      "id": "DR-STORE-STRICT",
+      "title": "unknown keys are rejected, so nothing is mass-assigned",
+      "steps": [
+        {
+          "request": {
+            "method": "POST",
+            "path": "/orders",
+            "headers": { "x-user-id": "1" },
+            "body": { "user_id": 1, "total": "5.00", "coupon": "FREE" }
+          },
+          "expect": { "status": 422, "body": { "errors": [{ "pointer": "/coupon" }] } }
+        }
+      ]
+    },
+    {
+      "id": "DR-STORE-REQUIRED",
+      "title": "a NOT NULL column without a default is required; the rest are optional",
+      "steps": [
+        {
+          "request": {
+            "method": "POST",
+            "path": "/orders",
+            "headers": { "x-user-id": "1" },
+            "body": { "user_id": 1 }
+          },
+          "expect": { "status": 422, "body": { "errors": [{ "pointer": "/total" }] } }
+        }
+      ]
+    },
+    {
+      "id": "DR-NULLABLE",
+      "title": "nullable columns accept null; NOT NULL columns do not",
+      "steps": [
+        {
+          "request": {
+            "method": "POST",
+            "path": "/orders",
+            "headers": { "x-user-id": "1" },
+            "body": { "user_id": 1, "total": "5.00", "placed_on": null }
+          },
+          "expect": { "status": 201, "body": { "placed_on": null } }
+        },
+        {
+          "request": {
+            "method": "POST",
+            "path": "/orders",
+            "headers": { "x-user-id": "1" },
+            "body": { "user_id": 1, "total": null }
+          },
+          "expect": { "status": 422, "body": { "errors": [{ "pointer": "/total" }] } }
+        }
+      ]
+    },
+    {
+      "id": "DR-VARCHAR-MAX",
+      "title": "varchar(80) takes at most 80 characters",
+      "steps": [
+        {
+          "request": {
+            "method": "POST",
+            "path": "/users",
+            "body": {
+              "email": "erin@example.com",
+              "password": "e",
+              "display_name": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            }
+          },
+          "expect": { "status": 422, "body": { "errors": [{ "pointer": "/display_name" }] } }
+        }
+      ]
+    },
+    {
+      "id": "DR-INT32",
+      "title": "integer takes 32-bit integers only",
+      "steps": [
+        {
+          "request": {
+            "method": "POST",
+            "path": "/orders",
+            "headers": { "x-user-id": "1" },
+            "body": { "user_id": 1, "total": "5.00", "quantity": 2147483648 }
+          },
+          "expect": { "status": 422, "body": { "errors": [{ "pointer": "/quantity" }] } }
+        }
+      ]
+    },
+    {
+      "id": "DR-ENUM",
+      "title": "an enum column takes only its values",
+      "steps": [
+        {
+          "request": {
+            "method": "POST",
+            "path": "/orders",
+            "headers": { "x-user-id": "1" },
+            "body": { "user_id": 1, "total": "5.00", "status": "shipped" }
+          },
+          "expect": { "status": 422, "body": { "errors": [{ "pointer": "/status" }] } }
+        },
+        {
+          "request": {
+            "method": "POST",
+            "path": "/orders",
+            "headers": { "x-user-id": "1" },
+            "body": { "user_id": 1, "total": "5.00", "status": "pending" }
+          },
+          "expect": { "status": 201, "body": { "status": "pending" } }
+        }
+      ]
+    },
+    {
+      "id": "DR-NUMERIC-STRING",
+      "title": "numeric takes and returns a string, so no precision is lost",
+      "steps": [
+        {
+          "request": {
+            "method": "POST",
+            "path": "/orders",
+            "headers": { "x-user-id": "1" },
+            "body": { "user_id": 1, "total": 5.5 }
+          },
+          "expect": { "status": 422, "body": { "errors": [{ "pointer": "/total" }] } }
+        },
+        {
+          "request": {
+            "method": "POST",
+            "path": "/orders",
+            "headers": { "x-user-id": "1" },
+            "body": { "user_id": 1, "total": "5.50" }
+          },
+          "expect": { "status": 201, "body": { "total": "5.50" } }
+        }
+      ]
+    },
+    {
+      "id": "DR-DATE-STRING",
+      "title": "dates and timestamps are strings",
+      "steps": [
+        {
+          "request": {
+            "method": "POST",
+            "path": "/orders",
+            "headers": { "x-user-id": "1" },
+            "body": { "user_id": 1, "total": "5.00", "placed_on": "2026-09-13" }
+          },
+          "expect": {
+            "status": 201,
+            "body": { "placed_on": "2026-09-13", "created_at": "$timestamp" }
+          }
+        },
+        {
+          "request": {
+            "method": "POST",
+            "path": "/orders",
+            "headers": { "x-user-id": "1" },
+            "body": { "user_id": 1, "total": "5.00", "placed_on": 20260913 }
+          },
+          "expect": { "status": 422, "body": { "errors": [{ "pointer": "/placed_on" }] } }
+        }
+      ]
+    },
+    {
+      "id": "DR-DOUBLE-UNBOUNDED",
+      "title": "double precision takes any number",
+      "steps": [
+        {
+          "request": {
+            "method": "POST",
+            "path": "/orders",
+            "headers": { "x-user-id": "1" },
+            "body": { "user_id": 1, "total": "1.00", "weight": 1e20 }
+          },
+          "expect": { "status": 201, "body": { "weight": 1e20 } }
+        }
+      ]
+    },
+    {
+      "id": "DR-UPDATE-PARTIAL",
+      "title": "update takes any subset of the store rules, and still rejects unknown keys",
+      "steps": [
+        {
+          "request": {
+            "method": "PATCH",
+            "path": "/orders/1",
+            "headers": { "x-user-id": "1" },
+            "body": { "quantity": 5 }
+          },
+          "expect": { "status": 200, "body": { "id": 1, "quantity": 5, "total": "19.00" } }
+        },
+        {
+          "request": {
+            "method": "PATCH",
+            "path": "/orders/1",
+            "headers": { "x-user-id": "1" },
+            "body": { "coupon": "x" }
+          },
+          "expect": { "status": 422, "body": { "errors": [{ "pointer": "/coupon" }] } }
+        }
+      ]
+    },
+    {
+      "id": "DR-INDEX-PAGE",
+      "title": "page is a positive integer",
+      "steps": [
+        {
+          "request": { "method": "GET", "path": "/orders?page=0" },
+          "expect": { "status": 422, "body": { "errors": [{ "parameter": "page" }] } }
+        },
+        {
+          "request": { "method": "GET", "path": "/orders?page=2" },
+          "expect": { "status": 200, "body": { "data": [], "meta": { "page": 2, "total": 1 } } }
+        }
+      ]
+    },
+    {
+      "id": "DR-INDEX-PER-PAGE",
+      "title": "per_page is a positive integer, at most 100",
+      "steps": [
+        {
+          "request": { "method": "GET", "path": "/orders?per_page=101" },
+          "expect": { "status": 422, "body": { "errors": [{ "parameter": "per_page" }] } }
+        },
+        {
+          "request": { "method": "GET", "path": "/orders?per_page=1" },
+          "expect": { "status": 200, "body": { "meta": { "per_page": 1, "total": 1 } } }
+        }
+      ]
+    },
+    {
+      "id": "DR-INDEX-FILTER",
+      "title": "key and indexed columns filter by exact value",
+      "steps": [
+        {
+          "request": { "method": "GET", "path": "/orders?user_id=1" },
+          "expect": { "status": 200, "body": { "data": [{ "id": 1 }], "meta": { "total": 1 } } }
+        },
+        {
+          "request": { "method": "GET", "path": "/orders?user_id=2" },
+          "expect": { "status": 200, "body": { "data": [], "meta": { "total": 0 } } }
+        }
+      ]
+    },
+    {
+      "id": "DR-INDEX-SORT",
+      "title": "the same columns sort ascending, or descending with a minus",
+      "steps": [
+        {
+          "request": {
+            "method": "POST",
+            "path": "/orders",
+            "headers": { "x-user-id": "2" },
+            "body": { "user_id": 2, "total": "3.00" }
+          },
+          "expect": { "status": 201, "body": { "id": 2 } }
+        },
+        {
+          "request": { "method": "GET", "path": "/orders?sort=-id" },
+          "expect": { "status": 200, "body": { "data": [{ "id": 2 }, { "id": 1 }] } }
+        },
+        {
+          "request": { "method": "GET", "path": "/orders?sort=id" },
+          "expect": { "status": 200, "body": { "data": [{ "id": 1 }, { "id": 2 }] } }
+        }
+      ]
+    },
+    {
+      "id": "DR-INDEX-STRICT",
+      "title": "any other query parameter is rejected",
+      "steps": [
+        {
+          "request": { "method": "GET", "path": "/orders?color=red" },
+          "expect": { "status": 422, "body": { "errors": [{ "parameter": "color" }] } }
+        }
+      ]
+    },
+    {
+      "id": "DR-INDEX-HIDDEN",
+      "title": "hidden columns are neither filterable nor sortable",
+      "steps": [
+        {
+          "request": {
+            "method": "GET",
+            "path": "/users?password=ada-secret",
+            "headers": { "x-user-id": "1" }
+          },
+          "expect": { "status": 422, "body": { "errors": [{ "parameter": "password" }] } }
+        },
+        {
+          "request": {
+            "method": "GET",
+            "path": "/users?sort=password",
+            "headers": { "x-user-id": "1" }
+          },
+          "expect": { "status": 422, "body": { "errors": [{ "parameter": "sort" }] } }
+        }
+      ]
+    },
+    {
+      "id": "DR-INDEX-TRASHED",
+      "title": "soft-deleted rows leave the index; ?trashed brings them back where enabled",
+      "steps": [
+        {
+          "request": { "method": "DELETE", "path": "/orders/1", "headers": { "x-user-id": "1" } },
+          "expect": { "status": 204, "body": "$absent" }
+        },
+        {
+          "request": { "method": "GET", "path": "/orders" },
+          "expect": { "status": 200, "body": { "data": [], "meta": { "total": 0 } } }
+        },
+        {
+          "request": { "method": "GET", "path": "/orders?trashed=with" },
+          "expect": { "status": 200, "body": { "meta": { "total": 1 } } }
+        },
+        {
+          "request": { "method": "GET", "path": "/orders?trashed=only" },
+          "expect": { "status": 200, "body": { "data": [{ "id": 1, "deleted_at": "$timestamp" }] } }
+        },
+        {
+          "request": {
+            "method": "GET",
+            "path": "/users?trashed=with",
+            "headers": { "x-user-id": "1" }
+          },
+          "expect": { "status": 422, "body": { "errors": [{ "parameter": "trashed" }] } }
+        }
+      ]
+    },
+    {
+      "id": "DR-MEMBER-EMPTY",
+      "title": "show, destroy and restore accept only an empty object",
+      "steps": [
+        {
+          "request": {
+            "method": "GET",
+            "path": "/orders/1?note=x",
+            "headers": { "x-user-id": "1" }
+          },
+          "expect": { "status": 422, "body": { "errors": [{ "parameter": "note" }] } }
+        },
+        {
+          "request": {
+            "method": "POST",
+            "path": "/orders/1/restore",
+            "headers": { "x-user-id": "1" },
+            "body": { "note": "x" }
+          },
+          "expect": { "status": 422, "body": { "errors": [{ "pointer": "/note" }] } }
+        }
+      ]
+    },
+    {
+      "id": "DR-CUSTOM-EMPTY",
+      "title": "custom actions start from an empty object, and their rules add fields",
+      "steps": [
+        {
+          "request": {
+            "method": "POST",
+            "path": "/orders/1/refund",
+            "headers": { "x-user-id": "1" },
+            "body": { "reason": "broken", "coupon": "x" }
+          },
+          "expect": { "status": 422, "body": { "errors": [{ "pointer": "/coupon" }] } }
+        },
+        {
+          "request": {
+            "method": "POST",
+            "path": "/orders/1/refund",
+            "headers": { "x-user-id": "1" },
+            "body": { "reason": "broken" }
+          },
+          "expect": { "status": 200, "body": { "id": 1, "status": "refunded" } }
+        },
+        {
+          "request": { "method": "GET", "path": "/orders/quote?quantity=2" },
+          "expect": { "status": 200, "body": { "total": "19.00" } }
+        }
+      ]
+    },
+    {
+      "id": "DR-RECORD-PUBLIC",
+      "title": "a reply holds the row's columns, minus hidden ones",
+      "steps": [
+        {
+          "request": { "method": "GET", "path": "/users/1", "headers": { "x-user-id": "1" } },
+          "expect": {
+            "status": 200,
+            "body": {
+              "id": 1,
+              "email": "ada@example.com",
+              "display_name": "Ada",
+              "is_active": true,
+              "password": "$absent",
+              "created_at": "$timestamp",
+              "updated_at": "$timestamp"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

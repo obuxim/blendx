@@ -1,4 +1,4 @@
-// Valid blendx schema covering what the Drizzle emitter must produce.
+// The conformance suite's shop fixture: every derivation rule needs a column to act on.
 
 Enum order_status {
   pending
@@ -26,6 +26,7 @@ Table orders {
   meta jsonb
   public_id uuid [not null, unique, default: `gen_random_uuid()`]
   placed_on date
+  weight double
   created_at timestamp [not null, default: `now()`]
   updated_at timestamp [not null, default: `now()`]
   deleted_at timestamp
