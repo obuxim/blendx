@@ -144,6 +144,7 @@ $ bunx blendx generate
 wrote src/generated/schema.gen.ts
 wrote src/generated/routes.gen.ts
 wrote src/generated/client.gen.ts
+wrote src/generated/outbox.gen.ts
 wrote src/generated/register.gen.ts
 wrote src/generated/drizzle.config.gen.ts
 wrote src/generated/openapi.json

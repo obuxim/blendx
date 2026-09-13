@@ -29,7 +29,8 @@ Run it after every change to `schema.dbml`, a blend or `src/app.ts`. It works in
 | `routes.gen.ts` | the routes of every listed action, and `AppType` for the typed client |
 | `client.gen.ts` | every action's method and path, by table and action name, for clients that call actions by name; it imports nothing, so a web app can load it |
 | `register.gen.ts` | registers the app's type, so hooks and policies see the identity's type |
-| `drizzle.config.gen.ts` | the drizzle-kit config that `blendx migrate generate` uses |
+| `outbox.gen.ts` | the outbox table, once any hook is a `later` hook, so the next migration creates it; otherwise nothing |
+| `drizzle.config.gen.ts` | the drizzle-kit config that `blendx migrate generate` uses: `schema.gen.ts` and `outbox.gen.ts` |
 | `openapi.json` | the OpenAPI 3.1 document |
 
 A file is written only when its content changes. A reply that OpenAPI cannot describe prints a `warning:` line on stderr; warnings never fail the command ([Declaring a reply](blends.md#declaring-a-reply)).

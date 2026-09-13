@@ -139,3 +139,45 @@ describe('blendx migrate', () => {
     });
   });
 });
+
+describe('the outbox table (D27)', () => {
+  const bin = join(import.meta.dir, '..', 'src', 'bin.ts');
+
+  /** The bin in a fresh process, so that an edited blend is not read from this one's cache. */
+  const spawnCli = (...argv: string[]) => {
+    const run = Bun.spawnSync([process.execPath, bin, ...argv, '--cwd', app], {
+      timeout: 60_000,
+    });
+    return { code: run.exitCode, out: run.stdout.toString(), err: run.stderr.toString() };
+  };
+
+  /** Gives the copy's orders update a later hook. */
+  const addLaterHook = async () => {
+    const file = join(app, 'blends', 'orders.ts');
+    const source = await readFile(file, 'utf8');
+    await writeFile(file, source.replace('a.update(),', 'a.update({ later: () => {} }),'));
+  };
+
+  test('generate refuses while outbox.gen.ts is out of date', async () => {
+    await addLaterHook();
+    expect(spawnCli('migrate', 'generate')).toEqual({
+      code: 1,
+      out: '',
+      err: 'src/generated/outbox.gen.ts is out of date; run `blendx generate` first\n',
+    });
+  }, 60_000);
+
+  test("a later hook's first migration creates the outbox table", async () => {
+    await addLaterHook();
+    expect(spawnCli('generate').code).toBe(0);
+    const outboxFile = await readFile(join(app, 'src', 'generated', 'outbox.gen.ts'), 'utf8');
+    expect(outboxFile).toContain('export { outbox } from "blendx/drizzle";');
+
+    expect(spawnCli('migrate', 'generate', '--name', 'outbox').code).toBe(0);
+    const folder = (await migrations()).find((name) => name.endsWith('_outbox'));
+    expect(folder).toBeDefined();
+    const sql = await readFile(join(app, 'drizzle', String(folder), 'migration.sql'), 'utf8');
+    expect(sql).toContain('CREATE TABLE "blendx_outbox"');
+    expect(sql).not.toContain('CREATE TABLE "orders"');
+  }, 120_000);
+});

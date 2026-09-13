@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { createDatabase } from 'blendx';
 import { CliError, type Command, type Io } from './command.ts';
 import { loadConfig, type ResolvedConfig } from './config.ts';
-import { emitSchemaFile } from './generate.ts';
+import { emitOutboxFile, emitSchemaFile } from './generate.ts';
 
 const USAGE = 'migrate generate [--name <name>] | blendx migrate up';
 
@@ -33,6 +33,14 @@ async function generateMigration(config: ResolvedConfig, name: string | undefine
   if ((await readFile(schemaFile, 'utf8')) !== (await emitSchemaFile(config))) {
     throw new CliError(
       `${shown(config, schemaFile)} is out of date; run \`blendx generate\` first`,
+    );
+  }
+  // A new later hook needs its table in this migration (D27), so outbox.gen.ts must be current.
+  const outboxFile = join(config.generated, 'outbox.gen.ts');
+  const outbox = existsSync(outboxFile) ? await readFile(outboxFile, 'utf8') : undefined;
+  if (outbox !== (await emitOutboxFile(config))) {
+    throw new CliError(
+      `${shown(config, outboxFile)} is out of date; run \`blendx generate\` first`,
     );
   }
 

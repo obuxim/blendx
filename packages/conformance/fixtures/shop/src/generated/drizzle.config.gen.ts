@@ -2,6 +2,9 @@
 
 export default {
   dialect: "postgresql",
-  schema: "./src/generated/schema.gen.ts",
+  schema: [
+    "./src/generated/schema.gen.ts",
+    "./src/generated/outbox.gen.ts",
+  ],
   out: "./drizzle",
 };

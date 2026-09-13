@@ -1,8 +1,8 @@
 /**
  * `blendx generate` writes the generated folder in two phases. Phase one turns schema.dbml
  * into schema.gen.ts. Phase two imports the blends, which import that schema, and the app
- * module, and emits routes.gen.ts, client.gen.ts, register.gen.ts, drizzle.config.gen.ts and
- * openapi.json.
+ * module, and emits routes.gen.ts, client.gen.ts, outbox.gen.ts, register.gen.ts,
+ * drizzle.config.gen.ts and openapi.json.
  * A file is only rewritten when its content changes. With --check nothing is written: each
  * drifted file prints a unified diff, and the command exits 1. Replies that openapi.json
  * cannot describe print as warnings, which never fail the command.
@@ -11,13 +11,20 @@ import { existsSync } from 'node:fs';
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { type App, buildOpenApi, type Resource, stringifyOpenApi } from '@blendx/core';
+import {
+  type App,
+  buildOpenApi,
+  hasLaterHooks,
+  type Resource,
+  stringifyOpenApi,
+} from '@blendx/core';
 import { emitDrizzle, loadSchema } from '@blendx/dbml';
 import { CliError, type Command } from './command.ts';
 import { loadConfig, type ResolvedConfig } from './config.ts';
 import { unifiedDiff } from './diff.ts';
 import { emitClient } from './emit-client.ts';
 import { emitDrizzleConfig } from './emit-drizzle-config.ts';
+import { emitOutbox } from './emit-outbox.ts';
 import { emitRegister } from './emit-register.ts';
 import { type BlendModule, emitRoutes } from './emit-routes.ts';
 import { relativeTo } from './paths.ts';
@@ -27,6 +34,7 @@ export const GENERATED_FILES = [
   'schema.gen.ts',
   'routes.gen.ts',
   'client.gen.ts',
+  'outbox.gen.ts',
   'register.gen.ts',
   'drizzle.config.gen.ts',
   'openapi.json',
@@ -82,6 +90,17 @@ export async function loadApp(config: ResolvedConfig): Promise<App> {
   return app;
 }
 
+/** outbox.gen.ts as the blends and the app call for it now, for `migrate generate` (D27). */
+export async function emitOutboxFile(config: ResolvedConfig): Promise<string> {
+  const [blends, app] = await Promise.all([loadBlends(config), loadApp(config)]);
+  return emitOutbox(
+    hasLaterHooks(
+      app,
+      blends.map((blend) => blend.resource),
+    ),
+  );
+}
+
 /** Phase two: the files that need the blends and the app, and the OpenAPI warnings. */
 export function emitAppFiles(
   config: ResolvedConfig,
@@ -95,9 +114,12 @@ export function emitAppFiles(
       // routes.gen.ts first: it refuses two blends of one table and two actions on one route.
       'routes.gen.ts': emitRoutes(blends),
       'client.gen.ts': emitClient(resources),
+      'outbox.gen.ts': emitOutbox(hasLaterHooks(app, resources)),
       'register.gen.ts': emitRegister(relativeTo(config.generated, config.app)),
       'drizzle.config.gen.ts': emitDrizzleConfig({
-        schema: relativeTo(config.root, join(config.generated, 'schema.gen.ts')),
+        schema: ['schema.gen.ts', 'outbox.gen.ts'].map((file) =>
+          relativeTo(config.root, join(config.generated, file)),
+        ),
         out: relativeTo(config.root, config.migrations),
       }),
       'openapi.json': stringifyOpenApi(openapi.document),

@@ -74,7 +74,7 @@ window.WALKTHROUGH = {
     "entries": [
      {
       "command": "bunx blendx generate",
-      "output": "wrote src/generated/schema.gen.ts\nwrote src/generated/routes.gen.ts\nwrote src/generated/client.gen.ts\nwrote src/generated/register.gen.ts\nwrote src/generated/drizzle.config.gen.ts\nwrote src/generated/openapi.json"
+      "output": "wrote src/generated/schema.gen.ts\nwrote src/generated/routes.gen.ts\nwrote src/generated/client.gen.ts\nwrote src/generated/outbox.gen.ts\nwrote src/generated/register.gen.ts\nwrote src/generated/drizzle.config.gen.ts\nwrote src/generated/openapi.json"
      }
     ]
    }
@@ -107,8 +107,8 @@ window.WALKTHROUGH = {
       "reply": {
        "id": 1,
        "result": 7,
-       "created_at": "2026-09-13 16:08:06.591",
-       "updated_at": "2026-09-13 16:08:06.591",
+       "created_at": "2026-09-13 18:25:01.63",
+       "updated_at": "2026-09-13 18:25:01.63",
        "deleted_at": null
       }
      }
@@ -198,8 +198,8 @@ window.WALKTHROUGH = {
       "reply": {
        "id": 1,
        "result": 7,
-       "created_at": "2026-09-13 16:08:06.591",
-       "updated_at": "2026-09-13 16:08:06.599",
+       "created_at": "2026-09-13 18:25:01.63",
+       "updated_at": "2026-09-13 18:25:01.638",
        "deleted_at": null
       }
      }
@@ -328,9 +328,9 @@ window.WALKTHROUGH = {
        "email": "ada@example.com",
        "name": "Ada",
        "is_approver": false,
-       "api_token": "f0f4c234-a2ef-4ef2-b803-0ca5deb69fd2",
-       "created_at": "2026-09-13 16:08:07.432",
-       "updated_at": "2026-09-13 16:08:07.432"
+       "api_token": "f931097c-481e-435e-a2ce-afee5e37b85f",
+       "created_at": "2026-09-13 18:25:02.364",
+       "updated_at": "2026-09-13 18:25:02.364"
       }
      },
      {
@@ -463,8 +463,8 @@ window.WALKTHROUGH = {
        "status": "draft",
        "spent_on": "2026-09-01",
        "review_note": null,
-       "created_at": "2026-09-13 16:08:07.438",
-       "updated_at": "2026-09-13 16:08:07.438",
+       "created_at": "2026-09-13 18:25:02.369",
+       "updated_at": "2026-09-13 18:25:02.369",
        "deleted_at": null
       }
      }
@@ -585,8 +585,8 @@ window.WALKTHROUGH = {
          "status": "draft",
          "spent_on": "2026-09-01",
          "review_note": null,
-         "created_at": "2026-09-13 16:08:07.438",
-         "updated_at": "2026-09-13 16:08:07.438",
+         "created_at": "2026-09-13 18:25:02.369",
+         "updated_at": "2026-09-13 18:25:02.369",
          "deleted_at": null
         }
        ],
@@ -674,8 +674,8 @@ window.WALKTHROUGH = {
        "status": "draft",
        "spent_on": "2026-09-01",
        "review_note": null,
-       "created_at": "2026-09-13 16:08:07.438",
-       "updated_at": "2026-09-13 16:08:07.448",
+       "created_at": "2026-09-13 18:25:02.369",
+       "updated_at": "2026-09-13 18:25:02.377",
        "deleted_at": null
       }
      }
@@ -759,8 +759,8 @@ window.WALKTHROUGH = {
        "status": "submitted",
        "spent_on": "2026-09-01",
        "review_note": null,
-       "created_at": "2026-09-13 16:08:07.438",
-       "updated_at": "2026-09-13 16:08:07.742",
+       "created_at": "2026-09-13 18:25:02.369",
+       "updated_at": "2026-09-13 18:25:02.667",
        "deleted_at": null
       }
      },
@@ -796,8 +796,8 @@ window.WALKTHROUGH = {
          "status": "submitted",
          "spent_on": "2026-09-01",
          "review_note": null,
-         "created_at": "2026-09-13 16:08:07.438",
-         "updated_at": "2026-09-13 16:08:07.742",
+         "created_at": "2026-09-13 18:25:02.369",
+         "updated_at": "2026-09-13 18:25:02.667",
          "deleted_at": null
         }
        ],
@@ -824,8 +824,8 @@ window.WALKTHROUGH = {
        "status": "approved",
        "spent_on": "2026-09-01",
        "review_note": null,
-       "created_at": "2026-09-13 16:08:07.438",
-       "updated_at": "2026-09-13 16:08:07.747",
+       "created_at": "2026-09-13 18:25:02.369",
+       "updated_at": "2026-09-13 18:25:02.672",
        "deleted_at": null
       }
      },
@@ -984,7 +984,7 @@ window.WALKTHROUGH = {
      },
      {
       "command": "bun test",
-      "output": " 17 pass\n 0 fail\nRan 17 tests across 3 files. [1.78s]"
+      "output": " 17 pass\n 0 fail\nRan 17 tests across 3 files. [1.69s]"
      }
     ]
    }

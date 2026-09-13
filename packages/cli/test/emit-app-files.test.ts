@@ -22,22 +22,24 @@ describe('emitRegister', () => {
 describe('emitDrizzleConfig', () => {
   const golden = join(import.meta.dir, 'golden', 'drizzle.config.gen.ts');
 
-  test('schema and migrations folder, relative to the app root', async () => {
+  test('the schema files and the migrations folder, relative to the app root', async () => {
     const root = '/app';
     await expectGolden(
       golden,
       emitDrizzleConfig({
-        schema: relativeTo(root, '/app/src/generated/schema.gen.ts'),
+        schema: ['schema.gen.ts', 'outbox.gen.ts'].map((file) =>
+          relativeTo(root, `/app/src/generated/${file}`),
+        ),
         out: relativeTo(root, '/app/drizzle'),
       }),
     );
   });
 
-  test('default-exports the object drizzle-kit reads', async () => {
+  test('default-exports the object drizzle-kit reads, with the outbox beside the schema (D27)', async () => {
     const { default: config } = await import(golden);
     expect(config).toEqual({
       dialect: 'postgresql',
-      schema: './src/generated/schema.gen.ts',
+      schema: ['./src/generated/schema.gen.ts', './src/generated/outbox.gen.ts'],
       out: './drizzle',
     });
   });
