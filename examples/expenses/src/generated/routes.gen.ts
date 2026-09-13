@@ -18,4 +18,6 @@ export const routes = router()
   .post("/users", ...run(users, "store"))
   .get("/users/:id", ...run(users, "show"));
 
+export const resources = [expenses, users];
+
 export type AppType = typeof routes;

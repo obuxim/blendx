@@ -12,11 +12,15 @@ export {
   BlendxDefinitionError,
   blend,
   type Db,
+  type DrainResult,
   defineApp,
   defineConfig,
   deny,
+  drainOutbox,
   HttpProblem,
   type Model,
+  type OutboxOptions,
+  type OutboxWorker,
   type Policy,
   PROBLEM_CONTENT_TYPE,
   type ProblemDetails,
@@ -27,6 +31,7 @@ export {
   type Reply,
   type Resource,
   type Row,
+  startOutbox,
   type Writes,
 } from '@blendx/core';
 export { type BlendxEnv, createServer, router, run, type ServerOptions } from '@blendx/hono';

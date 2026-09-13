@@ -10,4 +10,6 @@ export const routes = router()
   .delete("/addition_results/:id", ...run(addition_results, "destroy"))
   .post("/addition_results/:id/restore", ...run(addition_results, "restore"));
 
+export const resources = [addition_results];
+
 export type AppType = typeof routes;

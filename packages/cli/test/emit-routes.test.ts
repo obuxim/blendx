@@ -47,6 +47,15 @@ describe('emitRoutes', () => {
     ]);
   });
 
+  test('routes.gen.ts exports every blend as resources, for the outbox worker (D27)', async () => {
+    const { resources } = await import('./golden/routes.gen.ts');
+    expect(resources.map((resource) => resource.model.name)).toEqual([
+      'order_notes',
+      'orders',
+      'users',
+    ]);
+  });
+
   test('no blends: an empty router that still exports AppType', () => {
     const output = emitRoutes([]);
     expect(output).toContain('export const routes = router();');

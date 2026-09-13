@@ -21,4 +21,6 @@ export const routes = router()
   .get("/users/:id", ...run(users, "show"))
   .patch("/users/:id", ...run(users, "update"));
 
+export const resources = [order_notes, orders, users];
+
 export type AppType = typeof routes;

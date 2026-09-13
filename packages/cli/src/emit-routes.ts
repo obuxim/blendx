@@ -40,6 +40,7 @@ export function emitRoutes(blends: readonly BlendModule[]): string {
   const owners = new Map<string, string>();
   const routes = new Map<string, string>();
   const imports: string[] = [];
+  const bindings: string[] = [];
   const chain: string[] = [];
   for (const { specifier, resource } of sorted) {
     const table = resource.model.name;
@@ -49,6 +50,7 @@ export function emitRoutes(blends: readonly BlendModule[]): string {
 
     const binding = RESERVED.has(table) ? `${table}_` : table;
     imports.push(`import ${binding} from ${str(specifier)};`);
+    bindings.push(binding);
     for (const endpoint of toEndpoints(resource)) {
       const route = routeOf(endpoint);
       const taken = routes.get(route);
@@ -62,5 +64,8 @@ export function emitRoutes(blends: readonly BlendModule[]): string {
 
   const importLines = ['import { router, run } from "blendx";', ...imports].join('\n');
   const routesLine = `export const routes = router()${chain.map((line) => `\n${line}`).join('')};`;
-  return `${[HEADER, importLines, routesLine, 'export type AppType = typeof routes;'].join('\n\n')}\n`;
+  // Every blend, for the outbox worker, which finds later hooks through them (D27).
+  const resourcesLine = `export const resources = [${bindings.join(', ')}];`;
+  const typeLine = 'export type AppType = typeof routes;';
+  return `${[HEADER, importLines, routesLine, resourcesLine, typeLine].join('\n\n')}\n`;
 }

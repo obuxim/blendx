@@ -136,3 +136,11 @@ export type {
   StoreRules,
   UpdateRules,
 } from './rules.ts';
+export {
+  type DrainResult,
+  drainOutbox,
+  hasLaterHooks,
+  type OutboxOptions,
+  type OutboxWorker,
+  startOutbox,
+} from './worker.ts';

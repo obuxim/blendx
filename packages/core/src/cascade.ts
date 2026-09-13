@@ -67,6 +67,12 @@ export interface AfterInput {
   auth: Auth;
 }
 
+/** What a later hook receives from the worker (D27): the stored context, db, its id and attempt. */
+export interface LaterInput extends AfterInput {
+  id: number;
+  attempt: number;
+}
+
 /** The engine's schema-level load and save for one endpoint. */
 export interface EffectDefaults {
   load(context: LoadInput): Promise<unknown>;
@@ -87,6 +93,8 @@ export interface ResolvedEndpoint extends EndpointDefinition {
   save(context: SaveInput): Promise<unknown>;
   /** Every level's after hook, in order, for an action that writes; `report` gets what one throws. */
   after(context: AfterInput, report: (error: unknown) => void): Promise<void>;
+  /** The later hook an outbox entry names by its level (D27), or undefined when there is none. */
+  laterAt(level: Level): ((context: LaterInput) => Promise<unknown>) | undefined;
   /** `prev` is the schema default reply. */
   respond(context: { prev: Reply; record: unknown; result: unknown }): Reply;
 }
@@ -197,6 +205,25 @@ export function resolveEndpoint(
         resourceAfter && (() => resourceAfter.call(resourceHooks, { ...context, action } as never)),
       );
       await run(actionAfter && (() => actionAfter(context as never)));
+    },
+
+    laterAt: (level: Level) => {
+      if (!writes) return undefined;
+      const { later: appLater } = appHooks;
+      const { later: resourceLater } = resourceHooks;
+      const { later: actionLater } = actionHooks;
+      if (level === 'app' && appLater) {
+        return async (context: LaterInput) =>
+          appLater.call(appHooks, { ...context, model, action });
+      }
+      if (level === 'resource' && resourceLater) {
+        return async (context: LaterInput) =>
+          resourceLater.call(resourceHooks, { ...context, action } as never);
+      }
+      if (level === 'action' && actionLater) {
+        return async (context: LaterInput) => actionLater(context as never);
+      }
+      return undefined;
     },
 
     respond: ({ prev, record, result }: { prev: Reply; record: unknown; result: unknown }) => {

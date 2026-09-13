@@ -80,6 +80,19 @@ Tests:
 - [without onError, a failing after goes to console.error](../core/test/after.test.ts)
 - [an after hook's failure goes to the server's onError, and the reply stands](../hono/test/after.test.ts)
 
+## The outbox
+
+later hooks (docs/decisions.md D27) run from the outbox, not in the request. A worker claims due entries with `FOR UPDATE SKIP LOCKED`, counts an attempt, and holds each entry for a lease (five minutes by default); then it runs the entry's level's hook with the stored context, the database, the entry's `id` and the `attempt`. An entry that succeeds is deleted. One that fails is reported to `onError` and runs again after a delay (two seconds after the first attempt, doubling, at most an hour); after the last attempt (the tenth by default) it is kept, with `failed_at` and its last error, and no longer run. An entry whose hook no longer exists fails at once. An entry whose worker stopped runs again when its lease ends, so a later hook runs at least once, and may run twice.
+
+Tests:
+- [each level's entry runs with its stored context, the database, its id and attempt 1, then is deleted](../core/test/outbox-worker.test.ts)
+- [claiming an entry starts an attempt and holds it for the lease](../core/test/outbox-worker.test.ts)
+- [a failing entry is reported, keeps its last error, and runs again once its delay has passed](../core/test/outbox-worker.test.ts)
+- [after the last attempt, the entry is kept as failed and no longer run](../core/test/outbox-worker.test.ts)
+- [an entry a stopped worker held runs again once its lease ends](../core/test/outbox-worker.test.ts)
+- [an entry whose hook is gone is kept as failed at once, and reported](../core/test/outbox-worker.test.ts)
+- [two workers draining at once never run one entry twice](../core/test/outbox-worker.pg.test.ts)
+
 ## calculate is pure
 
 calculate is synchronous and receives only `prev`, `input` and `record`: no database, no request, no identity. It may return only writable columns of its table. Anything else fails loudly rather than being dropped, because it is a mistake in the code.
