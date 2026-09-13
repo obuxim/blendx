@@ -16,6 +16,7 @@ import {
 } from './command.ts';
 import { generate } from './generate.ts';
 import { migrate } from './migrate.ts';
+import { review } from './review.ts';
 
 export {
   CliError,
@@ -26,7 +27,7 @@ export {
 } from './command.ts';
 
 /** The commands `blendx` ships. */
-export const COMMANDS: readonly Command[] = [generate, migrate];
+export const COMMANDS: readonly Command[] = [generate, review, migrate];
 
 /** Options every command accepts. */
 const COMMON: Record<string, CommandOption> = {

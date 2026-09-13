@@ -1,0 +1,110 @@
+/**
+ * `blendx review` writes review/<resource>.yaml for every blend (P10.4): the review model
+ * from core, with calculate's source read by one TypeScript 6 program. Files whose blend is
+ * gone are removed. With --check nothing is written: drift prints a unified diff and exits
+ * 1, like `generate --check`. Human-owned *.examples.yaml files are never touched.
+ */
+import { existsSync } from 'node:fs';
+import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { join, relative, resolve } from 'node:path';
+import { reviewResource } from '@blendx/core';
+import { extractCalculates } from './calculates.ts';
+import { CliError, type Command } from './command.ts';
+import { loadConfig } from './config.ts';
+import { unifiedDiff } from './diff.ts';
+import { emitReview } from './emit-review.ts';
+import { loadApp, loadBlends } from './generate.ts';
+
+/** Generated review files; `<resource>.examples.yaml` belongs to the humans. */
+const isReviewFile = (name: string) => name.endsWith('.yaml') && !name.endsWith('.examples.yaml');
+
+const byCodeUnit = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+
+export const review: Command = {
+  name: 'review',
+  summary: 'Write review/<resource>.yaml: what each action does, for a human to check',
+  options: {
+    check: {
+      type: 'boolean',
+      description: 'Write nothing; print a diff and exit 1 if a file is out of date',
+    },
+  },
+  async run({ values, cwd, io }) {
+    const config = await loadConfig(cwd);
+    const check = values.check === true;
+    const shown = (path: string) => relative(config.root, path) || '.';
+
+    if (!existsSync(config.blends))
+      throw new CliError(`no blends folder at ${shown(config.blends)}`);
+    if (!existsSync(config.app)) {
+      throw new CliError(`no app module at ${shown(config.app)} (it default-exports defineApp)`);
+    }
+    const schemaFile = join(config.generated, 'schema.gen.ts');
+    if (!existsSync(schemaFile)) {
+      throw new CliError(
+        `${shown(schemaFile)} is missing, and the blends import it; run \`blendx generate\``,
+      );
+    }
+
+    const blends = (await loadBlends(config)).map((blend) => ({
+      ...blend,
+      file: resolve(config.generated, blend.specifier),
+    }));
+    const app = await loadApp(config);
+    const calculates = extractCalculates(blends.map((blend) => blend.file));
+    const wanted = new Map(
+      blends.map((blend) => [
+        `${blend.resource.model.name}.yaml`,
+        emitReview({
+          review: reviewResource(blend.resource, app),
+          calculates: calculates.get(blend.file),
+          source: shown(blend.file),
+        }),
+      ]),
+    );
+
+    const stale: string[] = [];
+    const report: string[] = [];
+    for (const [name, content] of [...wanted].sort(([a], [b]) => byCodeUnit(a, b))) {
+      const path = join(config.review, name);
+      const current = existsSync(path) ? await readFile(path, 'utf8') : undefined;
+      if (current === content) continue;
+      const label = shown(path);
+      stale.push(label);
+      if (!check) {
+        await mkdir(config.review, { recursive: true });
+        await writeFile(path, content);
+        report.push(`wrote ${label}`);
+      } else if (current === undefined) {
+        io.out(`${label} is missing\n`);
+      } else {
+        io.out(unifiedDiff(current, content, { from: label, to: `${label} (generated)` }));
+      }
+    }
+
+    const existing = existsSync(config.review) ? await readdir(config.review) : [];
+    for (const name of existing.filter(isReviewFile).sort(byCodeUnit)) {
+      if (wanted.has(name)) continue;
+      const path = join(config.review, name);
+      const label = shown(path);
+      stale.push(label);
+      if (check) {
+        io.out(`${label} has no blend any more\n`);
+      } else {
+        await rm(path);
+        report.push(`removed ${label}`);
+      }
+    }
+
+    if (stale.length === 0) {
+      io.out(`${shown(config.review)} is up to date\n`);
+      return 0;
+    }
+    if (check) {
+      const what = stale.length === 1 ? `${stale[0]} is` : `${stale.length} review files are`;
+      throw new CliError(`${what} out of date; run \`blendx review\``);
+    }
+    io.out(report.map((line) => `${line}\n`).join(''));
+    return 0;
+  },
+};
