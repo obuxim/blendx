@@ -103,7 +103,7 @@ One item ≈ one focused session. Work top to bottom (see "Todo loop" in `CLAUDE
 
 ## P12 Docs & polish
 - [x] P12.1 Spec docs: pipeline, cascade, errors, review-format (each linked to test ids). Done: docs exist, links resolve.
-- [ ] P12.2 Final CLAUDE.md + app-author CLAUDE.md template in examples/addition. Done: dry-run "add a table + a custom action" using only the docs.
+- [x] P12.2 Final CLAUDE.md + app-author CLAUDE.md template in examples/addition. Done: dry-run "add a table + a custom action" using only the docs.
 - [ ] P12.3 One-page blend cookbook (10 patterns). Done: doc.
 - [ ] P12.4 `bun build --compile` CLI (drizzle-kit external). Done: binary runs generate/review in the example.
 - [ ] P12.5 README + publish prep. Done: README.

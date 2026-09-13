@@ -12,11 +12,13 @@ Status: the framework is under construction. Work is driven by `docs/todo.md` (s
 - `bun test <path>`: run a subset. Tests use in-process PGlite. `BLENDX_TEST_DB=pg DATABASE_URL=postgres://postgres@localhost:5432/blendx_test bun test` also runs the real-PostgreSQL tests (`*.pg.test.ts`); they reset that database's public schema, so use a scratch database.
 - `DATABASE_URL=... bun run smoke:node`: the Node smoke test (Node 24, @hono/node-server, pg). It resets the same scratch database.
 - `DATABASE_URL=... bun run conformance:node`: the conformance suite on Node with pg. Bun with PGlite runs in `bun test`, and Bun with pg in the `BLENDX_TEST_DB=pg` run. All three reset the scratch database.
-- From P7 on: `bunx blendx generate [--check]`, `bunx blendx review [--check]`, `bunx blendx migrate generate|up`.
+- `bunx blendx generate [--check]`, `bunx blendx review [--check]`, `bunx blendx migrate generate|up`: the CLI. `--cwd <app>` runs it on another folder, such as `examples/addition`.
 
 ## Layout
 
-`packages/blendx` (facade: the only import for app code), `spec` (Markdown only), `core` + `dbml` (portable), `hono` (adapter), `cli`, `conformance`; `examples/addition` (end-to-end proof).
+`packages/blendx` (facade: the only import for app code), `spec` (Markdown only), `core` + `dbml` (portable), `hono` (adapter), `cli`, `conformance` (cases, the shop fixture and the harness); `examples/addition` (end-to-end proof).
+
+Working on an app built with blendx rather than on the framework? Its own `CLAUDE.md` is the guide: `examples/addition/CLAUDE.md` is the template, with the recipes for adding a table and a custom action.
 
 ## Who writes what
 
@@ -80,7 +82,7 @@ When `blendx review --check` fails, a human has asked for a change (`packages/sp
 5. Tick the box and commit locally with the message `P5.3: <summary>`. One item per commit, then `git push` (origin is SSH: `git@github.com:obuxim/blendx.git`).
 6. Put discovered work in Inbox, not into the current item. Stop and ask when an item raises a design question that `docs/decisions.md` doesn't settle.
 
-Definition of done (once the commands exist): `bun run check`, `blendx generate --check` and `blendx review --check` all pass.
+Definition of done: `bun run check` passes. Besides Biome, tsc and the tests (the conformance suite on PGlite among them), it runs `blendx generate --check` on the example and the conformance fixture, and `blendx review --check` on the example.
 
 ## Roadmap
 
