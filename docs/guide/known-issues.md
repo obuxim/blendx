@@ -1,16 +1,16 @@
 # Known issues
 
-What does not work yet, or not as it should, and what to do instead. Each was found while building [`examples/expenses`](../../examples/expenses) and writing this guide, and each is an item in the Inbox of [`docs/todo.md`](../todo.md), where it will be triaged and fixed. When one is fixed, its entry leaves this page.
+What does not work yet, or not as it should, and what to do instead. Each was found while building [`examples/expenses`](../../examples/expenses) and writing this guide, and each is planned for a fix in phase P15 of [`docs/todo.md`](../todo.md). When one is fixed, its entry leaves this page.
 
-| Issue | Affects |
-|---|---|
-| [Invalid dates answer 500](#invalid-dates-answer-500) | date and timestamp columns |
-| [App-wide hooks cannot read the identity](#app-wide-hooks-cannot-read-the-identity) | `defineApp({ hooks })` |
-| [A listing cannot be scoped to the requester](#a-listing-cannot-be-scoped-to-the-requester) | index, load hooks |
-| [A column cannot be shown once and hidden elsewhere](#a-column-cannot-be-shown-once-and-hidden-elsewhere) | `hidden` |
-| [The review lists every column for a calculate that spreads prev](#the-review-lists-every-column-for-a-calculate-that-spreads-prev) | review files |
-| [The review prints long patterns for string formats](#the-review-prints-long-patterns-for-string-formats) | review files |
-| [Custom actions without a body still need an empty body in the typed client](#custom-actions-without-a-body-still-need-an-empty-body-in-the-typed-client) | the typed client |
+| Issue | Affects | Fixed by |
+|---|---|---|
+| [Invalid dates answer 500](#invalid-dates-answer-500) | date and timestamp columns | P15.2, P15.3 |
+| [App-wide hooks cannot read the identity](#app-wide-hooks-cannot-read-the-identity) | `defineApp({ hooks })` | P15.1 |
+| [A listing cannot be scoped to the requester](#a-listing-cannot-be-scoped-to-the-requester) | index, load hooks | P15.7 |
+| [A column cannot be shown once and hidden elsewhere](#a-column-cannot-be-shown-once-and-hidden-elsewhere) | `hidden` | P15.8 |
+| [The review lists every column for a calculate that spreads prev](#the-review-lists-every-column-for-a-calculate-that-spreads-prev) | review files | P15.4 |
+| [The review prints long patterns for string formats](#the-review-prints-long-patterns-for-string-formats) | review files | P15.5 |
+| [Custom actions without a body still need an empty body in the typed client](#custom-actions-without-a-body-still-need-an-empty-body-in-the-typed-client) | the typed client | P15.6 |
 
 ## Invalid dates answer 500
 
