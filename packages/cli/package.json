@@ -11,10 +11,11 @@
     "hono": "4.13.7"
   },
   "dependencies": {
-    "@typescript/typescript6": "6.0.2",
     "@blendx/core": "workspace:*",
     "@blendx/dbml": "workspace:*",
+    "@typescript/typescript6": "6.0.2",
     "blendx": "workspace:*",
-    "drizzle-kit": "0.31.10"
+    "drizzle-kit": "0.31.10",
+    "yaml": "2.9.1"
   }
 }

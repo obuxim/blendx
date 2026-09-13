@@ -130,6 +130,9 @@ Confirmed with hono 4.13.7: an explicitly typed `readonly [MiddlewareHandler, Ha
 ### D9 note: P10.1 review model (2026-09-13)
 `reviewResource(resource, app)` is the plain data behind `review/<resource>.yaml`. Per resource: `format: 1`, the resource, its hidden columns, and the fields of a record in a reply (listed once). Per action, in route order: the route; the input, one line per field, described from the resolved rules' JSON Schema (for example `string, at most 255 characters, or null`); every stage with `from` (the cascade levels that shaped it, `schema` first) and what the schema level does in words, where authorize's default is the policy's description; and the reply's status and body, or why it is not described. The default wording mirrors the engine's `defaultEffects`. The review never runs a hook: the CLI adds calculate's source and writes (P10.2).
 
+### D9 note: P10.3 review YAML (2026-09-13)
+`review/<resource>.yaml` renders the review model with the `yaml` package (2.9.1, a new CLI dependency, pinned; its Document API carries the comments). A header comment says the file is generated and that an edit is a fix request. Top level: `format: 1`, `resource`, `source` (the blend file), `hidden` when there are any, `record`, then `actions` in route order with a blank line between them. Each action: `route`, `input` (when it takes any), `stages` (one line each; a stage shaped by more than the schema carries `# from: schema, action`), `calculate` (the hook as a dedented literal block with its `writes`, or `returns` for a collection action; without a hook, the default's writes), and `reply`. Output is deterministic: no timestamps, no line folding.
+
 ## D10: Out of scope for v1 (2026-09-13)
 Composite PKs, `?include=` relations, force-delete, PUT, and a post-commit side-effect stage (future: outbox or an `after` stage). The React adapter is the next phase.
 
