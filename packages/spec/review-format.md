@@ -8,7 +8,7 @@ The file is generated. A header comment says so, and says that an edit is a fix 
 
 - `format: 1`, `resource` (the table), `source` (the blend file) and `hidden` (the hidden columns, when there are any).
 - `record`: the fields of a record in a reply, one line each, hidden columns removed. For example `created_at: string, or null`.
-- `includes`, when the blend declares any (docs/decisions.md D28): each relation `?include=` may nest, with its table and the policy of the target's show, which decides each row. For example `user: users, through its show: signed-in users`.
+- `includes`, when the blend declares any (docs/decisions.md D28): each relation `?include=` may nest, with its table and the policy of the target's show, which decides each row. For example `user: users, through its show: signed-in users`. A has-many include (D31) also says its bound and its order: `notes: order_notes, at most 2, by id descending, through its show: authenticated`.
 - `actions`, in route order, each with:
   - `route`: `POST /addition_results`.
   - `input`, when the action takes any: one line per field, described from the resolved rules. For example `a: number` or `status: one of pending, paid, refunded, optional`.

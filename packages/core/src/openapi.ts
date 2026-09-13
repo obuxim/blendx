@@ -121,7 +121,8 @@ function replies(endpoint: EndpointDefinition, warnings: string[]): JsonObject {
     },
   });
   // D24: a reply that reveals hidden columns is the record and those, not the component.
-  // D28: index and show with includes add each include's record, or null.
+  // D28: index and show with includes add each include's record, or null; D31: a has-many
+  // include adds an array of the target's record.
   const includes = Object.entries(endpoint.includes ?? {});
   let record: JsonObject = ref(endpoint.resource);
   if (endpoint.revealed || includes.length > 0) {
@@ -129,9 +130,11 @@ function replies(endpoint: EndpointDefinition, warnings: string[]): JsonObject {
       toJsonSchema(recordSchema(endpoint.model, endpoint.hidden), 'output'),
       endpoint.model,
     );
-    const nested = includes.map(([name, { target }]) => [
+    const nested = includes.map(([name, include]) => [
       name,
-      { anyOf: [ref(target.model.name), { type: 'null' }] },
+      include.kind === 'hasMany'
+        ? { type: 'array', items: ref(include.target.model.name) }
+        : { anyOf: [ref(include.target.model.name), { type: 'null' }] },
     ]);
     record = { ...own, properties: { ...propertiesOf(own), ...Object.fromEntries(nested) } };
   }

@@ -91,6 +91,23 @@ A blend may let index and show nest the row a foreign key points to ([Blends](bl
 - On index, every row of the page gets its own, and each relation's rows are loaded in one query.
 - `AppType`, the React client and OpenAPI give each include as an optional, nullable field.
 
+A has-many include ([Blends](blends.md#the-rows-that-point-at-a-row)) nests an array. The fixture's orders include their two newest notes, so `GET /orders/1?include=notes` from Ada answers:
+
+```json
+{
+  "id": 1,
+  "...": "...",
+  "notes": [
+    { "id": 3, "order_id": 1, "body": "third", "created_at": "..." },
+    { "id": 2, "order_id": 1, "body": "second", "created_at": "..." }
+  ]
+}
+```
+
+- The array holds at most the include's limit, in its order, and is `[]` where there are none. It is never `null`.
+- Each row is what `GET /order_notes/3` would answer the same requester; a row that request would refuse is left out. Without an identity the fixture's `notes` is `[]`, since its notes need a signed-in requester.
+- `AppType`, the React client and OpenAPI give it as an optional array of the target's record.
+
 ## Errors
 
 Every error is an RFC 9457 Problem Details object, served as `application/problem+json`:

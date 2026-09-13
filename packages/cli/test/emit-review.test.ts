@@ -143,9 +143,10 @@ describe('emitReview', () => {
       hidden: ['password'],
       actions: (a) => [a.show()],
     });
+    const notes = blend(shop.order_notes, { policy: allow.public, actions: (a) => [a.show()] });
     const orders = blend(shop.orders, {
       policy: allow.public,
-      includes: { user: users },
+      includes: { user: users, notes: { blend: notes, limit: 3, sort: '-id' } },
       actions: (a) => [a.show()],
     });
     const parsed = parse(
@@ -156,6 +157,7 @@ describe('emitReview', () => {
     ]);
     expect(parsed.includes).toEqual({
       user: `users, through its show: ${users.policies.show?.description}`,
+      notes: 'order_notes, at most 3, by id descending, through its show: public',
     });
   });
 

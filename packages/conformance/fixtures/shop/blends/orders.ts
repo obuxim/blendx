@@ -1,5 +1,6 @@
 import { allow, blend, z } from 'blendx';
 import { models } from '../src/generated/schema.gen.ts';
+import orderNotes from './order_notes.ts';
 import users from './users.ts';
 
 export default blend(models.orders, {
@@ -10,8 +11,9 @@ export default blend(models.orders, {
     store: allow.authenticated,
     quote: allow.public,
   },
-  // ?include=user nests the order's user, as GET /users/:id would reply (D28).
-  includes: { user: users },
+  // ?include=user nests the order's user, as GET /users/:id would reply (D28), and
+  // ?include=notes its two newest notes, each as GET /order_notes/:id would reply (D31).
+  includes: { user: users, notes: { blend: orderNotes, limit: 2, sort: '-id' } },
   actions: (a) => [
     a.index({ trashed: true }),
     a.store({

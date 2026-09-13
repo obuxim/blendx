@@ -85,6 +85,45 @@
           "expect": { "status": 200, "body": { "data": [], "meta": { "total": 0 } } }
         }
       ]
+    },
+    {
+      "id": "INCLUDE-HAS-MANY",
+      "title": "?include=notes nests each order's two newest notes, each as its show would reply, as an array that is [] where it would refuse (D31)",
+      "steps": [
+        {
+          "request": {
+            "method": "GET",
+            "path": "/orders/1?include=notes,user",
+            "headers": { "x-user-id": "1" }
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "id": 1,
+              "user": { "id": 1 },
+              "notes": [
+                { "id": 3, "order_id": 1, "body": "third", "created_at": "$timestamp" },
+                { "id": 2, "order_id": 1, "body": "second" }
+              ]
+            }
+          }
+        },
+        {
+          "request": { "method": "GET", "path": "/orders?include=notes" },
+          "expect": { "status": 200, "body": { "data": [{ "id": 1, "notes": [] }] } }
+        },
+        {
+          "request": {
+            "method": "GET",
+            "path": "/orders?include=notes",
+            "headers": { "x-user-id": "2" }
+          },
+          "expect": {
+            "status": 200,
+            "body": { "data": [{ "id": 1, "notes": [{ "id": 3 }, { "id": 2 }] }] }
+          }
+        }
+      ]
     }
   ]
 }

@@ -7,6 +7,7 @@ export const tables = {
     "actions": {
       "index": "GET /order_notes",
       "store": "POST /order_notes",
+      "show": "GET /order_notes/:id",
     },
     "includes": {},
     "key": {
@@ -27,6 +28,7 @@ export const tables = {
       "refund": "POST /orders/:id/refund",
     },
     "includes": {
+      "notes": "order_notes",
       "user": "users",
     },
     "key": {

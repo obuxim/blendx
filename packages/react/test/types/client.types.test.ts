@@ -156,7 +156,7 @@ describe('@blendx/react types', () => {
     api.orders.store.mutationOptions({ optimistic: () => ({ colour: 'red' }) });
     // @ts-expect-error a collection action has no row
     api.orders.estimate?.mutationOptions({ optimistic: true });
-    // @ts-expect-error order_notes has no show, so its row comes from index; a page is not a row
+    // @ts-expect-error store's function takes the input, not a row of the table
     api.order_notes.store.mutationOptions({ optimistic: (row: Row) => row });
   });
 
@@ -179,7 +179,7 @@ describe('@blendx/react types', () => {
 
   test('only the actions the blends list', () => {
     expectTypeOf(api.order_notes).toHaveProperty('store');
-    expectTypeOf(api.order_notes).not.toHaveProperty('show');
+    expectTypeOf(api.order_notes).not.toHaveProperty('update');
     expectTypeOf(api).not.toHaveProperty('payments');
   });
 

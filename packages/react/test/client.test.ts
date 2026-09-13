@@ -249,6 +249,30 @@ describe('invalidation (N.2)', () => {
     }
   });
 
+  test('a has-many include is followed the same way: a write to its table refetches the queries that ask for it (D31)', async () => {
+    const client = freshClient();
+    const api = apiFor(1);
+    const withNotes = api.orders.index.queryOptions({ query: { include: 'notes' } });
+    const plain = api.orders.index.queryOptions();
+    const before = await client.fetchQuery(withNotes);
+    // The two newest of the seed's three notes, as the fixture's include is bounded.
+    expect(before.data[0]?.notes?.map((note) => note.id)).toEqual([3, 2]);
+    await client.fetchQuery(plain);
+    const observer = new QueryObserver(client, withNotes);
+    const unsubscribe = observer.subscribe(() => {});
+    try {
+      await new MutationObserver(client, api.order_notes.store.mutationOptions()).mutate({
+        json: { order_id: 1, body: 'fourth' },
+      });
+      expect(observer.getCurrentResult().data?.data[0]?.notes?.map((note) => note.id)).toEqual([
+        4, 3,
+      ]);
+      expect(invalidated(client, plain.queryKey)).toBe(false);
+    } finally {
+      unsubscribe();
+    }
+  });
+
   test('a table a mutation names is followed to the queries that include it too', async () => {
     const client = freshClient();
     const api = apiFor(1);

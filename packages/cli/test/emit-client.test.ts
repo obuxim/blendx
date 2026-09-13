@@ -26,7 +26,11 @@ describe('emitClient', () => {
     const { tables } = await import('./golden/client.gen.ts');
     expect(tables).toEqual({
       order_notes: {
-        actions: { index: 'GET /order_notes', store: 'POST /order_notes' },
+        actions: {
+          index: 'GET /order_notes',
+          store: 'POST /order_notes',
+          show: 'GET /order_notes/:id',
+        },
         includes: {},
         key: { column: 'id', type: 'number' },
       },
@@ -41,8 +45,9 @@ describe('emitClient', () => {
           restore: 'POST /orders/:id/restore',
           refund: 'POST /orders/:id/refund',
         },
-        // The table the include points to, not the relation's column (N.8).
-        includes: { user: 'users' },
+        // The table each include points to, not the relation's column (N.8); a has-many
+        // include the same way (D31), so a write to its table invalidates the queries that ask for it.
+        includes: { notes: 'order_notes', user: 'users' },
         // The primary key, and whether JSON carries it as a number or a string (D30).
         key: { column: 'id', type: 'number' },
       },

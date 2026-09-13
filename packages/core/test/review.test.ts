@@ -233,6 +233,22 @@ describe('includes in the review (D28)', () => {
     expect(review.actions.find((a) => a.name === 'show')?.input).toHaveProperty('include');
     expect(reviewResource(users, defineApp({}))).not.toHaveProperty('includes');
   });
+
+  test('a has-many include names its table, its bound and its order too (D31)', () => {
+    const notes = blend(shop.order_notes, { policy: allow.public, actions: (a) => [a.show()] });
+    const orders = blend(shop.orders, {
+      policy: allow.public,
+      includes: {
+        notes: { blend: notes, limit: 5, sort: '-created_at' },
+        first: { blend: notes, limit: 1 },
+      },
+      actions: (a) => [a.show()],
+    });
+    expect(reviewResource(orders, defineApp({})).includes).toEqual({
+      notes: 'order_notes, at most 5, by created_at descending, through its show: public',
+      first: 'order_notes, at most 1, by id ascending, through its show: public',
+    });
+  });
 });
 
 describe('later in the review (D27)', () => {

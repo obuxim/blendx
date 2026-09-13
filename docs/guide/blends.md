@@ -169,7 +169,29 @@ export default blend(models.orders, {
 
 `GET /orders?include=user` then gives every order its `user`, the row `user_id` points to ([The HTTP API](http.md#includes)). A relation is named after its foreign key column without `_id`, so `user_id` gives `user`, and only single-column foreign keys ending in `_id` are relations. The types refuse a name that is not a relation of the table, and a blend of another table than the one it points to.
 
-Each included row goes through the target blend's show, as `GET /users/:id` would for the same requester: its policy and authorize hooks decide row by row, and its hidden columns are left out. A row that show would refuse or not find, such as a soft-deleted one, is `null`. So the target must expose show, and its show may not have a load hook. This first version includes belongs-to relations, one level deep; two blends cannot include each other, because their files would import each other (docs/decisions.md D28).
+Each included row goes through the target blend's show, as `GET /users/:id` would for the same requester: its policy and authorize hooks decide row by row, and its hidden columns are left out. A row that show would refuse or not find, such as a soft-deleted one, is `null`. So the target must expose show, and its show may not have a load hook. Includes are one level deep; two blends cannot include each other, because their files would import each other (docs/decisions.md D28).
+
+### The rows that point at a row
+
+A blend may also nest the rows of another table whose foreign key points at its own, a has-many, bounded. From the same [orders](../../packages/conformance/fixtures/shop/blends/orders.ts):
+
+```ts
+import orderNotes from './order_notes.ts';
+
+export default blend(models.orders, {
+  policy: { ... },
+  includes: { user: users, notes: { blend: orderNotes, limit: 2, sort: '-id' } },
+  actions: (a) => [a.index({ trashed: true }), a.store(), a.show(), ...],
+});
+```
+
+`GET /orders/1?include=notes` then gives the order its `notes`, an array of the rows of `order_notes` whose `order_id` is 1, never `null`. Nothing in the schema names the inverse of a foreign key, so the blend does: the key is the name, and the value says which blend, how many at most, and in what order.
+
+- `blend` is the blend of the table that points here. It must have exactly one single-column foreign key to this table; when it has more, as a `reviews` table with an `author_id` and a `reviewer_id` would, `by: 'author_id'` says which.
+- `limit` is required: a has-many is unbounded, and the include is for a row's bounded children, such as an order's notes or its lines. A user's orders stay on `GET /orders?user_id=1`, which pages. The limit shows in the review, and the rows beyond it are cut; a client that needs the total asks the target's index.
+- `sort` is a column of the target, with `-` for descending, and defaults to the target's primary key ascending.
+
+The rows are loaded in one query for the whole reply, at most `limit` per row, and each goes through the target's show as a belongs-to row does: a row show refuses is dropped, and still counts against the limit, so a list may hold fewer than `limit` rows while more exist. A bare blend under a name is always a belongs-to include; the object form is always a has-many. The types refuse a has-many without a limit, a blend of a table that does not point here, a `sort` that is not its column, and a name that is a column or a belongs-to relation of the table (docs/decisions.md D31).
 
 ## Declaring a reply
 
@@ -186,6 +208,7 @@ The declaration is type-checked against what the action sends: the keys must mat
 
 - an action listed twice;
 - an include that is not a relation of the table, is not a blend of the table it points to, points to a blend without show or whose show has a load hook, or has the name of a column;
+- a has-many include whose blend has no foreign key to the table, or more than one without `by`, whose `limit` is not a positive integer, or whose `sort` is not a visible column of the target;
 - an action without a policy, or a policy for an action that is not listed;
 - a hidden column that is not a column;
 - a custom action that reuses a built-in name, has a name that is not lowercase letters, digits and `_`, or has an invalid path;

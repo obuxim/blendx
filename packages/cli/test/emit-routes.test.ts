@@ -33,6 +33,7 @@ describe('emitRoutes', () => {
     expect(lines.filter((line, i) => line !== lines[i - 1])).toEqual([
       'GET /order_notes',
       'POST /order_notes',
+      'GET /order_notes/:id',
       'GET /orders',
       'POST /orders',
       'GET /orders/quote',

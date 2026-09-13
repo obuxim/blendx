@@ -36,7 +36,10 @@ describe('client.gen.ts tables', () => {
   });
 
   test('includes name the table each relation points to, and are {} without any', () => {
-    expectTypeOf<Tables['orders']['includes']>().toEqualTypeOf<{ readonly user: 'users' }>();
+    expectTypeOf<Tables['orders']['includes']>().toEqualTypeOf<{
+      readonly notes: 'order_notes';
+      readonly user: 'users';
+    }>();
     expectTypeOf<Tables['users']['includes']>().toEqualTypeOf<Record<never, never>>();
   });
 

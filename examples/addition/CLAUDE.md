@@ -46,7 +46,7 @@ Done means `bunx blendx generate --check`, `bunx blendx review --check`, `bunx t
    });
    ```
 
-   Only listed actions are exposed, and every action needs a policy: one for all, or `{ default, store: allow.public, ... }` per action. `allow.public`, `allow.authenticated`, `allow.owner('user_id')`, `allow.when(fn)` and `deny` are the choices. To let index and show nest the row a foreign key points to (`?include=user` for `user_id`), add `includes: { user: users }` with the target table's blend imported; each nested row goes through that blend's show.
+   Only listed actions are exposed, and every action needs a policy: one for all, or `{ default, store: allow.public, ... }` per action. `allow.public`, `allow.authenticated`, `allow.owner('user_id')`, `allow.when(fn)` and `deny` are the choices. To let index and show nest the row a foreign key points to (`?include=user` for `user_id`), add `includes: { user: users }` with the target table's blend imported; to nest the rows that point at this table, `includes: { notes: { blend: order_notes, limit: 10, sort: '-created_at' } }`, an array cut at `limit`. Each nested row goes through that blend's show.
 4. `bunx blendx generate` again, for the routes and OpenAPI.
 5. `bunx blendx review`, and ask a human to read `review/<table>.yaml`.
 6. `bunx blendx migrate up`.

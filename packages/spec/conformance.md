@@ -12,12 +12,12 @@ The conformance suite defines blendx's behaviour over HTTP, independent of any l
 - an action-level authorize hook: an order can only be placed for oneself;
 - index filters and sorting, soft delete, `?trashed`, restore and purge (docs/decisions.md D29);
 - a scoped index: users list only themselves (`scope`, docs/decisions.md D22);
-- an include: `?include=user` nests an order's user, as its show would reply to the requester (docs/decisions.md D28);
+- an include: `?include=user` nests an order's user, as its show would reply to the requester (docs/decisions.md D28), and `?include=notes` its two newest notes, a bounded has-many (D31);
 - a custom member action (`POST /orders/:id/refund`) and a custom collection action (`GET /orders/quote`, with a declared reply).
 
 The identity is the `x-user-id` request header: a positive integer is that user, anything else is no identity.
 
-Before each case the database is reset: every table is truncated, identities restart, and `seed.sql` runs. The seed is users 1 (Ada) and 2 (Bob), and order 1, paid, of user 1. The cases live in `packages/conformance/cases/*.json`.
+Before each case the database is reset: every table is truncated, identities restart, and `seed.sql` runs. The seed is users 1 (Ada) and 2 (Bob), order 1, paid, of user 1, and its three notes. The cases live in `packages/conformance/cases/*.json`.
 
 ## Case files
 

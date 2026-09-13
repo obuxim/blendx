@@ -246,9 +246,15 @@ export function reviewResource(resource: Resource, app: App): ResourceReview {
     });
   });
   // D28: what ?include= may nest, and who sees each row: the policy of the target's show.
-  const includes = Object.entries(resolveIncludes(resource)).map(([name, { target }]) => {
+  // D31: a has-many include also says its bound and its order.
+  const includes = Object.entries(resolveIncludes(resource)).map(([name, include]) => {
+    const { target } = include;
     const policy = target.policies.show?.description ?? 'no show';
-    return [name, `${target.model.name}, through its show: ${policy}`] as const;
+    const bound =
+      include.kind === 'hasMany'
+        ? `, at most ${include.limit}, by ${include.sort.column} ${include.sort.descending ? 'descending' : 'ascending'}`
+        : '';
+    return [name, `${target.model.name}${bound}, through its show: ${policy}`] as const;
   });
   return Object.freeze({
     format: 1,

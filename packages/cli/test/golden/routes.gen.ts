@@ -8,6 +8,7 @@ import users from "../fixtures/shop/blends/users.ts";
 export const routes = router()
   .get("/order_notes", ...run(order_notes, "index"))
   .post("/order_notes", ...run(order_notes, "store"))
+  .get("/order_notes/:id", ...run(order_notes, "show"))
   .get("/orders", ...run(orders, "index"))
   .post("/orders", ...run(orders, "store"))
   .get("/orders/quote", ...run(orders, "quote"))

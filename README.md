@@ -164,7 +164,7 @@ PostgreSQL only. Drivers: `pg` (the default), `postgres-js`, `bun-sql` and `pgli
 
 - [`docs/guide`](docs/guide): the guide to building an app with blendx: [getting started](docs/guide/getting-started.md), a [tutorial](docs/guide/tutorial.md) that builds [`examples/expenses`](examples/expenses) from an empty folder, and a page for each part (schema, blends, hooks, identity, the HTTP API, review, testing, deployment, the CLI).
 - [`examples/addition/CLAUDE.md`](examples/addition/CLAUDE.md): the template for an app's `CLAUDE.md`, the guide an agent works from.
-- [`docs/cookbook.md`](docs/cookbook.md): thirteen blend patterns, from hiding a column to nesting related rows.
+- [`docs/cookbook.md`](docs/cookbook.md): fourteen blend patterns, from hiding a column to nesting related rows.
 - [`packages/spec`](packages/spec): the normative spec: [pipeline](packages/spec/pipeline.md), [cascade](packages/spec/cascade.md), [errors](packages/spec/errors.md), [derivation rules](packages/spec/derivation-rules.md), [review format](packages/spec/review-format.md) and [conformance](packages/spec/conformance.md). Each rule links to the tests that prove it.
 - [`docs/decisions.md`](docs/decisions.md): why things are the way they are.
 

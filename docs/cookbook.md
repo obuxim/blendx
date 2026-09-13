@@ -210,3 +210,21 @@ export default blend(models.orders, {
 - [show nests the row its foreign key points to, without its hidden columns](../packages/core/test/engine-include.test.ts)
 - [each included row goes through the target's show: a row it refuses is null](../packages/core/test/engine-include.test.ts)
 - [one query per relation, for the whole page](../packages/core/test/engine-include.test.ts)
+
+## 14. Nest the rows that point at a row
+
+```ts
+import orderNotes from './order_notes.ts';
+
+export default blend(models.orders, {
+  policy: { default: allow.owner('user_id'), index: allow.public },
+  includes: { notes: { blend: orderNotes, limit: 10, sort: '-created_at' } },
+  actions: (a) => [a.index(), a.show()],
+});
+```
+
+`GET /orders/1?include=notes` gives the order its `notes`, the rows of `order_notes` whose `order_id` points at it, newest first, at most ten, as an array that is `[]` when there are none. The blend names the include, since the schema does not name the inverse of a foreign key; `by: 'author_id'` picks the column when the target points at the table twice. The limit is required: a has-many include is for a row's bounded children, and a list that pages belongs on the target's index. Each row goes through the target's show as a belongs-to row does, and a row it refuses is dropped.
+
+- [show nests the rows that point at it, at most its limit, in its order, without their hidden columns](../packages/core/test/engine-include.test.ts)
+- [a row the target's show refuses is dropped, and still counts against the limit](../packages/core/test/engine-include.test.ts)
+- [by names the foreign key, and is required when the target points at the table twice](../packages/core/test/includes.test.ts)

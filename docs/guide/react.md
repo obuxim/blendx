@@ -81,7 +81,7 @@ A reply holds only rows of its own table, so an action changes another table onl
 const naming = api.orders.refund.mutationOptions({ invalidates: ['users'] });
 ```
 
-A query with `?include=` holds rows of another table ([Blends](blends.md#includes)), so a write to that table follows the include: after `users.update`, an orders query that asked for `include: 'user'` refetches, and one that did not keeps its data. The generated `tables` says which tables each table includes, and the tables a mutation names are followed the same way. From the tests:
+A query with `?include=` holds rows of another table ([Blends](blends.md#includes)), so a write to that table follows the include: after `users.update`, an orders query that asked for `include: 'user'` refetches, and one that did not keeps its data. A has-many include is followed the same way: after `order_notes.store`, an orders query that asked for `include: 'notes'` refetches. The generated `tables` says which tables each table includes, and the tables a mutation names are followed the same way. From the tests:
 
 ```ts
 const withUser = api.orders.index.queryOptions({ query: { include: 'user' } });

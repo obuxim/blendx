@@ -24,6 +24,12 @@ const users = blend(models.users, {
   actions: (a) => [a.show()],
 });
 
+/** Pattern 14's target: the notes blend, whose show decides who sees each note. */
+const orderNotes = blend(models.order_notes, {
+  policy: allow.authenticated,
+  actions: (a) => [a.show()],
+});
+
 test('the cookbook, compiled', () => {
   const patterns = [
     // 1. Expose a table read-only, hiding a column
@@ -141,8 +147,14 @@ test('the cookbook, compiled', () => {
       includes: { user: users },
       actions: (a) => [a.index(), a.show()],
     }),
+    // 14. Nest the rows that point at a row
+    blend(models.orders, {
+      policy: { default: allow.owner('user_id'), index: allow.public },
+      includes: { notes: { blend: orderNotes, limit: 10, sort: '-created_at' } },
+      actions: (a) => [a.index(), a.show()],
+    }),
   ];
-  // Patterns 4 to 7 share one orders blend: ten blends for thirteen patterns.
-  expect(patterns).toHaveLength(10);
+  // Patterns 4 to 7 share one orders blend: eleven blends for fourteen patterns.
+  expect(patterns).toHaveLength(11);
   expect(patterns.every((pattern) => pattern.kind === 'blendx/resource')).toBe(true);
 });
