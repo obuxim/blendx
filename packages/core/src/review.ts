@@ -63,7 +63,7 @@ export interface ResourceReview {
 }
 
 /** The stages every action lists; after (D26) is listed only where a hook sets it. */
-type ReviewedStage = Exclude<Stage, 'after'>;
+type ReviewedStage = Exclude<Stage, 'after' | 'later'>;
 
 const EMPTY = 'nothing (an empty object)';
 const WRITABLE = "the input's writable columns";
@@ -186,8 +186,9 @@ export function reviewResource(resource: Resource, app: App): ResourceReview {
     const defaults = stageDefaults(definition);
     // after does nothing at the schema level, so it is listed only where a hook sets it (D26):
     // an app that uses none keeps its review files as they were.
+    // later (D27) joins the review in P16.6.
     const listed = STAGES.filter(
-      (stage) => stage !== 'after' || endpoint.provenance.after.length > 1,
+      (stage) => stage !== 'later' && (stage !== 'after' || endpoint.provenance.after.length > 1),
     );
     const stages = Object.fromEntries(
       listed.map((stage) => [
@@ -197,7 +198,7 @@ export function reviewResource(resource: Resource, app: App): ResourceReview {
           default:
             stage === 'authorize'
               ? definition.policy.description
-              : stage === 'after'
+              : stage === 'after' || stage === 'later'
                 ? 'nothing'
                 : defaults[stage],
         }),

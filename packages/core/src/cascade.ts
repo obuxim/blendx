@@ -14,16 +14,28 @@ import { saves } from './engine.ts';
 import type { Db, Reply } from './hooks.ts';
 
 export type Level = 'schema' | 'app' | 'resource' | 'action';
-export type Stage = 'rules' | 'load' | 'authorize' | 'calculate' | 'save' | 'after' | 'respond';
+export type Stage =
+  | 'rules'
+  | 'load'
+  | 'authorize'
+  | 'calculate'
+  | 'save'
+  | 'later'
+  | 'after'
+  | 'respond';
 export const STAGES: readonly Stage[] = [
   'rules',
   'load',
   'authorize',
   'calculate',
   'save',
+  'later',
   'after',
   'respond',
 ];
+
+/** The stages only actions that write have (D26, D27). */
+const COMMIT_STAGES: ReadonlySet<string> = new Set(['later', 'after']);
 
 type Auth = RegisteredAuth | null;
 
@@ -99,9 +111,10 @@ export function resolveEndpoint(
   const actionHooks = endpoint.hooks;
 
   const writes = saves(endpoint);
-  // App and resource after hooks run only for actions that write (D26).
+  // App and resource later and after hooks run only for actions that write (D26, D27).
   const has = (hooks: object, name: string) =>
-    typeof (hooks as Record<string, unknown>)[name] === 'function' && (name !== 'after' || writes);
+    typeof (hooks as Record<string, unknown>)[name] === 'function' &&
+    (!COMMIT_STAGES.has(name) || writes);
   // An index's scope shapes its load at the action level, as a load hook would (D22).
   const byAction = (stage: Stage) =>
     has(actionHooks, stage) || (stage === 'load' && has(actionHooks, 'scope'));

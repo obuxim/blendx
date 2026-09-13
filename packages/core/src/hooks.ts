@@ -2,7 +2,8 @@
  * Stage hooks and their contexts (docs/decisions.md D3). Value stages (rules,
  * authorize, calculate, respond) receive `prev` and return its replacement. Effect
  * stages (load, save) receive `runDefault()`: call it to extend, skip it to replace. after
- * (D26) runs once a write has committed, at every level, and its return value is ignored.
+ * (D26) runs once a write has committed, at every level, and its return value is ignored;
+ * later (D27) is the same, run from the outbox instead of the request.
  */
 import type { PgAsyncDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
 import type { z } from 'zod';
@@ -156,6 +157,17 @@ export interface AfterContext<M extends Model, Rec, In> {
   db: Db;
 }
 
+/**
+ * later runs from the outbox, outside the request, at least once (D27): an effect that must
+ * not be lost. Its context was stored as JSON with the write; db is the worker's.
+ */
+export interface LaterContext<M extends Model, Rec, In> extends AfterContext<M, Rec, In> {
+  /** The outbox entry's id: the same on every attempt, so an idempotency key. */
+  id: number;
+  /** 1 on the first run, 2 on the first retry, and so on. */
+  attempt: number;
+}
+
 interface ValueHooks<
   M extends Model,
   Action extends string,
@@ -183,9 +195,10 @@ interface SaveHook<M extends Model, Rec> {
   save?: (context: SaveContext<M, Rec>) => Promise<Row<M>>;
 }
 
-/** Only actions that write have one. Its result is ignored; a promise is awaited. */
-interface AfterHook<M extends Model, Rec, In> {
+/** Only actions that write have them. Their results are ignored; a promise is awaited. */
+interface CommitHooks<M extends Model, Rec, In> {
   after?: (context: AfterContext<M, Rec, In>) => unknown;
+  later?: (context: LaterContext<M, Rec, In>) => unknown;
 }
 
 export interface RouteOptions {
@@ -211,7 +224,7 @@ export type StoreSpec<M extends Model, S extends z.ZodType, R, Hidden extends st
   R
 > &
   SaveHook<M, undefined> &
-  AfterHook<M, undefined, Input<M, 'store', S>>;
+  CommitHooks<M, undefined, Input<M, 'store', S>>;
 
 export type UpdateSpec<M extends Model, S extends z.ZodType, R, Hidden extends string> = ValueHooks<
   M,
@@ -225,7 +238,7 @@ export type UpdateSpec<M extends Model, S extends z.ZodType, R, Hidden extends s
 > &
   LoadHook<Row<M>> &
   SaveHook<M, Row<M>> &
-  AfterHook<M, Row<M>, Input<M, 'update', S>>;
+  CommitHooks<M, Row<M>, Input<M, 'update', S>>;
 
 /** show, destroy and restore take no input, so they have no rules or calculate. */
 export type RecordSpec<
@@ -250,7 +263,7 @@ export type RecordSpec<
   LoadHook<Row<M>> &
   (Action extends 'show'
     ? unknown
-    : SaveHook<M, Row<M>> & AfterHook<M, Row<M>, Input<M, Action, z.ZodType>>);
+    : SaveHook<M, Row<M>> & CommitHooks<M, Row<M>, Input<M, Action, z.ZodType>>);
 
 export type MemberSpec<
   M extends Model,
@@ -270,7 +283,7 @@ export type MemberSpec<
 > &
   LoadHook<Row<M>> &
   SaveHook<M, Row<M>> &
-  AfterHook<M, Row<M>, Input<M, Name, S>> &
+  CommitHooks<M, Row<M>, Input<M, Name, S>> &
   RouteOptions;
 
 /** Collection actions load nothing and save nothing: calculate's result is the reply body. */

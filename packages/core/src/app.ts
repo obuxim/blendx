@@ -47,6 +47,22 @@ export interface AppHooks<Auth = unknown> {
     model: Model;
     action: string;
   }): unknown;
+  /**
+   * From the outbox, for every write of every table (D27): at least once, outside the
+   * request, with the context stored as JSON.
+   */
+  later?(context: {
+    saved: unknown;
+    record: unknown;
+    input: unknown;
+    auth: Auth | null;
+    db: Db;
+    model: Model;
+    action: string;
+    /** The outbox entry's id: the same on every attempt. */
+    id: number;
+    attempt: number;
+  }): unknown;
 }
 
 /** `Auth` is what `auth` resolves to, null included. */

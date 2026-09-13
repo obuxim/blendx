@@ -14,6 +14,7 @@ import type {
   CollectionSpec,
   IndexPage,
   IndexSpec,
+  LaterContext,
   LoadContext,
   MemberSpec,
   RecordSpec,
@@ -47,6 +48,8 @@ export interface ActionHooks {
   readonly respond?: (context: RespondContext<Reply, unknown, unknown>) => Reply;
   /** Actions that write only: runs once the write has committed (D26). */
   readonly after?: (context: AfterContext<Model, unknown, unknown>) => unknown;
+  /** Actions that write only: run from the outbox, at least once (D27). */
+  readonly later?: (context: LaterContext<Model, unknown, unknown>) => unknown;
   /** index only: the column values the listing is limited to, from the identity (D22). */
   readonly scope?: (context: { auth: unknown }) => Readonly<Record<string, unknown>>;
 }
@@ -286,6 +289,8 @@ export interface ResourceHooks<M extends Model = Model> {
   respond?<R extends Reply>(context: { prev: R; action: string }): R;
   /** After each write of this resource commits, before the action's own after (D26). */
   after?(context: AfterContext<M, Row<M> | undefined, unknown> & { action: string }): unknown;
+  /** From the outbox, for each write of this resource (D27). */
+  later?(context: LaterContext<M, Row<M> | undefined, unknown> & { action: string }): unknown;
 }
 
 /** One policy for every action, or a policy per action with an optional default. */
@@ -345,6 +350,7 @@ const HOOK_NAMES = [
   'authorize',
   'calculate',
   'save',
+  'later',
   'after',
   'respond',
   'scope',
@@ -418,8 +424,10 @@ function builderFor(model: Model) {
     if (reply === null) {
       fail(`action "${name}" has a reply that is neither a zod schema nor { status, body }`);
     }
-    if (spec?.after !== undefined && !saves({ on, action: name })) {
-      fail(`${name} writes nothing, so it has no after`);
+    for (const hook of ['after', 'later'] as const) {
+      if (spec?.[hook] !== undefined && !saves({ on, action: name })) {
+        fail(`${name} writes nothing, so it has no ${hook}`);
+      }
     }
     return define(name, on, method, path, builtin, spec, reply ?? undefined);
   };

@@ -1,8 +1,9 @@
 /**
  * The engine: runs one request through an endpoint's pipeline (docs/decisions.md D3):
  * authenticate, validate, load, authorize, calculate, save, after, respond. Every failure is
- * a Problem Details response; the order decides precedence (401, 422, 404, 403). after (D26)
- * runs once a write has committed, and what it throws is reported, not answered.
+ * a Problem Details response; the order decides precedence (401, 422, 404, 403). save also
+ * writes the later hooks' outbox entries (D27). after (D26) runs once a write has committed,
+ * and what it throws is reported, not answered.
  */
 import { and, asc, count, desc, eq, getColumns, isNotNull, isNull, sql } from 'drizzle-orm';
 import type { RegisteredAuth } from './app.ts';
@@ -11,6 +12,7 @@ import { isDateText, isTimestampText } from './datetime.ts';
 import type { EndpointDefinition } from './endpoints.ts';
 import type { Db, Reply } from './hooks.ts';
 import type { Model } from './model.ts';
+import { enqueueLater } from './outbox.ts';
 import {
   jsonPointer,
   PROBLEM_CONTENT_TYPE,
@@ -312,6 +314,8 @@ export async function execute(
             auth,
           })
         : record;
+      // later (D27): one outbox entry per level, in this transaction, so only if it commits
+      if (mutates) await enqueueLater(db, endpoint, { saved, record, input, auth });
       return { loaded, record, result, saved };
     };
     const { loaded, record, result, saved } = mutates

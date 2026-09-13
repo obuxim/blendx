@@ -11,10 +11,11 @@ Not every level can hook every stage:
 | authorize | yes | yes | yes |
 | calculate | | | yes |
 | save | | | yes |
+| later | yes | yes | yes |
 | after | yes | yes | yes |
 | respond | yes | yes | yes |
 
-App and resource hooks run for many tables or actions at once, so each must return the type it receives. Load, calculate and save depend on one table's columns, so only an action sets them. after returns nothing, so every level can set it.
+App and resource hooks run for many tables or actions at once, so each must return the type it receives. Load, calculate and save depend on one table's columns, so only an action sets them. after and later return nothing, so every level can set them.
 
 Tests:
 - [without hooks every stage is the schema default](../core/test/cascade.test.ts)
@@ -53,6 +54,12 @@ Tests:
 - [app, resource and action after run in that order, none replacing another](../core/test/after.test.ts)
 - [provenance: after counts app and resource hooks only on actions that write](../core/test/after.test.ts)
 - [blend() refuses after on an action that writes nothing](../core/test/after.test.ts)
+
+later (docs/decisions.md D27) follows the same rule, except that each level's hook becomes an outbox entry of its own, which the worker runs; the entries run in no set order.
+
+Tests:
+- [provenance: later counts app and resource hooks only on actions that write](../core/test/later.test.ts)
+- [blend() refuses later on an action that writes nothing](../core/test/later.test.ts)
 
 ## Provenance
 

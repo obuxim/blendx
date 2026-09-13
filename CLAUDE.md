@@ -40,7 +40,8 @@ Working on an app built with blendx rather than on the framework? Its own `CLAUD
 
 ## Hook rules
 
-- One hook per stage: `rules`, `load`, `authorize`, `calculate`, `save`, `after`, `respond`.
+- One hook per stage: `rules`, `load`, `authorize`, `calculate`, `save`, `later`, `after`, `respond`.
+- `later` (D27) is for effects that must not be lost: the engine writes an outbox entry per level in the action's transaction, and the outbox worker runs it at least once, so it must tolerate running twice (its `id` is an idempotency key). Its context arrives as JSON.
 - `after` (D26) is for side effects once a write has committed: only actions that write have it, and the app, resource and action hooks all run, in that order. What it throws goes to `onError`; the reply stands. Writes that must be atomic go in `save`.
 - Value stages (`rules`, `authorize`, `calculate`, `respond`) receive `prev` and return the replacement. Ignore `prev` to replace it, use it to extend. Never mutate.
 - Effect stages (`load`, `save`) receive `runDefault()`. Call it to extend, skip it to replace.
@@ -89,4 +90,4 @@ Definition of done: `bun run check` passes. Besides Biome, tsc and the tests (th
 
 ## Roadmap
 
-The API (phases P0 to P15) and the React adapter (phase N: `@blendx/react`, TanStack Query options over `hc<AppType>` with actions called by name; D25) are done. Phase P16 builds what D10 left out of v1, one feature at a time, each decided first: the after stage (D26) is in progress; composite primary keys, `?include=` relations, force-delete and PUT are candidates, as is publishing to npm. Don't start one until asked; it becomes a todo item first.
+The API (phases P0 to P15) and the React adapter (phase N: `@blendx/react`, TanStack Query options over `hc<AppType>` with actions called by name; D25) are done. Phase P16 builds what D10 left out of v1, one feature at a time, each decided first: the after stage (D26) is done, and later hooks with their outbox (D27) are in progress; composite primary keys, `?include=` relations, force-delete and PUT are candidates, as is publishing to npm. Don't start one until asked; it becomes a todo item first.

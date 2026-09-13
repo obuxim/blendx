@@ -65,6 +65,7 @@ export type {
   Db,
   IndexSpec,
   Input,
+  LaterContext,
   LoadContext,
   MemberSpec,
   RecordSpec,
@@ -100,6 +101,7 @@ export {
   type OpenApiResult,
   stringifyOpenApi,
 } from './openapi.ts';
+export { enqueueLater, type OutboxPayload, outbox } from './outbox.ts';
 export {
   allow,
   deny,
