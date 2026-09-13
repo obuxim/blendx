@@ -58,7 +58,7 @@ The form is the store action's mutation, `useMutation(addition_results.store.mut
 add.mutate({ json: { a: numberIn(form, 'a'), b: numberIn(form, 'b') } });
 ```
 
-- **Input** is what `hc` takes: `json` for a body, `param` for a member action's id, `query` for a GET action's input. A part with nothing required may be left out, where `hc` itself would take `query: {}`: the whole input for index, as above, or show's `query` when its blend declares includes. Show needs its id: `api.orders.show.queryOptions({ param: { id: '1' } })`, or with an include, `{ param: { id: '1' }, query: { include: 'user' } }`.
+- **Input** is what `hc` takes: `json` for a body, `param` for a member action's id, `query` for a GET action's input. A part with nothing required may be left out, where `hc` itself would take `query: {}`: the whole input for index, as above, or show's `query` when its blend declares includes. Show needs its id: `api.orders.show.queryOptions({ param: { id: '1' } })`, or with an include, `{ param: { id: '1' }, query: { include: 'user' } }`. On a table with a composite primary key, `param` has one entry per key column: `api.order_items.show.queryOptions({ param: { order_id: '1', line: '2' } })`.
 - **Data** is the body of the action's success reply, typed as `hc` types it: a page for index (the example lists `results.data.data`), the record for store, show, update, restore and member actions, what calculate returns for a collection action, and `null` for the 204 of destroy and purge.
 - The options are plain objects, so they work wherever TanStack Query takes options: `useQuery`, `useSuspenseQuery`, `queryClient.fetchQuery`, `prefetchQuery`, `ensureQueryData`, a router's loader. The adapter wraps none of them.
 - A query hands TanStack's abort signal to its request, so a query that TanStack cancels (its component unmounted, or the page called `cancelQueries`) aborts its request too. The signal goes in the call's `init`, which `hc` merges into the client's own `init` key by key. So give the client no `init.signal` of its own: an AbortSignal does not survive that merge.
@@ -153,7 +153,7 @@ A mutation waits for its reply, and the page shows the change once the refetch a
   }),
   ```
 
-- **store** puts a new row into the cached lists of its table: those whose filters all match the input, and none that filters on a column the input leaves out; at the top of a list sorted descending, else at the end; in the first page of a plain query, and in the last page of an infinite one when it has no next page. The row holds the input and a temporary key, nothing else. A function of the input adds what the row holds besides it:
+- **store** puts a new row into the cached lists of its table: those whose filters all match the input, and none that filters on a column the input leaves out; at the top of a list sorted descending, else at the end; in the first page of a plain query, and in the last page of an infinite one when it has no next page. The row holds the input and its key, nothing else: a temporary value for an identity key, and the key columns the input carries on a table with a composite key. A function of the input adds what the row holds besides it:
 
   ```ts
   optimistic: ({ json }) => ({ status: 'pending', quantity: json.quantity ?? 1 }),
@@ -164,7 +164,7 @@ A mutation waits for its reply, and the page shows the change once the refetch a
 - A collection action takes none: it has no row.
 - Rows nested by an include in another table's queries are left alone. The invalidation after the reply corrects them.
 
-A temporary key is negative for a number key, and a random UUID for a string key, so a page can tell a row that is not saved yet. The table's primary key comes from the generated `tables`.
+A temporary key is negative for a number key, and a random UUID for a string key, so a page can tell a row that is not saved yet. The table's primary key columns come from the generated `tables`, and a cached row is matched by every one of them.
 
 The change runs inside the mutation function, as the invalidation does, so the page's own `onMutate` and `onSuccess`, spread over the options, keep it.
 

@@ -31,7 +31,7 @@ Done means `bunx blendx generate --check`, `bunx blendx review --check`, `bunx t
 
 ## Add a table
 
-1. Add the table to `schema.dbml`. Name it in snake_case. `id int [pk, increment]`, `created_at`, `updated_at` and a nullable `deleted_at timestamp` (soft delete) are recognised by name. The DBML blendx accepts is listed in `packages/spec/dbml.md` in the blendx repository.
+1. Add the table to `schema.dbml`. Name it in snake_case. `id int [pk, increment]`, `created_at`, `updated_at` and a nullable `deleted_at timestamp` (soft delete) are recognised by name. A key of several columns is `(order_id, line) [pk]` under `indexes`: its rows are then `/<table>/:order_id/:line`, and the key columns are input on store. The DBML blendx accepts is listed in `packages/spec/dbml.md` in the blendx repository.
 2. `bunx blendx generate`, then `bunx blendx migrate generate --name add_<table>`.
 3. Write `blends/<table>.ts`. The file name is the table name:
 
@@ -55,7 +55,7 @@ The defaults already validate input from the schema (unknown keys are refused), 
 
 ## Add a custom action
 
-On one record, `POST /<table>/:id/<name>`:
+On one record, `POST /<table>/:id/<name>` (one segment per key column on a table with a composite key):
 
 ```ts
 a.member('refund', {

@@ -49,6 +49,7 @@ The `actions` callback receives a builder, `a`, and returns the list of actions 
 - `a.restore()` and `a.purge()` exist only on a table with a nullable `deleted_at` timestamp. On any other table they are a type error: destroy already deletes for good there. Purge has a policy of its own, like every action, so a blend can leave destroy to a row's owner and purge to an administrator ([cookbook pattern 10](../cookbook.md#10-soft-delete-restore-and-trashed-rows)).
 - Each action is listed once. Every call takes an optional spec: the hooks where the action differs from the defaults ([Hooks](hooks.md)), and the options below.
 - A collection action's route, such as `GET /expenses/quote`, is matched before `GET /expenses/:id`.
+- On a table whose primary key spans several columns, `:id` is one segment per key column: `GET /order_items/:order_id/:line`, and `a.member('relabel')` is `POST /order_items/:order_id/:line/relabel` ([The HTTP API](http.md#routes)). The key columns are ordinary input on store, since the client knows them ([cookbook pattern 16](../cookbook.md#16-a-table-keyed-by-several-columns)).
 
 What each default does in detail (which columns store accepts, how index filters) is derived from the schema: see [The schema](schema.md) and [The HTTP API](http.md).
 

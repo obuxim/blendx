@@ -246,3 +246,18 @@ Nothing more is declared: once the orders blend includes `user` (pattern 13), `G
 - [a dotted path nests the include of an included row, and asks its prefixes](../packages/core/test/engine-include.test.ts)
 - [a refused or missing belongs-to nests nothing below it](../packages/core/test/engine-include.test.ts)
 - [a has-many under a has-many is bounded at each level](../packages/core/test/engine-include.test.ts)
+
+## 16. A table keyed by several columns
+
+```ts
+export default blend(models.order_items, {
+  policy: allow.authenticated,
+  actions: (a) => [a.index(), a.store(), a.show(), a.update(), a.destroy()],
+});
+```
+
+`order_items` declares its key in the schema, `(order_id, line) [pk]` under `indexes`, and the blend needs nothing more. Its rows are addressed by one path segment per key column, in the key's order: `GET /order_items/1/2`, `PATCH /order_items/1/2`, and a member action below them, `POST /order_items/1/2/relabel`. The key columns are input on store, `{ "order_id": 1, "line": 3, "sku": "C-3" }`, since the client knows them, and a second row with the same key answers 409. The index sorts by the whole key unless asked otherwise, and a has-many include of the table (pattern 14) nests its rows in that order. A single-column key stays `:id`, whatever the column is called.
+
+- [a composite key gives one path segment per column, in the key order](../packages/core/test/engine-composite.test.ts)
+- [store takes the key columns as input](../packages/core/test/engine-composite.test.ts)
+- [update saves the row the segments name and no other](../packages/core/test/engine-composite.test.ts)

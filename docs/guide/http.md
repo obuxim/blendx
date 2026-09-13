@@ -24,6 +24,8 @@ What a client of a blendx app sees. The replies below come from [`examples/expen
 
 Custom actions can use another method ([Blends](blends.md#custom-actions)). Only the actions a blend lists have routes; any other request is a 404.
 
+A table whose primary key spans several columns, `(order_id, line) [pk]` under `indexes` in the schema ([The schema](schema.md#conventions)), has one path segment per key column instead of `:id`, named by the column and in the key's order: `GET /order_items/:order_id/:line`, `DELETE /order_items/:order_id/:line`, and a member action below them, `POST /order_items/:order_id/:line/relabel`. A single-column key is always `:id`, whatever the column is called. OpenAPI lists one path parameter per segment, and the typed client takes `param: { order_id, line }`. The key columns are input on store, `{ "order_id": 1, "line": 3, "sku": "C-3" }`, since the client knows them, and a second row with the same key answers 409.
+
 ## Records
 
 A record holds the row's columns as the database returns them, minus the blend's hidden columns (unless the action reveals them), under their names in the schema:
@@ -157,7 +159,7 @@ Every error is an RFC 9457 Problem Details object, served as `application/proble
 | 400 | The body is not valid JSON. |
 | 401 | The action's policy needs an identity, and the request has none. |
 | 403 | The policy or an authorize hook refuses. |
-| 404 | No route matches, or a member action's record does not exist (a soft-deleted one included). |
+| 404 | No route matches, or a member action's record does not exist (a soft-deleted one included, or a key segment that cannot be its column's type, such as `/orders/abc`). |
 | 409 | A unique value already exists, or a destroy or purge hits a row other rows still reference. |
 | 422 | The input is invalid, or the database refuses a value: a reference to a missing row, a required column left empty, a value its column cannot hold. |
 | 500 | Anything else. The client gets no details; the server's `onError` gets the error. |

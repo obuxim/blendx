@@ -7,6 +7,7 @@ import { expect, test } from 'bun:test';
 import { allow, blend } from '@blendx/core';
 import { z } from 'zod';
 import { models as addition } from '../../../dbml/test/golden/addition.schema.gen.ts';
+import { models as kitchen } from '../../../dbml/test/golden/kitchen-sink.schema.gen.ts';
 import { models } from '../../../dbml/test/golden/shop.schema.gen.ts';
 
 /** Pattern 11's mailer: the app's own. The hook never runs here, so it needs no body. */
@@ -166,8 +167,13 @@ test('the cookbook, compiled', () => {
       includes: { order: ordersWithUser },
       actions: (a) => [a.index(), a.show()],
     }),
+    // 16. A table keyed by several columns
+    blend(kitchen.order_items, {
+      policy: allow.authenticated,
+      actions: (a) => [a.index(), a.store(), a.show(), a.update(), a.destroy()],
+    }),
   ];
-  // Patterns 4 to 7 share one orders blend: twelve blends for fifteen patterns.
-  expect(patterns).toHaveLength(12);
+  // Patterns 4 to 7 share one orders blend: thirteen blends for sixteen patterns.
+  expect(patterns).toHaveLength(13);
   expect(patterns.every((pattern) => pattern.kind === 'blendx/resource')).toBe(true);
 });
