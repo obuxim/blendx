@@ -1,7 +1,8 @@
 /**
  * Add two numbers and see every result so far. The form is the store action's mutation, the
  * list is the index query, which a store invalidates, and a field the API refuses shows the
- * API's message next to it.
+ * API's message next to it. The store is optimistic: the new row is in the list before the
+ * API replies, with the sum the page works out itself, and the server's row replaces it.
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
 import type { FormEvent } from 'react';
@@ -14,7 +15,12 @@ const numberIn = (form: FormData, name: string) => Number.parseFloat(String(form
 
 export function App() {
   const results = useQuery(addition_results.index.queryOptions());
-  const add = useMutation(addition_results.store.mutationOptions());
+  const add = useMutation(
+    addition_results.store.mutationOptions({
+      // The row the list shows before the reply: the input, and what calculate would fill.
+      optimistic: ({ json }) => ({ result: json.a + json.b }),
+    }),
+  );
   const errors = addition_results.store.fieldErrors(add.error);
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
@@ -33,9 +39,9 @@ export function App() {
           Add
         </button>
       </form>
-      {add.data && add.variables && (
+      {add.variables && !add.isError && (
         <p role="status">
-          {add.variables.json.a} + {add.variables.json.b} = {add.data.result}
+          {`${add.variables.json.a} + ${add.variables.json.b} = ${add.data ? add.data.result : '…'}`}
         </p>
       )}
 
@@ -49,7 +55,11 @@ export function App() {
       ) : (
         <ol aria-label="Results">
           {results.data.data.map((row) => (
-            <li key={row.id}>{row.result}</li>
+            // A temporary key is negative: the row is not saved yet. Its result is the page's
+            // own sum, or NaN from a field it could not read, which the API is about to refuse.
+            <li key={row.id} aria-busy={row.id < 0 || undefined}>
+              {Number.isFinite(row.result) ? row.result : '…'}
+            </li>
           ))}
         </ol>
       )}

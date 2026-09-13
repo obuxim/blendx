@@ -50,10 +50,9 @@ const { addition_results } = api;
 
 export function App() {
   const results = useQuery(addition_results.index.queryOptions());
-  const add = useMutation(addition_results.store.mutationOptions());
 ```
 
-and, when the form is submitted:
+The form is the store action's mutation, `useMutation(addition_results.store.mutationOptions())`, with one option this page adds ([Optimistic updates](#optimistic-updates)). When the form is submitted:
 
 ```tsx
 add.mutate({ json: { a: numberIn(form, 'a'), b: numberIn(form, 'b') } });
@@ -120,13 +119,89 @@ while (observer.getCurrentResult().hasNextPage) await observer.fetchNextPage();
 
 ### Numbered pages
 
-For a pager, keep the plain query and put the page in its input: `api.orders.index.queryOptions({ query: { page: String(page) } })`. Each page is a query of its own, so moving to a page that is not cached shows nothing until it arrives; TanStack's `placeholderData: keepPreviousData`, spread over the options, keeps the last page on screen meanwhile:
+For a pager, keep the plain query and put the page in its input. Each page is a query of its own, so moving to a page that is not cached shows nothing until it arrives; TanStack's `placeholderData: keepPreviousData`, spread over the options, keeps the last page on screen meanwhile. From the tests:
 
 ```ts
-useQuery({ ...api.orders.index.queryOptions({ query: { page: String(page) } }), placeholderData: keepPreviousData });
+...api.orders.index.queryOptions({ query: { page: String(page), per_page: '1' } }),
+placeholderData: keepPreviousData,
 ```
 
 Both ways page by offset. In a list sorted newest first, a row inserted while the reader is on page 1 pushes the others down, so page 2 repeats the last row of page 1; a row removed skips one. A list sorted oldest first, or by a value that does not move, has neither.
+
+## Optimistic updates
+
+A mutation waits for its reply, and the page shows the change once the refetch after it lands. `mutationOptions({ optimistic })` changes the cached rows of the table before the request is sent, so the page shows the change at once. It is opt-in, per mutation: an optimistic change shows a state the server has not confirmed, which suits a list of one's own notes and not a payment.
+
+### What each action changes
+
+- **update** takes `optimistic: true` and merges its `json` into every cached copy of the row: the show queries for that id, and the row inside every index page, plain and infinite. From the tests:
+
+  ```ts
+  api.orders.update.mutationOptions({ optimistic: true }),
+  ```
+
+- **destroy** and **purge** take `optimistic: true` and remove the row from every page, with `meta.total` lowered by one. The show queries for it are left alone: the invalidation after the reply refetches them, and they 404 as they would for any deleted row.
+- **A custom member action**, and **restore**, take a function of the cached row and the input, since only the app knows what they change:
+
+  ```ts
+  api.orders.refund.mutationOptions({
+    optimistic: (row, input) => ({
+      ...row,
+      status: 'refunded',
+      meta: { reason: input.json.reason },
+    }),
+  }),
+  ```
+
+- **store** puts a new row into the cached lists of its table: those whose filters all match the input, and none that filters on a column the input leaves out; at the top of a list sorted descending, else at the end; in the first page of a plain query, and in the last page of an infinite one when it has no next page. The row holds the input and a temporary key, nothing else. A function of the input adds what the row holds besides it:
+
+  ```ts
+  optimistic: ({ json }) => ({ status: 'pending', quantity: json.quantity ?? 1 }),
+  ```
+
+  When the reply arrives, the server's row takes the temporary one's place, and the refetch that follows corrects any list the adapter guessed wrong.
+
+- A collection action takes none: it has no row.
+- Rows nested by an include in another table's queries are left alone. The invalidation after the reply corrects them.
+
+A temporary key is negative for a number key, and a random UUID for a string key, so a page can tell a row that is not saved yet. The table's primary key comes from the generated `tables`.
+
+The change runs inside the mutation function, as the invalidation does, so the page's own `onMutate` and `onSuccess`, spread over the options, keep it.
+
+### Failures
+
+A mutation that fails after an optimistic change invalidates the table's queries, so the server's rows come back with the refetch, and a temporary row leaves the lists it was put in. Nothing is restored from a snapshot: after a retry, or a second mutation on the same row, a snapshot would put back stale data. The failure itself is the mutation's error, as for any mutation ([Errors](#errors)).
+
+### What the adapter cannot derive
+
+The temporary row holds the input and its key, and nothing the server fills: column defaults, timestamps, and what calculate writes. Two things a page can do about that. Where it can work a value out, its function fills it: the example's calculate adds `a` and `b`, and so does the page. From [`src/App.tsx`](../../examples/addition/web/src/App.tsx):
+
+```tsx
+const add = useMutation(
+  addition_results.store.mutationOptions({
+    // The row the list shows before the reply: the input, and what calculate would fill.
+    optimistic: ({ json }) => ({ result: json.a + json.b }),
+  }),
+);
+```
+
+and the list marks the row that is not saved yet, by its negative key:
+
+```tsx
+<li key={row.id} aria-busy={row.id < 0 || undefined}>
+```
+
+Where it cannot, the page renders what it has: TanStack's own pattern for [optimistic updates through the UI](https://tanstack.com/query/latest/docs/framework/react/guides/optimistic-updates) is to show the mutation's `variables`, the input, while it is pending. The example's status line shows the numbers sent as soon as they are sent, and the server's result once it has replied:
+
+```tsx
+{add.variables && !add.isError && (
+  <p role="status">
+    {`${add.variables.json.a} + ${add.variables.json.b} = ${add.data ? add.data.result : '…'}`}
+  </p>
+)}
+```
+
+The browser test holds the store's request and checks that the list already has the new result. Once the field the API refuses is sent, as in [Field errors](#field-errors), the page's guess is in the list until the refusal arrives, and the failure takes it out.
 
 ## Errors
 

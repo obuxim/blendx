@@ -19,7 +19,7 @@ You write two things: `schema.dbml`, which describes the tables, and one small b
 | [Hooks](hooks.md) | the pipeline, each stage's hook and what it receives, the cascade, transactions, where logic goes |
 | [The app and identity](app.md) | `defineApp`, the `auth` function, app-wide hooks, paging, problem types |
 | [The HTTP API](http.md) | what a client sees: routes, index queries, replies, errors, OpenAPI, the typed client |
-| [The React client](react.md) | `@blendx/react`: TanStack Query options for every action, keys and invalidation, errors and form field errors |
+| [The React client](react.md) | `@blendx/react`: TanStack Query options for every action, keys and invalidation, pages, optimistic updates, errors and form field errors |
 | [Review](review.md) | `review/<table>.yaml`, the examples, and how a reviewer asks for a change |
 | [Testing](testing.md) | testing an app on PGlite or PostgreSQL, the review examples, the typed client |
 | [Configuration and deployment](deployment.md) | `blendx.config.ts`, database drivers, migrations in production, serving on Bun and on Node |

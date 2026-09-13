@@ -8,6 +8,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import {
   InfiniteQueryObserver,
+  keepPreviousData,
   MutationObserver,
   QueryClient,
   QueryObserver,
@@ -394,6 +395,32 @@ describe('infinite index (N.9)', () => {
     });
     expect(invalidated(client, withUser.queryKey)).toBe(true);
     expect(invalidated(client, plain.queryKey)).toBe(false);
+  });
+
+  test('numbered pages: the page in the input, and keepPreviousData keeps the last one on screen', async () => {
+    const client = freshClient();
+    const api = apiFor(1);
+    const pageOf = (page: number) => ({
+      ...api.orders.index.queryOptions({ query: { page: String(page), per_page: '1' } }),
+      placeholderData: keepPreviousData,
+    });
+    // One observer, given new options when the page changes, as useQuery does with a new key.
+    const observer = new QueryObserver(client, pageOf(1));
+    const unsubscribe = observer.subscribe(() => {});
+    try {
+      while (observer.getCurrentResult().isPending) await Bun.sleep(1);
+      const shown = observer.getCurrentResult().data?.data;
+      observer.setOptions(pageOf(2));
+      // Page 1's rows stay, as placeholder data, until page 2 arrives.
+      const moved = observer.getCurrentResult();
+      expect(moved.isPlaceholderData).toBe(true);
+      expect(moved.data?.data).toEqual(shown);
+      while (observer.getCurrentResult().isPlaceholderData) await Bun.sleep(1);
+      expect(observer.getCurrentResult().data?.meta.page).toBe(2);
+      expect(observer.getCurrentResult().data?.data).not.toEqual(shown);
+    } finally {
+      unsubscribe();
+    }
   });
 });
 
