@@ -106,7 +106,16 @@ const WORD = /[A-Za-z_][A-Za-z0-9_]*/y;
 const NUMBER = /[0-9]+(?:\.[0-9]+)?/y;
 const COLOR = /#[0-9A-Fa-f]+/y;
 const PUNCTUATION = new Set(['{', '}', '[', ']', '(', ')', ',', ':', '.', '>', '<', '-']);
-const ESCAPES: Readonly<Record<string, string>> = { n: '\n', t: '\t' };
+/** Upstream DBML's escapes (`@dbml/parse`, `escapedString`), besides `\uHHHH` and `\ `. */
+const ESCAPES: Readonly<Record<string, string>> = {
+  n: '\n',
+  t: '\t',
+  r: '\r',
+  0: '\0',
+  b: '\b',
+  v: '\v',
+  f: '\f',
+};
 
 function matchAt(pattern: RegExp, source: string, at: number): string | undefined {
   pattern.lastIndex = at;
@@ -141,6 +150,20 @@ function tokenize(source: string): Token[] {
       }
     }
   };
+  /** The escape at `i`, a backslash: `\ ` keeps it, and before any other character it is dropped. */
+  const escaped = (): string => {
+    const next = source[i + 1] ?? '';
+    if (next === 'u') {
+      const hex = source.slice(i + 2, i + 6);
+      if (!/^[0-9A-Fa-f]{4}$/.test(hex)) {
+        throw new DbmlSyntaxError('"\\u" needs four hex digits', here());
+      }
+      i += 6;
+      return String.fromCharCode(Number.parseInt(hex, 16));
+    }
+    i += 2;
+    return next === ' ' ? '\\ ' : (ESCAPES[next] ?? next);
+  };
   /** A '...' string or a "..." name: on one line, with backslash escapes. */
   const quoted = (quote: string, what: string): string => {
     const loc = here();
@@ -155,8 +178,7 @@ function tokenize(source: string): Token[] {
       }
       const next = source[i + 1];
       if (c === '\\' && next !== undefined && next !== '\n') {
-        text += ESCAPES[next] ?? next;
-        i += 2;
+        text += escaped();
       } else {
         text += c;
         i += 1;
@@ -178,10 +200,8 @@ function tokenize(source: string): Token[] {
       const next = source[i + 1];
       if (c === '\\' && source.startsWith('\n', i + 1)) moveTo(i + 2);
       else if (c === '\\' && source.startsWith('\r\n', i + 1)) moveTo(i + 3);
-      else if (c === '\\' && next !== undefined) {
-        text += ESCAPES[next] ?? next;
-        i += 2;
-      } else {
+      else if (c === '\\' && next !== undefined) text += escaped();
+      else {
         text += c;
         moveTo(i + 1);
       }

@@ -116,6 +116,8 @@ One item ≈ one focused session. Work top to bottom (see "Todo loop" in `CLAUDE
 - [x] P13.3 An index on an expression marked `pk`, `` (`lower(id)`) [pk] ``, is refused with the same located error as any other expression index. Today it gives `primaryKey: ['lower(id)']`. (Found by the P13.2 review; the bug predates P13.2.) Done: the parser test refuses both kinds of expression index, each at its line.
 - [x] P13.4 Composite refs that are the same relation written differently, `a.(x, y) > b.(p, q)` and `b.(q, p) < a.(y, x)`, are reported as defined twice. (P13.2 review.) Done: the parser test reports that pair, and not a ref that pairs the same columns differently.
 - [x] P13.5 A `'''` string takes the escapes upstream DBML gives it, so it can end in a quote. Today the first `'''` closes the string, and `'''it is ''a''''` is reported as unterminated. (P13.2 review.) Done: `'''` strings take the escapes of `'...'` strings, and a `\` at the end of a line joins the next, as upstream's lexer does (`@dbml/parse`, `escapedString`).
+- [x] P13.6 Strings take the rest of upstream's escapes: `\r`, `\0`, `\b`, `\v`, `\f` and `\uHHHH`, and `\ ` keeps its backslash. Today blendx reads each as the bare character (`\r` is `r`), in `'...'` and `'''...'''` strings alike. (Found while doing P13.5.) Done: the parser test reads each escape as upstream does, and refuses a `\u` without four hex digits, at its backslash.
+- [ ] P13.7 A `'''` string's escapes and its indentation removal run in the order upstream uses. Today blendx applies escapes first, so a `\n` escape starts a line that is dedented too. (Found while doing P13.5.)
 
 ## Inbox
 Discovered work goes here. Triage it into a phase before starting it.
@@ -124,8 +126,6 @@ Discovered work goes here. Triage it into a phase before starting it.
 - [x] P9.1: add `format: date-time` / `date` to string-mode timestamp and date columns in OpenAPI output. Decided in the D8 P9.1 note: `format: date` on date columns only; Postgres timestamps are not RFC 3339, so they stay plain strings.
 - [x] P12.5: the `blendx` facade depends on `@blendx/cli` for its bin (D9 note), so production installs also get the CLI's dependencies (drizzle-kit, typescript6 once review lands). Decide before publishing whether to make them optional or lazy. Decided in D18: split; now P12.5a.
 - [x] Upgrade to Drizzle 1.0.0 once it is on npm `latest`, following the D19 checklist, with the new pins recorded (D5). Now P13.1, without waiting.
-- [ ] DBML strings: upstream's lexer (`@dbml/parse`, `escapedString`) also takes `\r`, `\0`, `\b`, `\v`, `\f` and `\uHHHH`, and keeps the backslash in `\ `. blendx reads each of them as the bare character (`\r` is `r`), in `'...'` and `'''...'''` strings alike. Match upstream, or refuse the escapes blendx doesn't take.
-- [ ] DBML strings: in a `'''` string blendx applies escapes first, then removes the common indentation, so a `\n` escape starts a line that is dedented too. Check the order upstream uses (its interpreter, not the lexer) and follow it, with a test.
 
 ## Next: React adapter (not in current scope; don't start until asked)
 - [ ] N.1 `@blendx/react`: `createBlendxClient<AppType>()` → TanStack Query hooks per resource/action over `hc`.

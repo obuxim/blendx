@@ -133,6 +133,21 @@ describe('the DBML blendx accepts', () => {
     expect(note('d')).toBe('one two');
   });
 
+  test('strings take the escapes upstream DBML takes', async () => {
+    const schema = await parseDbml(
+      [
+        String.raw`Table a [note: 'r\r 0\0 b\b v\v f\f ué space\ q\" x\y'] {`,
+        '  id int [pk]',
+        '}',
+        String.raw`Table b [note: '''n\n t\t ué'''] {`,
+        '  id int [pk]',
+        '}',
+      ].join('\n'),
+    );
+    expect(tableNamed(schema, 'a').note).toBe('r\r 0\0 b\b v\v f\f ué space\\ q" xy');
+    expect(tableNamed(schema, 'b').note).toBe('n\n t\t ué');
+  });
+
   test('refs: short and block forms, composite keys, aliases, and which side holds the key', async () => {
     const schema = await parseDbml(
       [
@@ -263,6 +278,10 @@ describe('errors', () => {
       [
         'Table t {\n  id int [pk]\n  a int [ ]\n}',
         { message: 'expected a setting but found "]"', line: 3, column: 11 },
+      ],
+      [
+        "Table t [note: 'x\\u12'] {\n  id int [pk]\n}",
+        { message: '"\\u" needs four hex digits', line: 1, column: 18 },
       ],
     ];
     for (const [source, problem] of cases) {
