@@ -116,8 +116,10 @@ type Key<T extends string, A extends string> = readonly [
   input: Record<string, unknown>,
 ];
 
-const toQueryOptions = <K extends QueryKey, D>(queryKey: K, queryFn: () => Promise<D>) =>
-  queryOptions({ queryKey, queryFn });
+const toQueryOptions = <K extends QueryKey, D>(
+  queryKey: K,
+  queryFn: (context: { signal: AbortSignal }) => Promise<D>,
+) => queryOptions({ queryKey, queryFn });
 
 const toMutationOptions = <V, D>(
   mutationKey: readonly [table: string, action: string],
@@ -165,12 +167,14 @@ export function createBlendxClient<Client, E extends Endpoints>(
     api[table] = {};
     for (const [action, route] of Object.entries(actions)) {
       const [method = '', path = ''] = route.split(' ');
-      const call = (input: unknown) => request(client, method, path, input);
+      const call = (input: unknown, signal?: AbortSignal) =>
+        request(client, method, path, input, signal);
       api[table][action] =
         method === 'GET'
           ? {
               queryOptions: (input?: Record<string, unknown>) =>
-                toQueryOptions([table, action, input ?? {}], () => call(input)),
+                // TanStack aborts the signal when it cancels the query (N.7).
+                toQueryOptions([table, action, input ?? {}], ({ signal }) => call(input, signal)),
               fieldErrors,
             }
           : {
@@ -192,15 +196,25 @@ export function createBlendxClient<Client, E extends Endpoints>(
   return api as Api<Client, E>;
 }
 
-type HcCall = (input: unknown) => Promise<Response>;
+type HcCall = (input: unknown, options?: { init: RequestInit }) => Promise<Response>;
 
-/** Calls the route's hc function, then reads the reply. */
-async function request(client: unknown, method: string, path: string, input: unknown) {
+/**
+ * Calls the route's hc function, then reads the reply. A signal goes in the call's `init`,
+ * which hc merges into the client's own `init` key by key.
+ */
+async function request(
+  client: unknown,
+  method: string,
+  path: string,
+  input: unknown,
+  signal?: AbortSignal,
+) {
   let node = client as Record<string, unknown>;
   for (const segment of path.split('/').filter(Boolean)) {
     node = node[segment] as Record<string, unknown>;
   }
-  const response = await (node[`$${method.toLowerCase()}`] as HcCall)(input);
+  const call = node[`$${method.toLowerCase()}`] as HcCall;
+  const response = await call(input, signal ? { init: { signal } } : undefined);
   if (response.ok) return response.status === 204 ? null : ((await response.json()) as unknown);
   throw new ProblemDetailsError(await problemOf(response));
 }

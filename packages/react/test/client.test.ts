@@ -316,3 +316,29 @@ describe('a reply that is not Problem Details', () => {
     });
   });
 });
+
+describe('cancellation (N.7)', () => {
+  test("cancelling a query aborts its request, and the client's own init still applies", async () => {
+    const sent: { init?: RequestInit } = {};
+    // A request that records what it was sent with, and settles only when it is aborted.
+    const fetch = ((_input: RequestInfo | URL, init?: RequestInit) => {
+      sent.init = init;
+      return new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => reject(init.signal?.reason));
+      });
+    }) as typeof globalThis.fetch;
+    const client = hc<AppType>('http://localhost', { fetch, init: { credentials: 'include' } });
+    const api = createBlendxClient(client, endpoints);
+    const queries = queryClient();
+    const options = api.orders.index.queryOptions();
+
+    const cancelled = rejection(queries.fetchQuery(options));
+    while (!sent.init) await Bun.sleep(1);
+    expect(sent.init.credentials).toBe('include');
+    expect(sent.init.signal?.aborted).toBe(false);
+
+    await queries.cancelQueries({ queryKey: options.queryKey });
+    expect(sent.init.signal?.aborted).toBe(true);
+    await cancelled;
+  });
+});
