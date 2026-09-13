@@ -97,6 +97,9 @@ interface Token {
   kind: TokenKind;
   text: string;
   loc: SourceLocation;
+  /** Source offsets of the token's first character and of the character after it. */
+  start: number;
+  end: number;
 }
 
 const WORD = /[A-Za-z_][A-Za-z0-9_]*/y;
@@ -173,7 +176,9 @@ function tokenize(source: string): Token[] {
   while (i < source.length) {
     const c = source[i] ?? '';
     const loc = here();
-    const push = (kind: TokenKind, text: string) => tokens.push({ kind, text, loc });
+    const start = i;
+    /** Called once `i` is past the token. */
+    const push = (kind: TokenKind, text: string) => tokens.push({ kind, text, loc, start, end: i });
     if (c === '\n') {
       moveTo(i + 1);
     } else if (/\s/.test(c)) {
@@ -192,8 +197,8 @@ function tokenize(source: string): Token[] {
     } else if (c === '`') {
       push('expression', between('`', '`', 'expression'));
     } else if (source.startsWith('<>', i)) {
-      push('punct', '<>');
       i += 2;
+      push('punct', '<>');
     } else {
       const [kind, text] = ((): [TokenKind, string | undefined] => {
         const word = matchAt(WORD, source, i);
@@ -204,11 +209,11 @@ function tokenize(source: string): Token[] {
         return ['punct', PUNCTUATION.has(c) ? c : undefined];
       })();
       if (text === undefined) throw new DbmlSyntaxError(`unexpected character "${c}"`, loc);
-      push(kind, text);
       i += text.length;
+      push(kind, text);
     }
   }
-  tokens.push({ kind: 'eof', text: '', loc: here() });
+  tokens.push({ kind: 'eof', text: '', loc: here(), start: i, end: i });
   return tokens;
 }
 
@@ -280,7 +285,13 @@ class Parser {
 
   constructor(tokens: Token[]) {
     this.tokens = tokens;
-    this.eof = tokens[tokens.length - 1] ?? { kind: 'eof', text: '', loc: { line: 1, column: 1 } };
+    this.eof = tokens[tokens.length - 1] ?? {
+      kind: 'eof',
+      text: '',
+      loc: { line: 1, column: 1 },
+      start: 0,
+      end: 0,
+    };
   }
 
   document(): DbmlDocument {
@@ -320,6 +331,11 @@ class Parser {
   private isName(offset = 0): boolean {
     const kind = this.peek(offset).kind;
     return kind === 'word' || kind === 'quoted';
+  }
+
+  /** Whether the token at `offset` starts where the one before it ends, with no space between. */
+  private touches(offset = 0): boolean {
+    return this.peek(offset).start === this.peek(offset - 1).end;
   }
 
   private fail(expected: string): never {
@@ -549,7 +565,8 @@ class Parser {
       this.expectPunct(')', '"," or ")"');
       type += `(${args.join(',')})`;
     }
-    while (this.isPunct('[') && this.isPunct(']', 1)) {
+    // An array only as written, `text[]`: in `text []` or `text [ ]` the bracket opens the settings.
+    while (this.isPunct('[') && this.isPunct(']', 1) && this.touches() && this.touches(1)) {
       this.next();
       this.next();
       type += '[]';

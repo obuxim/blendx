@@ -91,6 +91,7 @@ describe('the DBML blendx accepts', () => {
         '  m public.mood',
         '  ms mood[]',
         '  v varchar(20)[]',
+        '  n int[] [not null]',
         '  ts timestamp(3)',
         '}',
       ].join('\n'),
@@ -102,6 +103,8 @@ describe('the DBML blendx accepts', () => {
     expect(type('m')).toEqual({ kind: 'enum', name: 'mood' });
     expect(type('ms')).toEqual({ kind: 'array', of: { kind: 'enum', name: 'mood' } });
     expect(type('v')).toEqual({ kind: 'array', of: { kind: 'varchar', length: 20 } });
+    expect(type('n')).toEqual({ kind: 'array', of: { kind: 'integer' } });
+    expect(columnNamed(schema, 't', 'n')?.nullable).toBe(false);
     expect(type('ts')).toEqual({ kind: 'timestamp', withTimezone: false });
   });
 
@@ -227,6 +230,14 @@ describe('errors', () => {
       [
         'Table t {\n  id int [pk]\n  @x int\n}',
         { message: 'unexpected character "@"', line: 3, column: 3 },
+      ],
+      [
+        'Table t {\n  id int [pk]\n  a int []\n}',
+        { message: 'expected a setting but found "]"', line: 3, column: 10 },
+      ],
+      [
+        'Table t {\n  id int [pk]\n  a int [ ]\n}',
+        { message: 'expected a setting but found "]"', line: 3, column: 11 },
       ],
     ];
     for (const [source, problem] of cases) {

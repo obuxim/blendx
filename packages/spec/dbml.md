@@ -28,7 +28,7 @@ Table orders as O [note: 'what an order is'] {
 
 A column is `name type [settings]`.
 
-- Types: `smallint`, `int`, `bigint` (and `int2`, `int4`, `int8`, `integer`), the `serial` family (an increment), `real`, `double`, `"double precision"`, `numeric(p, s)` or `decimal`, `varchar(n)`, `char(n)`, `text`, `boolean`, `uuid`, `json`, `jsonb`, `date`, `time`, `timestamp`, `timestamptz`, an enum of the schema, and any of them as an array, `text[]`. A type of several words is quoted.
+- Types: `smallint`, `int`, `bigint` (and `int2`, `int4`, `int8`, `integer`), the `serial` family (an increment), `real`, `double`, `"double precision"`, `numeric(p, s)` or `decimal`, `varchar(n)`, `char(n)`, `text`, `boolean`, `uuid`, `json`, `jsonb`, `date`, `time`, `timestamp`, `timestamptz`, an enum of the schema, and any of them as an array, `text[]`, with no space: in `text []` the bracket opens the settings, and an empty settings list is an error. A type of several words is quoted.
 - Settings: `pk` or `primary key`, `increment`, `not null`, `null`, `unique`, `note: '...'`, `default: ...` and `ref: ...` (Refs, below).
 - A default is a number (`1`, `-1`, `1.5`), a string (`'pending'`), a SQL expression in backticks (`` `now()` ``), `true`, `false` or `null`.
 - Strings take `\'` for a quote. A `'''` string may span lines; its common indentation is removed.
