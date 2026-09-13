@@ -10,6 +10,7 @@ import type {
   Resource,
   ResourceHooks,
 } from './blend.ts';
+import type { ReplyDeclaration } from './hooks.ts';
 import type { Model } from './model.ts';
 import type { Policy } from './policy.ts';
 
@@ -32,6 +33,8 @@ export interface EndpointDefinition {
   readonly hooks: ActionHooks;
   /** The resource-level hooks, shared by every action of the resource. */
   readonly resourceHooks: ResourceHooks;
+  /** The reply schema the action declares for OpenAPI (D14), if any. */
+  readonly reply?: ReplyDeclaration;
 }
 
 const BUILTIN_ORDER = ['index', 'store', 'show', 'update', 'destroy', 'restore'];
@@ -71,6 +74,7 @@ export function toEndpoints(resource: Resource): EndpointDefinition[] {
       trashed: action.options?.trashed === true,
       hooks: action.hooks,
       resourceHooks: resource.hooks as ResourceHooks,
+      ...(action.reply ? { reply: action.reply } : {}),
     });
   });
 }

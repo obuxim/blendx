@@ -16,7 +16,8 @@ const goldens = join(fixture, 'src', 'generated');
 const bin = join(import.meta.dir, '..', 'src', 'bin.ts');
 
 /** The fixture's quote action replies with calculate's result, which OpenAPI can't describe. */
-const WARNING = 'warning: orders.quote: the reply is what calculate returns, which has no schema\n';
+const WARNING =
+  'warning: orders.quote: the reply is what calculate returns; describe it with reply\n';
 
 let app: string;
 beforeAll(async () => {

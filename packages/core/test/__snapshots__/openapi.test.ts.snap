@@ -536,7 +536,18 @@ exports[`buildOpenApi the whole document 1`] = `
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "total": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "total"
+                  ],
+                  "type": "object"
+                }
               }
             },
             "description": "OK"
@@ -885,15 +896,28 @@ exports[`buildOpenApi the whole document 1`] = `
           "required": true
         },
         "responses": {
-          "200": {
+          "202": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/orders"
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "number"
+                    },
+                    "refunding": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "refunding"
+                  ],
+                  "type": "object"
                 }
               }
             },
-            "description": "OK"
+            "description": "Accepted"
           },
           "400": {
             "content": {

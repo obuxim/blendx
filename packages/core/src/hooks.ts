@@ -16,12 +16,70 @@ export interface Reply<Status extends number = number, Body = unknown> {
   readonly status: Status;
   readonly body: Body;
   readonly headers?: Readonly<Record<string, string>>;
-  /** Describes `body` for OpenAPI when respond replaces the default reply. */
-  readonly schema?: z.ZodType;
 }
 
 /** When respond is omitted, R falls back to its constraint; use the default reply then. */
 export type ResolvedReply<R, Default> = Reply extends R ? Default : R;
+
+/**
+ * `reply` on an action describes, for OpenAPI, a reply blendx cannot derive: a collection
+ * action's calculate result, or what a respond hook builds (docs/decisions.md D14). The
+ * body schema alone keeps the action's default status; `{ status, body }` sets another.
+ */
+export type ReplySchema = z.ZodType | { readonly status: number; readonly body: z.ZodType };
+
+/** What blend() keeps of a declared reply: the body schema, and a status other than the default. */
+export interface ReplyDeclaration {
+  readonly status?: number;
+  readonly schema: z.ZodType;
+}
+
+/** The schema describes the body exactly: every body fits it, and the keys are the same. */
+type Describes<Schema, Body> = Schema extends z.ZodType
+  ? [Body] extends [z.output<Schema>]
+    ? [
+        Exclude<keyof z.output<Schema>, keyof Body> | Exclude<keyof Body, keyof z.output<Schema>>,
+      ] extends [never]
+      ? true
+      : false
+    : false
+  : false;
+
+/** A property no schema has, so a failed check names its reason in the type error. */
+interface ReplyError<Reason extends string> {
+  readonly 'blendx reply error': Reason;
+}
+
+type NotDescribed = ReplyError<'the schema does not describe the reply body'>;
+
+/**
+ * `unknown` when X describes the actual reply (the default, or what respond returns), else
+ * the reason it doesn't. Without `reply`, X falls back to its constraint (the ReplySchema
+ * union), and there is nothing to check.
+ */
+export type ReplyCheck<X, Actual, Default> = ReplySchema extends X
+  ? unknown
+  : Actual extends Reply<infer Status, infer Body>
+    ? [X] extends [{ readonly status: infer Declared; readonly body: infer Schema }]
+      ? [Declared] extends [Status]
+        ? Describes<Schema, Body> extends true
+          ? unknown
+          : NotDescribed
+        : ReplyError<'status is not the status respond returns'>
+      : Describes<X, Body> extends true
+        ? Default extends Reply<Status>
+          ? unknown
+          : ReplyError<'respond returns another status; declare { status, body }'>
+        : NotDescribed
+    : unknown;
+
+/**
+ * Adds `reply` to an action spec; X is inferred from it alone. ReplyCheck runs on the
+ * builder's return type, after inference: anywhere in the spec's type it would fix R and
+ * Result (while TS works out the contextual types of respond and calculate) before they
+ * are inferred.
+ */
+export type ReplyOption<X> = { reply?: X };
 
 /** The validated input of an action, from its resolved rules. */
 export type Input<M extends Model, Action extends string, S> = z.output<

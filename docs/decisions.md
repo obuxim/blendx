@@ -180,6 +180,9 @@ One generic call per action infers correctly in every case tested:
 - When `rules` is omitted, TS falls back to the type parameter's constraint, not to a generic default. The types therefore swap in the action's defaults with a conditional (`Resolved<S, Defaults>`).
 - Inside one spec, `rules` still comes before `calculate`.
 
+## D14: Reply schemas are declared on the action (2026-09-13)
+OpenAPI needs a schema for the replies blendx can't derive: a collection action's calculate result, and anything a respond hook builds. An action declares it as `reply`: a zod schema for the body (at the action's default status), or `{ status, body }` when respond returns another status. It is type-checked against the actual reply: every body the action can send must fit the schema, the keys must match, and the status must be the one respond returns. `blendx generate` reads it without running any hook. Chosen over calling respond at generate time, which runs user code on fake input and still misses collection actions without a respond hook. `Reply.schema`, which nothing read, is removed. A reply that is neither declared nor derivable stays a warning. A mismatch is a type error on the action's call that names the reason (`ReplyError<"...">`). The check runs on the builder's return type, after inference: placed anywhere in the spec's type, it made TypeScript fix R and Result (while typing respond and calculate) before they were inferred.
+
 ## D13: Double precision columns are unbounded (2026-09-13)
 drizzle-zod bounds `doublePrecision` to plus or minus 2^47, so a real double such as `1e20` was rejected. The default rules replace that bound with `z.number()`, using drizzle-zod's callback refine. The callback keeps drizzle-zod's null and optional handling; a plain schema refine drops it, so a nullable double would reject `null`.
 Rule id DR-DOUBLE-UNBOUNDED. This closes the Inbox item from the D8 note.

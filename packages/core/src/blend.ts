@@ -16,6 +16,10 @@ import type {
   MemberSpec,
   RecordSpec,
   Reply,
+  ReplyCheck,
+  ReplyDeclaration,
+  ReplyOption,
+  ReplySchema,
   ResolvedReply,
   RespondContext,
   SaveContext,
@@ -59,6 +63,8 @@ export interface ActionDefinition<
   readonly hooks: ActionHooks;
   /** Action options: `trashed` lets index accept ?trashed=with|only. */
   readonly options: { readonly trashed?: boolean };
+  /** The reply schema for OpenAPI, when the action declares one (D14). */
+  readonly reply?: ReplyDeclaration;
   /** Type only: the resolved rules schema, for route and RPC types. */
   readonly [rulesType]?: Rules;
   /** Type only: the reply (default or from respond), for route and RPC types. */
@@ -80,51 +86,92 @@ export type { IndexPage } from './hooks.ts';
  */
 type MethodOf<Method> = HttpMethod extends Method ? 'post' : Method;
 
+/** A row reply of this resource: the public record, at a status. */
+type RowReply<M extends Model, Hidden extends string, Status extends number> = Reply<
+  Status,
+  Public<M, Hidden>
+>;
+
+type PageReply<M extends Model, Hidden extends string> = Reply<200, IndexPage<Public<M, Hidden>>>;
+
+/**
+ * The action, or the reason its declared reply does not describe the actual one (D14). The
+ * reason is not an ActionDefinition, so blend() rejects the actions list that holds it. The
+ * check runs on the return type because the spec's own type is read before R and Result
+ * are inferred (see ReplyOption).
+ */
+type Checked<X, Default, D> =
+  D extends ActionDefinition<string, unknown, infer Out>
+    ? unknown extends ReplyCheck<X, Out, Default>
+      ? D
+      : ReplyCheck<X, Out, Default>
+    : D;
+
 export type ActionBuilder<M extends Model, Hidden extends string = never> = {
-  index<const R extends Reply>(
-    spec?: IndexSpec<M, R, Hidden>,
-  ): ActionDefinition<
-    'index',
-    IndexRules,
-    ResolvedReply<R, Reply<200, IndexPage<Public<M, Hidden>>>>,
-    'get'
+  index<const R extends Reply, const X extends ReplySchema>(
+    spec?: IndexSpec<M, R, Hidden> & ReplyOption<X>,
+  ): Checked<
+    X,
+    PageReply<M, Hidden>,
+    ActionDefinition<'index', IndexRules, ResolvedReply<R, PageReply<M, Hidden>>, 'get'>
   >;
-  show<const R extends Reply>(
-    spec?: RecordSpec<M, 'show', R, Reply<200, Public<M, Hidden>>, Hidden>,
-  ): ActionDefinition<'show', EmptyRules, ResolvedReply<R, Reply<200, Public<M, Hidden>>>, 'get'>;
-  store<S extends z.ZodType, const R extends Reply>(
-    spec?: StoreSpec<M, S, R, Hidden>,
-  ): ActionDefinition<
-    'store',
-    ResolvedRules<S, DefaultRules<M, 'store'>>,
-    ResolvedReply<R, Reply<201, Public<M, Hidden>>>,
-    'post'
+  show<const R extends Reply, const X extends ReplySchema>(
+    spec?: RecordSpec<M, 'show', R, RowReply<M, Hidden, 200>, Hidden> & ReplyOption<X>,
+  ): Checked<
+    X,
+    RowReply<M, Hidden, 200>,
+    ActionDefinition<'show', EmptyRules, ResolvedReply<R, RowReply<M, Hidden, 200>>, 'get'>
   >;
-  update<S extends z.ZodType, const R extends Reply>(
-    spec?: UpdateSpec<M, S, R, Hidden>,
-  ): ActionDefinition<
-    'update',
-    ResolvedRules<S, DefaultRules<M, 'update'>>,
-    ResolvedReply<R, Reply<200, Public<M, Hidden>>>,
-    'patch'
+  store<S extends z.ZodType, const R extends Reply, const X extends ReplySchema>(
+    spec?: StoreSpec<M, S, R, Hidden> & ReplyOption<X>,
+  ): Checked<
+    X,
+    RowReply<M, Hidden, 201>,
+    ActionDefinition<
+      'store',
+      ResolvedRules<S, DefaultRules<M, 'store'>>,
+      ResolvedReply<R, RowReply<M, Hidden, 201>>,
+      'post'
+    >
   >;
-  destroy<const R extends Reply>(
-    spec?: RecordSpec<M, 'destroy', R, Reply<204, null>, Hidden>,
-  ): ActionDefinition<'destroy', EmptyRules, ResolvedReply<R, Reply<204, null>>, 'delete'>;
+  update<S extends z.ZodType, const R extends Reply, const X extends ReplySchema>(
+    spec?: UpdateSpec<M, S, R, Hidden> & ReplyOption<X>,
+  ): Checked<
+    X,
+    RowReply<M, Hidden, 200>,
+    ActionDefinition<
+      'update',
+      ResolvedRules<S, DefaultRules<M, 'update'>>,
+      ResolvedReply<R, RowReply<M, Hidden, 200>>,
+      'patch'
+    >
+  >;
+  destroy<const R extends Reply, const X extends ReplySchema>(
+    spec?: RecordSpec<M, 'destroy', R, Reply<204, null>, Hidden> & ReplyOption<X>,
+  ): Checked<
+    X,
+    Reply<204, null>,
+    ActionDefinition<'destroy', EmptyRules, ResolvedReply<R, Reply<204, null>>, 'delete'>
+  >;
   /** A custom action on one record: `POST /:id/<name>` unless `method` says otherwise. */
   member<
     const N extends string,
     S extends z.ZodType,
     const R extends Reply,
     const Method extends HttpMethod,
+    const X extends ReplySchema,
   >(
     name: N,
-    spec?: MemberSpec<M, N, S, R, Hidden> & { method?: Method },
-  ): ActionDefinition<
-    N,
-    ResolvedRules<S, EmptyRules>,
-    ResolvedReply<R, Reply<200, Public<M, Hidden>>>,
-    MethodOf<Method>
+    spec?: MemberSpec<M, N, S, R, Hidden> & { method?: Method } & ReplyOption<X>,
+  ): Checked<
+    X,
+    RowReply<M, Hidden, 200>,
+    ActionDefinition<
+      N,
+      ResolvedRules<S, EmptyRules>,
+      ResolvedReply<R, RowReply<M, Hidden, 200>>,
+      MethodOf<Method>
+    >
   >;
   /**
    * A custom action on the collection: `POST /<name>` unless `method` says otherwise.
@@ -136,24 +183,28 @@ export type ActionBuilder<M extends Model, Hidden extends string = never> = {
     Result extends Record<string, unknown>,
     const R extends Reply,
     const Method extends HttpMethod,
+    const X extends ReplySchema,
   >(
     name: N,
-    spec?: CollectionSpec<M, N, S, Result, R> & { method?: Method },
-  ): ActionDefinition<
-    N,
-    ResolvedRules<S, EmptyRules>,
-    ResolvedReply<R, Reply<200, Result>>,
-    MethodOf<Method>
+    spec?: CollectionSpec<M, N, S, Result, R> & { method?: Method } & ReplyOption<X>,
+  ): Checked<
+    X,
+    Reply<200, Result>,
+    ActionDefinition<
+      N,
+      ResolvedRules<S, EmptyRules>,
+      ResolvedReply<R, Reply<200, Result>>,
+      MethodOf<Method>
+    >
   >;
 } & (SoftDeletes<M> extends true
   ? {
-      restore<const R extends Reply>(
-        spec?: RecordSpec<M, 'restore', R, Reply<200, Public<M, Hidden>>, Hidden>,
-      ): ActionDefinition<
-        'restore',
-        EmptyRules,
-        ResolvedReply<R, Reply<200, Public<M, Hidden>>>,
-        'post'
+      restore<const R extends Reply, const X extends ReplySchema>(
+        spec?: RecordSpec<M, 'restore', R, RowReply<M, Hidden, 200>, Hidden> & ReplyOption<X>,
+      ): Checked<
+        X,
+        RowReply<M, Hidden, 200>,
+        ActionDefinition<'restore', EmptyRules, ResolvedReply<R, RowReply<M, Hidden, 200>>, 'post'>
       >;
     }
   : unknown);
@@ -227,7 +278,23 @@ type AnySpec = { [K in (typeof HOOK_NAMES)[number]]?: ActionHooks[K] } & {
   method?: HttpMethod;
   path?: string;
   trashed?: boolean;
+  reply?: unknown;
 };
+
+const isSchema = (value: unknown): value is z.ZodType =>
+  typeof value === 'object' && value !== null && '_zod' in value;
+
+/** A declared reply as blend() keeps it (D14), or undefined when it has none or a bad one. */
+function replyOf(reply: unknown): ReplyDeclaration | null | undefined {
+  if (reply === undefined) return undefined;
+  if (isSchema(reply)) return Object.freeze({ schema: reply });
+  const { status, body } = (typeof reply === 'object' && reply !== null ? reply : {}) as {
+    status?: unknown;
+    body?: unknown;
+  };
+  const success = typeof status === 'number' && Number.isInteger(status) && status >= 200;
+  return success && status < 300 && isSchema(body) ? Object.freeze({ status, schema: body }) : null;
+}
 
 function define(
   name: string,
@@ -236,6 +303,7 @@ function define(
   path: string,
   builtin: boolean,
   spec: AnySpec = {},
+  reply?: ReplyDeclaration,
 ): ActionDefinition {
   const hooks: Record<string, unknown> = {};
   for (const hook of HOOK_NAMES) {
@@ -249,12 +317,28 @@ function define(
     builtin,
     hooks: Object.freeze(hooks) as ActionHooks,
     options: Object.freeze(spec.trashed ? { trashed: true } : {}),
+    ...(reply ? { reply } : {}),
   });
 }
 
 function builderFor(model: Model) {
-  const fail = (message: string) => {
+  const fail = (message: string): never => {
     throw new BlendxDefinitionError(model.name, message);
+  };
+  /** define(), with the spec's reply checked and normalized. */
+  const make = (
+    name: string,
+    on: ActionDefinition['on'],
+    method: HttpMethod,
+    path: string,
+    builtin: boolean,
+    spec?: AnySpec,
+  ) => {
+    const reply = replyOf(spec?.reply);
+    if (reply === null) {
+      fail(`action "${name}" has a reply that is neither a zod schema nor { status, body }`);
+    }
+    return define(name, on, method, path, builtin, spec, reply ?? undefined);
   };
   const custom = (on: ActionDefinition['on'], name: string, spec: AnySpec = {}) => {
     if (BUILTIN.has(name)) fail(`custom action "${name}" reuses a built-in action name`);
@@ -265,7 +349,7 @@ function builderFor(model: Model) {
     if (!PATH_SEGMENT.test(segment)) {
       fail(`custom action "${name}" has an invalid path "${segment}"`);
     }
-    return define(
+    return make(
       name,
       on,
       spec.method ?? 'post',
@@ -279,17 +363,17 @@ function builderFor(model: Model) {
       if (spec?.trashed && model.meta.softDelete === null) {
         fail('trashed needs a soft-delete table (a nullable deleted_at timestamp)');
       }
-      return define('index', 'collection', 'get', '', true, spec);
+      return make('index', 'collection', 'get', '', true, spec);
     },
-    show: (spec?: AnySpec) => define('show', 'member', 'get', '/:id', true, spec),
-    store: (spec?: AnySpec) => define('store', 'collection', 'post', '', true, spec),
-    update: (spec?: AnySpec) => define('update', 'member', 'patch', '/:id', true, spec),
-    destroy: (spec?: AnySpec) => define('destroy', 'member', 'delete', '/:id', true, spec),
+    show: (spec?: AnySpec) => make('show', 'member', 'get', '/:id', true, spec),
+    store: (spec?: AnySpec) => make('store', 'collection', 'post', '', true, spec),
+    update: (spec?: AnySpec) => make('update', 'member', 'patch', '/:id', true, spec),
+    destroy: (spec?: AnySpec) => make('destroy', 'member', 'delete', '/:id', true, spec),
     restore: (spec?: AnySpec) => {
       if (model.meta.softDelete === null) {
         fail('restore needs a soft-delete table (a nullable deleted_at timestamp)');
       }
-      return define('restore', 'member', 'post', '/:id/restore', true, spec);
+      return make('restore', 'member', 'post', '/:id/restore', true, spec);
     },
     member: (name: string, spec?: AnySpec) => custom('member', name, spec),
     collection: (name: string, spec?: AnySpec) => custom('collection', name, spec),

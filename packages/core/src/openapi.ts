@@ -48,6 +48,7 @@ const problemSchema = z.object({
 const DESCRIPTIONS: Record<number, string> = {
   200: 'OK',
   201: 'Created',
+  202: 'Accepted',
   204: 'No content',
   400: 'The body is not valid JSON',
   401: 'The request has no identity',
@@ -110,23 +111,33 @@ const page = (record: JsonObject): JsonObject => ({
   additionalProperties: false,
 });
 
-/** The success reply: the action's default, or an untyped body with a warning. */
+const DEFAULT_STATUS: Readonly<Record<string, number>> = { store: 201, destroy: 204 };
+
+/**
+ * The success reply: the one the action declares (D14), its default, or an empty schema with
+ * a warning when neither describes it.
+ */
 function replies(endpoint: EndpointDefinition, warnings: string[]): JsonObject {
   const reply = (status: number, schema?: JsonObject): JsonObject => ({
     [String(status)]: {
-      description: DESCRIPTIONS[status],
+      description: DESCRIPTIONS[status] ?? `Status ${status}`,
       ...(schema ? withBody('application/json', schema) : {}),
     },
   });
   const record = ref(endpoint.resource);
 
+  if (endpoint.reply) {
+    const fallback = endpoint.builtin ? DEFAULT_STATUS[endpoint.action] : undefined;
+    const status = endpoint.reply.status ?? fallback ?? 200;
+    return reply(status, status === 204 ? undefined : jsonSchema(endpoint.reply.schema, 'output'));
+  }
   if (endpoint.hooks.respond) {
-    warnings.push(`${endpoint.id}: its respond hook replaces the reply, which has no schema`);
+    warnings.push(`${endpoint.id}: its respond hook builds the reply; describe it with reply`);
     return reply(200, {});
   }
   if (!endpoint.builtin) {
     if (endpoint.on === 'member') return reply(200, record);
-    warnings.push(`${endpoint.id}: the reply is what calculate returns, which has no schema`);
+    warnings.push(`${endpoint.id}: the reply is what calculate returns; describe it with reply`);
     return reply(200, {});
   }
   switch (endpoint.action) {

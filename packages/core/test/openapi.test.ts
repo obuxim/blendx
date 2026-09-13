@@ -96,10 +96,9 @@ describe('buildOpenApi', () => {
     expect(statuses('/orders/{id}/refund', 'post')).toContain('403');
   });
 
-  test('replies it cannot describe are warnings', () => {
-    expect(warnings).toEqual([
-      'orders.quote: the reply is what calculate returns, which has no schema',
-    ]);
+  test('declared replies leave nothing undescribed', () => {
+    expect(warnings).toEqual([]);
+    expect(statuses('/orders/{id}/refund', 'post')).toContain('202');
   });
 
   test('the output does not depend on the order of the resources', () => {

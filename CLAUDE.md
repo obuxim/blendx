@@ -41,6 +41,7 @@ Status: the framework is under construction. Work is driven by `docs/todo.md` (s
 - `calculate({ prev, input, record })` is pure and synchronous: no db, no request, no I/O imports.
 - Put `rules` before `calculate` in the object literal (type inference runs left to right).
 - Override only the stage that differs from the default.
+- A reply blendx can't derive (a collection action's calculate result, or what respond builds) declares `reply: z.object(...)` for OpenAPI, or `reply: { status, body }` when respond returns another status. `blendx generate` warns about any reply it can't describe.
 
 ## Conventions
 

@@ -1,7 +1,7 @@
 /**
  * The shop fixture as resources for the OpenAPI tests: a hidden column, public and
  * authenticated policies, a when policy, soft delete with ?trashed, and a custom collection
- * and member action.
+ * and member action, both with declared replies (the member one answers 202).
  */
 import { allow, blend } from '@blendx/core';
 import { z } from 'zod';
@@ -31,8 +31,13 @@ export const orders = blend(models.orders, {
       method: 'get',
       rules: () => z.object({ quantity: z.string() }),
       calculate: ({ input }) => ({ total: Number(input.quantity) * 10 }),
+      reply: z.object({ total: z.number() }),
     }),
-    a.member('refund', { rules: () => z.object({ reason: z.string() }) }),
+    a.member('refund', {
+      rules: () => z.object({ reason: z.string() }),
+      respond: ({ record }) => ({ status: 202, body: { id: record.id, refunding: true } }),
+      reply: { status: 202, body: z.object({ id: z.number(), refunding: z.boolean() }) },
+    }),
   ],
 });
 
