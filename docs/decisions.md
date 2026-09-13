@@ -66,7 +66,7 @@ drizzle-zod 0.8.3 schemas are plain zod 4 objects: `instanceof z.ZodObject`, and
 **Finding:** drizzle-zod's types reference Node's `Buffer`. Without it, the portable check silently loses schema precision. `types/portable-globals.d.ts` declares a type-only `interface Buffer` for tsconfig.portable.json only. There is still no `Buffer` value, so the gate holds. Regression test: `packages/core/test/spikes/p1-3-drizzle-zod.test.ts`.
 
 ## D7: Default DB driver `pg` (2026-09-13)
-node-postgres on Bun and Node. PGlite in tests. `bun-sql` is opt-in because of open Drizzle issues (JSON serialization, timezones). drizzle-kit is never bundled into the compiled CLI.
+node-postgres on Bun and Node. PGlite in tests. `bun-sql` is opt-in because of open Drizzle issues (JSON serialization, timezones). drizzle-kit is never bundled into the compiled CLI. (There is no compiled CLI in v1: D17.)
 
 ### D7 note: P1.5 spike result (2026-09-13)
 drizzle-kit 0.31.10 runs on Bun with `bun x --bun drizzle-kit generate` (about 0.2 s), so migrations don't need Node installed. drizzle-kit#5122 is about bundling drizzle-kit into a compiled binary, not about running it. drizzle's PGlite migrator applies the generated folder inside `bun test`. Postgres errors keep their SQLSTATE through drizzle and PGlite (somewhere on the `cause` chain):
@@ -121,7 +121,7 @@ Confirmed with hono 4.13.7: an explicitly typed `readonly [MiddlewareHandler, Ha
 - `routes.gen.ts` imports only from `blendx` (`router()` and `run()`), so an app needs no direct hono dependency. Tables sort by name, and endpoints keep the `toEndpoints()` order. A table named like a JS reserved word, `router` or `run` gets a `_` suffix on its import binding.
 - `register.gen.ts` augments `declare module "blendx"`. The augmentation reaches `Register` in `@blendx/core` through the facade's re-export, so apps never import `@blendx/core`. `packages/cli/test/register` is its own tsconfig project and fails without the golden.
 - `drizzle.config.gen.ts` is a plain object (no drizzle-kit import) with paths relative to the app root, where drizzle-kit runs. It holds no credentials: `migrate generate` is offline and `migrate up` uses blendx's own migrator, so no database URL lands in a committed file.
-- The `blendx` bin lives in the facade package, because `bunx blendx` resolves the package named `blendx`. It is a two-line file calling `main()` from `@blendx/cli`, so the facade depends on the CLI. `@blendx/cli` keeps `src/bin.ts` as the `bun build --compile` entry (P12.4) but declares no bin of its own.
+- The `blendx` bin lives in the facade package, because `bunx blendx` resolves the package named `blendx`. It is a two-line file calling `main()` from `@blendx/cli`, so the facade depends on the CLI. `@blendx/cli` keeps `src/bin.ts`, which its tests spawn, but declares no bin of its own. (It was meant as the `bun build --compile` entry for P12.4, dropped in D17.)
 - The `schema.gen.ts` that `blendx generate` writes imports its builders from `blendx/drizzle`, which re-exports drizzle-orm's pg-core and `sql`. An app then needs no drizzle-orm dependency of its own, and can't end up with a second drizzle-orm copy whose types differ from the one blendx is built on. `emitDrizzle` keeps plain drizzle-orm imports unless given `importFrom`, which is what the package goldens use.
 - `blendx migrate generate` runs the drizzle-kit that `@blendx/cli` pins, by its bin path, from the app root with `drizzle.config.gen.ts`. It refuses while `schema.gen.ts` is out of date, so a migration never comes from a stale schema. On a real terminal drizzle-kit inherits it, so its rename prompts still work. `blendx migrate up` applies migrations with `createDatabase(config).migrate()`, the configured driver's own drizzle migrator.
 - `blendx generate` also writes `openapi.json` (P9.3), from the blends and the app module's `defineApp()`. Each reply the document can't describe prints as a `warning:` line on stderr; warnings never fail `generate` or `--check`.
@@ -146,7 +146,7 @@ All seven spikes passed and stay as regression tests (`packages/*/test/spikes/`)
 - **D4:** the Postgres error mapping also sends 22001 (value too long) to 422: 23505 → 409; 23503, 23502, 22P02 and 22001 → 422.
 - **D5:** `@typescript/typescript6` is a dev dependency of `@blendx/cli` for the spike. It becomes a runtime dependency when the review step lands (P10.2).
 - **D6:** the portability gate includes `types/portable-globals.d.ts` (type-only `Buffer`) so drizzle-zod types stay precise.
-- **D7:** the CLI runs drizzle-kit as `bun x --bun drizzle-kit`, so Node is not required. drizzle-kit stays external to the compiled CLI.
+- **D7:** the CLI runs drizzle-kit as `bun x --bun drizzle-kit`, so Node is not required. drizzle-kit stays external to the compiled CLI. (No compiled CLI in v1: D17.)
 
 Open questions carried forward are in the todo Inbox (double bounds, timestamp format, removing the Bun workaround).
 
@@ -188,6 +188,9 @@ One generic call per action infers correctly in every case tested:
 - Custom actions are `a.member(name, spec)` and `a.collection(name, spec)`.
 - When `rules` is omitted, TS falls back to the type parameter's constraint, not to a generic default. The types therefore swap in the action's defaults with a conditional (`Resolved<S, Defaults>`).
 - Inside one spec, `rules` still comes before `calculate`.
+
+## D17: No compiled CLI binary in v1 (2026-09-13)
+The CLI ships only as the `blendx` package's bin (`bunx blendx`), not as a `bun build --compile` binary; P12.4 is closed on this decision. Probed with Bun 1.4.2, both shapes failed. A binary bundling everything (120 MB) could not start, even for `--version`. One that kept blendx external (81 MB) could not find `@blendx/cli`. A compiled binary resolves its external packages inside itself (`/$bunfs/root`), not in the app. Beyond that, a bundled binary carries its own copy of blendx and zod beside the app's installed one: the app's blends are built with the app's copy and processed with the binary's, and `instanceof` checks fail across copies, so `generate --check` could disagree with the installed CLI. An app installs `blendx` anyway, because its blends import it, so a binary would only save installing Bun. If that ever matters, the shape to build is a launcher that finds the app's installed `@blendx/cli` by absolute path and runs it, so only one copy of blendx exists.
 
 ## D16: bun-sql stays opt-in; its errors carry the SQLSTATE elsewhere (2026-09-13)
 P11.6 ran the conformance suite on Bun 1.4.2 with the bun-sql driver against PostgreSQL 18.6: 27 of 28 cases pass. ERR-409 fails: a duplicate email answers 500 instead of 409. Bun's `PostgresError` puts the SQLSTATE in `errno` (`23505`) and uses `code` for its own name (`ERR_POSTGRES_SERVER_ERROR`), while the engine's `databaseError` looks for a five-character SQLSTATE in `code`, where node-postgres and PGlite put it. So on bun-sql every mapping from a database error is lost, not only the one the suite caught: 23505 (409), 23503 (422, or 409 on a destroy), 23502, 22P02 and 22001 (422), and 22P02 on a member load (404) all become 500. Everything else the cases reach behaves as on pg and PGlite. bun-sql stays opt-in until `databaseError` also reads `errno` (Inbox); then the suite runs on it again.
