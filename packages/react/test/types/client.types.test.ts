@@ -70,6 +70,14 @@ describe('@blendx/react types', () => {
     expectTypeOf(api.orders.refund).not.toHaveProperty('queryOptions');
   });
 
+  test('a mutation may name the other tables it changes, by their names in the map', () => {
+    expectTypeOf(api.orders.refund.mutationOptions).parameters.toEqualTypeOf<
+      [options?: { invalidates?: readonly ('order_notes' | 'orders' | 'users')[] }]
+    >();
+    // @ts-expect-error not a table of the app
+    api.orders.refund.mutationOptions({ invalidates: ['payments'] });
+  });
+
   test('only the actions the blends list', () => {
     expectTypeOf(api.order_notes).toHaveProperty('store');
     expectTypeOf(api.order_notes).not.toHaveProperty('show');

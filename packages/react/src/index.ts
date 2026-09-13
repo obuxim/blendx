@@ -9,9 +9,15 @@
  *
  * A GET action gives queryOptions, any other method mutationOptions. Both resolve to the
  * body of the action's success reply (null for a 204), and reject with a ProblemDetailsError
- * for any other reply.
+ * for any other reply. A mutation that succeeds invalidates every query of its table, and of
+ * the tables it names (D25 note, N.2).
  */
-import { mutationOptions, type QueryKey, queryOptions } from '@tanstack/react-query';
+import {
+  mutationOptions,
+  type QueryClient,
+  type QueryKey,
+  queryOptions,
+} from '@tanstack/react-query';
 import type { ProblemDetails } from 'blendx';
 import type { InferResponseType } from 'blendx/client';
 
@@ -98,17 +104,25 @@ const toQueryOptions = <K extends QueryKey, D>(queryKey: K, queryFn: () => Promi
 
 const toMutationOptions = <V, D>(
   mutationKey: readonly [table: string, action: string],
-  mutationFn: (variables: V) => Promise<D>,
+  mutationFn: (variables: V, context: { client: QueryClient }) => Promise<D>,
 ) => mutationOptions({ mutationKey, mutationFn });
+
+/** What a mutation adds to its defaults. */
+export interface MutationSettings<Table extends string> {
+  /** Other tables whose queries it changes: the ones its hooks write. Its own table always is. */
+  invalidates?: readonly Table[];
+}
 
 /** A GET action. */
 export interface QueryAction<K extends QueryKey, F> {
   queryOptions(...input: InputArgs<F>): ReturnType<typeof toQueryOptions<K, Data<F>>>;
 }
 
-/** An action of any other method. */
-export interface MutationAction<F> {
-  mutationOptions(): ReturnType<typeof toMutationOptions<Variables<F>, Data<F>>>;
+/** An action of any other method. `Tables` are the app's tables, which it may invalidate. */
+export interface MutationAction<F, Tables extends string> {
+  mutationOptions(
+    options?: MutationSettings<Tables>,
+  ): ReturnType<typeof toMutationOptions<Variables<F>, Data<F>>>;
 }
 
 /** Every action of the map, by table and name, typed by the hc client's route for it. */
@@ -116,7 +130,7 @@ export type Api<Client, E extends Endpoints> = {
   readonly [T in keyof E & string]: {
     readonly [A in keyof E[T] & string]: E[T][A] extends `GET ${string}`
       ? QueryAction<Key<T, A>, Call<Client, E[T][A]>>
-      : MutationAction<Call<Client, E[T][A]>>;
+      : MutationAction<Call<Client, E[T][A]>, keyof E & string>;
   };
 };
 
@@ -137,7 +151,19 @@ export function createBlendxClient<Client, E extends Endpoints>(
               queryOptions: (input?: Record<string, unknown>) =>
                 toQueryOptions([table, action, input ?? {}], () => call(input)),
             }
-          : { mutationOptions: () => toMutationOptions([table, action], call) };
+          : {
+              // Invalidating inside the mutation function, not in onSuccess, lets an app spread
+              // its own onSuccess over the options without losing it.
+              mutationOptions: (options?: MutationSettings<string>) =>
+                toMutationOptions([table, action], async (input, { client: queryClient }) => {
+                  const data = await call(input);
+                  const tables = new Set([table, ...(options?.invalidates ?? [])]);
+                  await Promise.all(
+                    [...tables].map((name) => queryClient.invalidateQueries({ queryKey: [name] })),
+                  );
+                  return data;
+                }),
+            };
     }
   }
   return api as Api<Client, E>;

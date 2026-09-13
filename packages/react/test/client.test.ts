@@ -6,7 +6,7 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { MutationObserver, QueryClient } from '@tanstack/react-query';
+import { MutationObserver, QueryClient, QueryObserver } from '@tanstack/react-query';
 import { createDatabase, createServer, type Database } from 'blendx';
 import { hc } from 'blendx/client';
 import { sql } from 'blendx/drizzle';
@@ -154,6 +154,87 @@ describe('mutations', () => {
     const store = new MutationObserver(queryClient(), apiFor().orders.store.mutationOptions());
     const refused = await rejection(store.mutate({ json: { user_id: 1, total: '5.00' } }));
     expect(refused).toMatchObject({ status: 401, problem: { title: 'Unauthorized' } });
+  });
+});
+
+describe('invalidation (N.2)', () => {
+  /** Data stays fresh until invalidated, so only invalidation refetches it. */
+  const freshClient = () =>
+    new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Number.POSITIVE_INFINITY } },
+    });
+  const invalidated = (client: QueryClient, queryKey: readonly unknown[]) =>
+    client.getQueryState(queryKey)?.isInvalidated;
+
+  test('a mutation refetches the active queries of its table before it resolves', async () => {
+    const client = freshClient();
+    const api = apiFor(2);
+    const index = api.orders.index.queryOptions();
+    const before = await client.fetchQuery(index);
+    const observer = new QueryObserver(client, index);
+    const unsubscribe = observer.subscribe(() => {});
+    try {
+      await new MutationObserver(client, api.orders.store.mutationOptions()).mutate({
+        json: { user_id: 2, total: '3.00' },
+      });
+      expect(observer.getCurrentResult().data?.meta.total).toBe(before.meta.total + 1);
+    } finally {
+      unsubscribe();
+    }
+  });
+
+  test('every query of its table is invalidated; other tables only when the mutation names them', async () => {
+    const client = freshClient();
+    const api = apiFor(1);
+    const order = api.orders.show.queryOptions({ param: { id: '1' } });
+    const quote = api.orders.quote.queryOptions({ query: { quantity: '1' } });
+    const user = api.users.show.queryOptions({ param: { id: '1' } });
+    const notes = api.order_notes.index.queryOptions();
+    await client.fetchQuery(order);
+    await client.fetchQuery(quote);
+    await client.fetchQuery(user);
+    await client.fetchQuery(notes);
+    const refund = { param: { id: '1' }, json: { reason: 'damaged' } };
+
+    await new MutationObserver(client, api.orders.refund.mutationOptions()).mutate(refund);
+    expect(invalidated(client, order.queryKey)).toBe(true);
+    expect(invalidated(client, quote.queryKey)).toBe(true);
+    expect(invalidated(client, user.queryKey)).toBe(false);
+
+    const naming = api.orders.refund.mutationOptions({ invalidates: ['users'] });
+    await new MutationObserver(client, naming).mutate(refund);
+    expect(invalidated(client, user.queryKey)).toBe(true);
+    expect(invalidated(client, notes.queryKey)).toBe(false);
+  });
+
+  test('a failed mutation invalidates nothing', async () => {
+    const client = freshClient();
+    const api = apiFor(1);
+    const index = api.orders.index.queryOptions();
+    await client.fetchQuery(index);
+    const refund = new MutationObserver(client, api.orders.refund.mutationOptions());
+    await rejection(refund.mutate({ param: { id: '1' }, json: { reason: 'no' } }));
+    expect(invalidated(client, index.queryKey)).toBe(false);
+  });
+
+  test("the app's own onSuccess, spread over the options, keeps the invalidation", async () => {
+    const client = freshClient();
+    const api = apiFor(1);
+    const index = api.orders.index.queryOptions();
+    await client.fetchQuery(index);
+    let succeeded = false;
+    const options = {
+      ...api.orders.refund.mutationOptions(),
+      onSuccess: () => {
+        succeeded = true;
+      },
+    };
+    await new MutationObserver(client, options).mutate({
+      param: { id: '1' },
+      json: { reason: 'damaged' },
+    });
+    expect(succeeded).toBe(true);
+    expect(invalidated(client, index.queryKey)).toBe(true);
   });
 });
 
