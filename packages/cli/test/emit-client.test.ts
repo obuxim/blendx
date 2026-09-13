@@ -7,6 +7,7 @@
 import { describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
 import { allow, blend } from '@blendx/core';
+import { models as kitchen } from '../../dbml/test/golden/kitchen-sink.schema.gen.ts';
 import { models } from '../../dbml/test/golden/shop.schema.gen.ts';
 import { emitClient } from '../src/emit-client.ts';
 import orderNotes from './fixtures/shop/blends/order_notes.ts';
@@ -32,7 +33,7 @@ describe('emitClient', () => {
           show: 'GET /order_notes/:id',
         },
         includes: {},
-        key: { column: 'id', type: 'number' },
+        key: [{ column: 'id', type: 'number' }],
       },
       orders: {
         actions: {
@@ -49,12 +50,12 @@ describe('emitClient', () => {
         // include the same way (D31), so a write to its table invalidates the queries that ask for it.
         includes: { notes: 'order_notes', user: 'users' },
         // The primary key, and whether JSON carries it as a number or a string (D30).
-        key: { column: 'id', type: 'number' },
+        key: [{ column: 'id', type: 'number' }],
       },
       users: {
         actions: { store: 'POST /users', show: 'GET /users/:id', update: 'PATCH /users/:id' },
         includes: {},
-        key: { column: 'id', type: 'number' },
+        key: [{ column: 'id', type: 'number' }],
       },
     });
     // toEqual ignores key order.
@@ -74,6 +75,13 @@ describe('emitClient', () => {
       actions: (a) => [a.collection('estimate', { method: 'get', path: 'quote' })],
     });
     expect(emitClient([renamed])).toContain('"estimate": "GET /orders/quote",');
+  });
+
+  test('a composite key lists every column in the key order (D33)', () => {
+    const items = blend(kitchen.order_items, { policy: allow.public, actions: (a) => [a.show()] });
+    expect(emitClient([items])).toContain(
+      '"key": [{ "column": "order_id", "type": "number" }, { "column": "line", "type": "number" }],',
+    );
   });
 
   test('no blends: an empty map', () => {

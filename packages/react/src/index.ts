@@ -27,13 +27,14 @@ import type { InferResponseType } from 'blendx/client';
 
 /**
  * The shape of client.gen.ts's `tables`: each table's actions, as `METHOD /path`, its
- * includes, each the table the relation points to (N.8), and its primary key (D30).
+ * includes, each the table the relation points to (N.8), and the columns of its primary key
+ * in the key's order, one for most tables and several for a composite key (D30, D33).
  */
 export type Tables = {
   readonly [table: string]: {
     readonly actions: { readonly [action: string]: string };
     readonly includes: { readonly [name: string]: string };
-    readonly key: { readonly column: string; readonly type: 'number' | 'string' };
+    readonly key: readonly { readonly column: string; readonly type: 'number' | 'string' }[];
   };
 };
 
@@ -229,7 +230,7 @@ type OptimisticOf<Client, E extends Tables, T extends keyof E, A, Route, F> = A 
   ? true
   : A extends 'store'
     ? true | ((input: Variables<F>) => Partial<RowOf<Client, E, T>>)
-    : Route extends `${string} /${string}/:id${string}`
+    : Route extends `${string} /${string}/:${string}`
       ? (row: RowOf<Client, E, T>, input: Variables<F>) => RowOf<Client, E, T>
       : never;
 
@@ -296,8 +297,27 @@ function changePage(page: unknown, change: RowChange): unknown {
   return { ...page, data, meta: { ...meta, total } };
 }
 
+/** The values of a row's key columns, from the table's key: `{ id: 1 }`, or one entry per column (D33). */
+type KeyValues = Record<string, unknown>;
+
+/** True when the row has the given value in every key column, compared as strings. */
+const hasKey = (row: Record<string, unknown>, values: KeyValues) =>
+  Object.entries(values).every(([column, value]) => String(row[column]) === String(value));
+
 /**
- * Applies a change to the row with the given key in every cached copy (D30): the show
+ * A member action's key values from its path params: `id` names the single key column, and a
+ * composite key has one param per column, named by it (D33).
+ */
+function keyFromParams(key: Tables[string]['key'], input: unknown): KeyValues {
+  const params = isRow(input) && isRow(input.param) ? input.param : {};
+  if (key.length > 1) {
+    return Object.fromEntries(key.map(({ column }) => [column, params[column]]));
+  }
+  return { [key[0]?.column ?? 'id']: params.id };
+}
+
+/**
+ * Applies a change to the row with the given key values in every cached copy (D30): the show
  * queries for it, and the rows of every index page, plain or infinite. A show query is
  * left as it is when the change removes the row: the refetch after the reply 404s. The
  * table's running queries are cancelled first, so an earlier refetch cannot land on top.
@@ -305,12 +325,11 @@ function changePage(page: unknown, change: RowChange): unknown {
 async function changeRows(
   client: QueryClient,
   table: string,
-  key: Tables[string]['key'],
-  id: unknown,
+  values: KeyValues,
   change: (row: Record<string, unknown>) => Record<string, unknown> | null,
 ) {
   await client.cancelQueries({ queryKey: [table] });
-  const matching: RowChange = (row) => (String(row[key.column]) === String(id) ? change(row) : row);
+  const matching: RowChange = (row) => (hasKey(row, values) ? change(row) : row);
   for (const [queryKey, data] of client.getQueriesData({ queryKey: [table] })) {
     const action = queryKey[1];
     if (action === 'show' && isRow(data)) {
@@ -409,8 +428,17 @@ async function addRow(
 /** Temporary keys for optimistic rows: negative, so they never meet a real one (D30). */
 let nextTemporaryKey = -1;
 
-const temporaryKey = (key: Tables[string]['key']) =>
-  key.type === 'number' ? nextTemporaryKey-- : crypto.randomUUID();
+const temporaryKey = (type: 'number' | 'string') =>
+  type === 'number' ? nextTemporaryKey-- : crypto.randomUUID();
+
+/**
+ * The key of a new optimistic row (D30, D33): each key column the input carries, as it does
+ * for a composite key, and a temporary value for one it leaves out, the identity key.
+ */
+const keyOfNewRow = (key: Tables[string]['key'], json: Record<string, unknown>): KeyValues =>
+  Object.fromEntries(
+    key.map(({ column, type }) => [column, column in json ? json[column] : temporaryKey(type)]),
+  );
 
 function changeOf(action: string, input: unknown, optimistic: true | RowFunction): RowChange {
   if (typeof optimistic === 'function') return (row) => optimistic(row, input);
@@ -534,26 +562,20 @@ export function createBlendxClient<Client, E extends Tables>(
                 toMutationOptions([table, action], async (input, { client: queryClient }) => {
                   // D30: the rows change before the request; a failure refetches the truth.
                   const { optimistic } = options ?? {};
-                  let temporary: unknown;
+                  let added: KeyValues | undefined;
                   if (optimistic && action === 'store') {
-                    // A new row: the input, what the function adds, and a temporary key.
+                    // A new row: the input, what the function adds, and its key, temporary
+                    // where the input leaves it out.
                     const json = isRow(input) && isRow(input.json) ? input.json : {};
                     const extra =
                       typeof optimistic === 'function' ? (optimistic as RowMaker)(input) : {};
-                    temporary = temporaryKey(key);
-                    await addRow(
-                      queryClient,
-                      table,
-                      { ...json, ...extra, [key.column]: temporary },
-                      json,
-                    );
+                    added = keyOfNewRow(key, json);
+                    await addRow(queryClient, table, { ...json, ...extra, ...added }, json);
                   } else if (optimistic) {
-                    const id = isRow(input) && isRow(input.param) ? input.param.id : undefined;
                     await changeRows(
                       queryClient,
                       table,
-                      key,
-                      id,
+                      keyFromParams(key, input),
                       changeOf(action, input, optimistic as true | RowFunction),
                     );
                   }
@@ -561,16 +583,14 @@ export function createBlendxClient<Client, E extends Tables>(
                   try {
                     data = await call(input);
                   } catch (error) {
-                    if (temporary !== undefined) {
-                      await changeRows(queryClient, table, key, temporary, () => null);
-                    }
+                    if (added) await changeRows(queryClient, table, added, () => null);
                     if (optimistic) await invalidate(queryClient, tables, [table]);
                     throw error;
                   }
-                  // The server's row takes the temporary one's place, until the refetch.
-                  if (temporary !== undefined && isRow(data)) {
+                  // The server's row takes the new one's place, until the refetch.
+                  if (added && isRow(data)) {
                     const saved = data;
-                    await changeRows(queryClient, table, key, temporary, () => saved);
+                    await changeRows(queryClient, table, added, () => saved);
                   }
                   await invalidate(queryClient, tables, [table, ...(options?.invalidates ?? [])]);
                   return data;

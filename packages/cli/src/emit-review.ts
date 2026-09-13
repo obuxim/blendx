@@ -51,7 +51,8 @@ function dedent(source: string): string {
 
 /** calculate as the reviewer reads it: the hook and its keys, or the default's keys. */
 function calculateOf(action: ActionReview, found: CalculateSource | undefined): unknown {
-  const collection = !BUILTINS.has(action.name) && !action.route.includes('/:id');
+  // A member route carries a key segment, `:id` or one per column of a composite key (D33).
+  const collection = !BUILTINS.has(action.name) && !action.route.includes('/:');
   const label = collection ? 'returns' : 'writes';
   if (found) return { source: found.source, [label]: found.keys };
   if (action.calculate) return { [label]: [...action.calculate.keys] };

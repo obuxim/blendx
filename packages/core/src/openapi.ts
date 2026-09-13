@@ -226,8 +226,19 @@ export function buildOpenApi({ app, resources, info }: OpenApiOptions): OpenApiR
     const record = recordOf(model, resource.hidden);
     schemas[model.name] = record;
     withTargets(resource);
-    const [keyColumn] = model.meta.primaryKey;
-    const idSchema = (keyColumn && propertiesOf(record)[keyColumn]) || { type: 'string' };
+    // D33: one path parameter per key segment, `id` for a single-column key and one per column
+    // for a composite one, each with its column's schema.
+    const key = model.meta.primaryKey;
+    const properties = propertiesOf(record);
+    const pathParameters = (key.length > 1 ? key : ['id']).map((name, index) => {
+      const column = key[index];
+      return {
+        name,
+        in: 'path',
+        required: true,
+        schema: (column && properties[column]) || { type: 'string' },
+      };
+    });
 
     for (const definition of toEndpoints(resource)) {
       const endpoint = resolveEndpoint(definition, {
@@ -240,9 +251,7 @@ export function buildOpenApi({ app, resources, info }: OpenApiOptions): OpenApiR
       const required = new Set((input.required ?? []) as string[]);
 
       const parameters = [
-        ...(definition.on === 'member'
-          ? [{ name: 'id', in: 'path', required: true, schema: idSchema }]
-          : []),
+        ...(definition.on === 'member' ? pathParameters : []),
         ...(definition.method === 'get'
           ? Object.entries(fields).map(([name, schema]) => ({
               name,

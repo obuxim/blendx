@@ -15,6 +15,7 @@ import {
   reviewResource,
 } from '@blendx/core';
 import { parse } from 'yaml';
+import { models as kitchen } from '../../dbml/test/golden/kitchen-sink.schema.gen.ts';
 import { models as shop } from '../../dbml/test/golden/shop.schema.gen.ts';
 import { type CalculateSource, extractCalculates } from '../src/calculates.ts';
 import { emitReview } from '../src/emit-review.ts';
@@ -78,6 +79,20 @@ describe('emitReview', () => {
     expect(parse(unread).actions.index.scope).toBe(
       'not read: write scope inline in the blend file',
     );
+  });
+
+  test('a composite key: the route shows one segment per column, and a member action still writes (D33)', () => {
+    const items = blend(kitchen.order_items, {
+      policy: allow.public,
+      actions: (a) => [a.show(), a.member('relabel'), a.collection('count')],
+    });
+    const { actions } = parse(
+      emitReview({ review: reviewResource(items, defineApp({})), source: 'blends/order_items.ts' }),
+    );
+    expect(actions.show.route).toBe('GET /order_items/:order_id/:line');
+    expect(actions.relabel.route).toBe('POST /order_items/:order_id/:line/relabel');
+    expect(actions.relabel.calculate).toEqual({ writes: [] });
+    expect(actions.count.calculate).toEqual({ returns: [] });
   });
 
   test('an action that reveals hidden columns lists them, and its reply says so (D24)', () => {

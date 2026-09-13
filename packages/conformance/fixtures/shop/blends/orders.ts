@@ -1,5 +1,6 @@
 import { allow, blend, z } from 'blendx';
 import { models } from '../src/generated/schema.gen.ts';
+import orderItems from './order_items.ts';
 import orderNotes from './order_notes.ts';
 import users from './users.ts';
 
@@ -13,8 +14,13 @@ export default blend(models.orders, {
   },
   // ?include=user nests the order's user, as GET /users/:id would reply (D28), and
   // ?include=notes its two newest notes, each as GET /order_notes/:id would reply (D31);
-  // ?include=notes.author follows the notes' own include to each note's author (D32).
-  includes: { user: users, notes: { blend: orderNotes, limit: 2, sort: '-id' } },
+  // ?include=notes.author follows the notes' own include to each note's author (D32); and
+  // ?include=items its lines, a table with a composite key, in the order of that key (D33).
+  includes: {
+    user: users,
+    notes: { blend: orderNotes, limit: 2, sort: '-id' },
+    items: { blend: orderItems, limit: 10 },
+  },
   actions: (a) => [
     a.index({ trashed: true }),
     a.store({

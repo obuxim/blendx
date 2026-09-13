@@ -754,6 +754,104 @@ describe('optimistic updates (N.10, D30)', () => {
   });
 });
 
+describe('a composite key (D33)', () => {
+  const freshClient = () =>
+    new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Number.POSITIVE_INFINITY } },
+    });
+
+  /** The fixture's actions as user 1, with every write held until `release` is called. */
+  function gatedApi() {
+    let release = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const fetch = ((input: RequestInfo | URL, init?: RequestInit) =>
+      init?.method && init.method !== 'GET'
+        ? gate.then(() => server.request(input, init))
+        : server.request(input, init)) as typeof globalThis.fetch;
+    const headers = { 'x-user-id': '1' };
+    return {
+      api: createBlendxClient(hc<AppType>('http://localhost', { fetch, headers }), tables),
+      release: () => release(),
+    };
+  }
+
+  type Line = { order_id: number; line: number; sku: string; quantity: number };
+  const line = (page: { data: Line[] } | undefined, order_id: number, number: number) =>
+    page?.data.find((row) => row.order_id === order_id && row.line === number);
+
+  test('show takes one param per key column', async () => {
+    const shown = await freshClient().fetchQuery(
+      apiFor(1).order_items.show.queryOptions({ param: { order_id: '1', line: '1' } }),
+    );
+    expect(shown).toEqual({ order_id: 1, line: 1, sku: 'A-1', quantity: 2 });
+  });
+
+  test('update: only the row every key column names changes before the reply', async () => {
+    const client = freshClient();
+    const { api, release } = gatedApi();
+    const show = api.order_items.show.queryOptions({ param: { order_id: '1', line: '2' } });
+    const index = api.order_items.index.queryOptions({ query: { per_page: '100' } });
+    await client.fetchQuery(show);
+    await client.fetchQuery(index);
+
+    const update = new MutationObserver(
+      client,
+      api.order_items.update.mutationOptions({ optimistic: true }),
+    );
+    const done = update.mutate({ param: { order_id: '1', line: '2' }, json: { quantity: 5 } });
+    while (client.getQueryData(show.queryKey)?.quantity !== 5) await Bun.sleep(1);
+    expect(update.getCurrentResult().status).toBe('pending');
+    expect(line(client.getQueryData(index.queryKey), 1, 2)?.quantity).toBe(5);
+    // A row that shares one key column is not the row.
+    expect(line(client.getQueryData(index.queryKey), 1, 1)?.quantity).toBe(2);
+    release();
+    expect((await done).quantity).toBe(5);
+  });
+
+  test("store: the new row keeps the key the input carries, and the server's row replaces it", async () => {
+    const client = freshClient();
+    const { api, release } = gatedApi();
+    const index = api.order_items.index.queryOptions({ query: { per_page: '100' } });
+    await client.fetchQuery(index);
+    const store = new MutationObserver(
+      client,
+      api.order_items.store.mutationOptions({ optimistic: true }),
+    );
+    const done = store.mutate({ json: { order_id: 1, line: 3, sku: 'C-3' } });
+    while (!line(client.getQueryData(index.queryKey), 1, 3)) await Bun.sleep(1);
+    // The input's key, no temporary one, and nothing the server fills.
+    expect(line(client.getQueryData(index.queryKey), 1, 3) as unknown).toEqual({
+      order_id: 1,
+      line: 3,
+      sku: 'C-3',
+    });
+    release();
+    const saved = await done;
+    expect(saved).toEqual({ order_id: 1, line: 3, sku: 'C-3', quantity: 1 });
+    expect(line(client.getQueryData(index.queryKey), 1, 3)?.quantity).toBe(1);
+  });
+
+  test('destroy removes the row the params name and no other', async () => {
+    const client = freshClient();
+    const { api, release } = gatedApi();
+    const index = api.order_items.index.queryOptions({ query: { per_page: '100' } });
+    const { meta } = await client.fetchQuery(index);
+    const destroy = new MutationObserver(
+      client,
+      api.order_items.destroy.mutationOptions({ optimistic: true }),
+    );
+    const done = destroy.mutate({ param: { order_id: '1', line: '3' } });
+    while (line(client.getQueryData(index.queryKey), 1, 3)) await Bun.sleep(1);
+    expect(client.getQueryData(index.queryKey)?.meta.total).toBe(meta.total - 1);
+    expect(line(client.getQueryData(index.queryKey), 1, 1)).toBeDefined();
+    expect(line(client.getQueryData(index.queryKey), 1, 2)).toBeDefined();
+    release();
+    expect(await done).toBeNull();
+  });
+});
+
 describe('fieldErrors (N.3)', () => {
   const problem = (errors: { detail: string; pointer?: string; parameter?: string }[]) =>
     new ProblemDetailsError({

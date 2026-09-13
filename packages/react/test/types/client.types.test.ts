@@ -119,7 +119,7 @@ describe('@blendx/react types', () => {
   test('a mutation may name the other tables it changes, by their names in the map', () => {
     type Options = NonNullable<Parameters<typeof api.orders.refund.mutationOptions>[0]>;
     expectTypeOf<Options['invalidates']>().toEqualTypeOf<
-      readonly ('order_notes' | 'orders' | 'users')[] | undefined
+      readonly ('order_items' | 'order_notes' | 'orders' | 'users')[] | undefined
     >();
     // @ts-expect-error not a table of the app
     api.orders.refund.mutationOptions({ invalidates: ['payments'] });

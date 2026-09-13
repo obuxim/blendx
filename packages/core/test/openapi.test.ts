@@ -3,7 +3,8 @@
  * openapi.json will hold it; the other tests pin the rules it follows.
  */
 import { describe, expect, test } from 'bun:test';
-import { defineApp } from '@blendx/core';
+import { allow, blend, defineApp } from '@blendx/core';
+import { models as kitchen } from '../../dbml/test/golden/kitchen-sink.schema.gen.ts';
 import { buildOpenApi, type JsonObject, stringifyOpenApi } from '../src/openapi.ts';
 import { info, resources } from './support/shop-openapi.ts';
 
@@ -33,6 +34,29 @@ describe('buildOpenApi', () => {
       '/users',
       '/users/{id}',
     ]);
+  });
+
+  test('a composite key: one path parameter per column, in the key order, each with its column schema (D33)', () => {
+    const items = blend(kitchen.order_items, {
+      policy: allow.public,
+      actions: (a) => [a.show(), a.update(), a.member('relabel')],
+    });
+    const built = buildOpenApi({ app: defineApp({}), resources: [items], info }).document;
+    expect(Object.keys(at(built, 'paths')).sort()).toEqual([
+      '/order_items/{order_id}/{line}',
+      '/order_items/{order_id}/{line}/relabel',
+    ]);
+    const parameters = at(built, 'paths', '/order_items/{order_id}/{line}', 'get')
+      .parameters as JsonObject[];
+    expect(parameters.map((parameter) => parameter.name)).toEqual(['order_id', 'line']);
+    for (const parameter of parameters) {
+      expect(parameter).toMatchObject({ in: 'path', required: true, schema: { type: 'integer' } });
+    }
+    // The key columns are input, as any non-generated column is.
+    const patch = at(built, 'paths', '/order_items/{order_id}/{line}', 'patch');
+    expect(
+      Object.keys(at(patch, 'requestBody', 'content', 'application/json', 'schema', 'properties')),
+    ).toEqual(['order_id', 'line', 'sku']);
   });
 
   test('each table has a public record component without its hidden columns', () => {
