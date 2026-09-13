@@ -31,7 +31,8 @@ A column is `name type [settings]`.
 - Types: `smallint`, `int`, `bigint` (and `int2`, `int4`, `int8`, `integer`), the `serial` family (an increment), `real`, `double`, `"double precision"`, `numeric(p, s)` or `decimal`, `varchar(n)`, `char(n)`, `text`, `boolean`, `uuid`, `json`, `jsonb`, `date`, `time`, `timestamp`, `timestamptz`, an enum of the schema, and any of them as an array, `text[]`, with no space: in `text []` the bracket opens the settings, and an empty settings list is an error. A type of several words is quoted.
 - Settings: `pk` or `primary key`, `increment`, `not null`, `null`, `unique`, `note: '...'`, `default: ...` and `ref: ...` (Refs, below).
 - A default is a number (`1`, `-1`, `1.5`), a string (`'pending'`), a SQL expression in backticks (`` `now()` ``), `true`, `false` or `null`.
-- Strings, `'...'` and `'''...'''` alike, take upstream DBML's backslash escapes: `\'` for a quote, `\\` for a backslash, `\n`, `\t`, `\r`, `\0`, `\b`, `\v`, `\f` and `\uHHHH` (four hex digits, or an error). `\ ` keeps its backslash; before any other character the backslash is dropped. A `'''` string may span lines, and a `\` at the end of a line joins the next one; its common indentation is removed after the escapes are read, as upstream does, so a line that a `\n` escape starts is dedented too.
+- Strings, `'...'` and `'''...'''` alike, take upstream DBML's backslash escapes: `\'` for a quote, `\\` for a backslash, `\n`, `\t`, `\r`, `\0`, `\b`, `\v`, `\f` and `\uHHHH` (four hex digits, or an error). `\ ` keeps its backslash; before any other character the backslash is dropped. A `'''` string may span lines, and a `\` at the end of a line joins the next one.
+- A note, in either kind of string, is trimmed as upstream trims it (`normalizeNote`): after the escapes are read, its leading blank lines are dropped, then the common indentation of the rest. A trailing line break stays, and so does a `\r` from CRLF line endings. Any other string, such as a default, is kept as written.
 
 ## Indexes
 
@@ -77,6 +78,7 @@ Tests:
 - [a multi-line string takes backslash escapes, and a backslash ending a line joins the next](../dbml/test/parser.test.ts)
 - [strings take the escapes upstream DBML takes](../dbml/test/parser.test.ts)
 - [a multi-line string reads its escapes before its indentation is removed](../dbml/test/parser.test.ts)
+- [a note is trimmed as upstream trims it; any other string is kept as written](../dbml/test/parser.test.ts)
 - [Project, TableGroup and sticky notes are accepted and ignored](../dbml/test/parser.test.ts)
 - [kitchen-sink fixture: types, defaults, keys, indexes, refs, enums](../dbml/test/parse.test.ts)
 - [a syntax error names what was expected, where](../dbml/test/parser.test.ts)

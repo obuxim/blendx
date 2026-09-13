@@ -159,7 +159,34 @@ describe('the DBML blendx accepts', () => {
         '}',
       ].join('\n'),
     );
-    expect(tableNamed(schema, 't').note).toBe('first\nsecond');
+    expect(tableNamed(schema, 't').note).toBe('first\nsecond\n');
+  });
+
+  test('a note is trimmed as upstream trims it; any other string is kept as written', async () => {
+    const schema = await parseDbml(
+      [
+        'Table t {',
+        "  id int [pk, note: '  one']",
+        "  s text [default: '''",
+        "    kept''']",
+        "  Note: '''",
+        '',
+        '    first',
+        '      second',
+        "  '''",
+        '}',
+        "Table crlf [note: '''\r\n  a\r\n  b'''] {",
+        '  id int [pk]',
+        '}',
+      ].join('\n'),
+    );
+    expect(columnNamed(schema, 't', 'id')?.note).toBe('one');
+    expect(columnNamed(schema, 't', 's')?.default).toEqual({
+      kind: 'literal',
+      value: '\n    kept',
+    });
+    expect(tableNamed(schema, 't').note).toBe('first\n  second\n');
+    expect(tableNamed(schema, 'crlf').note).toBe('a\r\nb');
   });
 
   test('refs: short and block forms, composite keys, aliases, and which side holds the key', async () => {

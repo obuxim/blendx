@@ -122,17 +122,17 @@ function matchAt(pattern: RegExp, source: string, at: number): string | undefine
   return pattern.exec(source)?.[0];
 }
 
-/** A '''...''' string, without its first and last line breaks or their common indentation. */
-function dedent(raw: string): string {
-  const lines = raw
-    .replace(/^[ \t]*\r?\n/, '')
-    .replace(/\r?\n[ \t]*$/, '')
-    .split(/\r?\n/);
-  const indents = lines
-    .filter((line) => line.trim() !== '')
-    .map((line) => line.length - line.trimStart().length);
-  const indent = indents.length > 0 ? Math.min(...indents) : 0;
-  return lines.map((line) => line.slice(indent)).join('\n');
+/**
+ * A note as upstream DBML keeps it (`normalizeNote` in `@dbml/parse`): leading blank lines
+ * dropped, then the common indentation of the rest. Other strings are kept as written.
+ */
+function normalizeNote(content: string): string {
+  const lines = content.split('\n');
+  const top = lines.slice(lines.findIndex((line) => line.trimStart() !== ''));
+  const filled = top.filter((line) => line.trimStart() !== '');
+  if (filled.length === 0) return top.join('\n');
+  const indent = Math.min(...filled.map((line) => line.length - line.trimStart().length));
+  return top.map((line) => line.slice(indent)).join('\n');
 }
 
 function tokenize(source: string): Token[] {
@@ -194,7 +194,7 @@ function tokenize(source: string): Token[] {
       if (i >= source.length) throw new DbmlSyntaxError('unterminated string', loc);
       if (source.startsWith("'''", i)) {
         i += 3;
-        return dedent(text);
+        return text;
       }
       const c = source[i] ?? '';
       const next = source[i + 1];
@@ -541,7 +541,7 @@ class Parser {
     }
     if (this.isPunct('[')) {
       for (const setting of this.settings()) {
-        if (setting.key === 'note') table.note = stringOf(setting);
+        if (setting.key === 'note') table.note = normalizeNote(stringOf(setting));
         else if (setting.key !== 'headercolor') {
           throw new DbmlSyntaxError(`unknown table setting "${setting.key}"`, setting.loc);
         }
@@ -551,7 +551,7 @@ class Parser {
     while (!this.isPunct('}')) {
       if (this.isWord('indexes') && this.isPunct('{', 1)) this.indexes(table);
       else if (this.isWord('note') && (this.isPunct(':', 1) || this.isPunct('{', 1))) {
-        table.note = this.noteBody();
+        table.note = normalizeNote(this.noteBody());
       } else table.fields.push(this.field(table));
     }
     this.next();
@@ -642,7 +642,7 @@ class Parser {
         field.increment = true;
         return;
       case 'note':
-        field.note = stringOf(setting);
+        field.note = normalizeNote(stringOf(setting));
         return;
       case 'default':
         field.default = defaultOf(setting);
