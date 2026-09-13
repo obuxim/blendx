@@ -11,3 +11,10 @@ export {
   type Method,
 } from './case.ts';
 export { matchBody, matchHeaders } from './match.ts';
+export {
+  type CaseResult,
+  type ConformanceResult,
+  type Fetch,
+  type RunOptions,
+  runConformance,
+} from './run.ts';
