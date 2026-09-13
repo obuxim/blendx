@@ -13,6 +13,7 @@ Status: the framework is under construction. Work is driven by `docs/todo.md` (s
 - `DATABASE_URL=... bun run smoke:node`: the Node smoke test (Node 24, @hono/node-server, pg). It resets the same scratch database.
 - `DATABASE_URL=... bun run conformance:node`: the conformance suite on Node with pg. Bun with PGlite runs in `bun test`, and Bun with pg in the `BLENDX_TEST_DB=pg` run. All three reset the scratch database.
 - `bunx blendx generate [--check]`, `bunx blendx review [--check]`, `bunx blendx migrate generate|up`: the CLI. `--cwd <app>` runs it on another folder, such as `examples/addition`.
+- `PIPER=<piper> PIPER_VOICE=<en_US-ljspeech-medium.onnx> bun docs/media/walkthrough/build.ts`: rebuilds the narrated walkthrough after an example changes; its steps are in `docs/media/walkthrough/script.ts`. Without `PIPER` it refreshes the captures and keeps the audio of unchanged narration.
 
 ## Layout
 

@@ -8,6 +8,7 @@ You write two things: `schema.dbml`, which describes the tables, and one small b
 
 1. [Getting started](getting-started.md): set up a project, expose a table and serve it.
 2. [Tutorial: an expenses API](tutorial.md): build [`examples/expenses`](../../examples/expenses) from an empty folder. People sign up for a bearer token and file expense claims, each claim is priced from its category, and approvers approve or reject them.
+3. [The walkthrough](../media/walkthrough/index.html): both examples in 27 narrated steps, with their real code and the replies the running apps sent. Open `docs/media/walkthrough/index.html` in a browser; GitHub shows only its source.
 
 ## Reference
 

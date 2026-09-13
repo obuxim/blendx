@@ -1,0 +1,801 @@
+<title>The blendx Walkthrough</title>
+<meta name="description" content="A narrated, step-by-step tour of the blendx example apps, with their real code and real replies.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..700&family=JetBrains+Mono:wght@400;500;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400..600;1,8..60,400&display=swap">
+<style>
+  :root {
+    --paper: #f1f3ee;
+    --sheet: #e7ece4;
+    --segment: #e0e6dc;
+    --ink: #1d2420;
+    --muted: #5b675f;
+    --rule: #d3dbd0;
+    --accent: #1e6b57;
+    --on-accent: #ffffff;
+    --accent-soft: rgba(30, 107, 87, 0.12);
+    --ok: #2f7a4b;
+    --bad: #a8501f;
+    --term: #121a16;
+    --term-ink: #d6e2da;
+    --term-cmd: #f3f8f4;
+    --term-dim: #8fa198;
+    --term-rule: #25312b;
+    --prompt: #7fc7ae;
+    --tok-keyword: #1e6b57;
+    --tok-string: #8a4b1e;
+    --tok-number: #2e5a8a;
+    --tok-comment: #7a877f;
+    --tok-key: #1d2420;
+    --font-display: 'Bricolage Grotesque', 'Helvetica Neue', Arial, sans-serif;
+    --font-body: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #111714;
+      --sheet: #18201c;
+      --segment: #222c27;
+      --ink: #e2e9e4;
+      --muted: #8fa096;
+      --rule: #26312b;
+      --accent: #6dbba3;
+      --on-accent: #0d1411;
+      --accent-soft: rgba(109, 187, 163, 0.14);
+      --ok: #6cc08b;
+      --bad: #e08a5a;
+      --term: #0a0f0c;
+      --term-ink: #d2ddd6;
+      --term-cmd: #f3f8f4;
+      --term-dim: #7f9188;
+      --term-rule: #1c2521;
+      --prompt: #7fc7ae;
+      --tok-keyword: #7fc7ae;
+      --tok-string: #d9a774;
+      --tok-number: #93b8e3;
+      --tok-comment: #6f7f76;
+      --tok-key: #e2e9e4;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #111714;
+    --sheet: #18201c;
+    --segment: #222c27;
+    --ink: #e2e9e4;
+    --muted: #8fa096;
+    --rule: #26312b;
+    --accent: #6dbba3;
+    --on-accent: #0d1411;
+    --accent-soft: rgba(109, 187, 163, 0.14);
+    --ok: #6cc08b;
+    --bad: #e08a5a;
+    --term: #0a0f0c;
+    --term-ink: #d2ddd6;
+    --term-cmd: #f3f8f4;
+    --term-dim: #7f9188;
+    --term-rule: #1c2521;
+    --prompt: #7fc7ae;
+    --tok-keyword: #7fc7ae;
+    --tok-string: #d9a774;
+    --tok-number: #93b8e3;
+    --tok-comment: #6f7f76;
+    --tok-key: #e2e9e4;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font: 400 1rem/1.55 var(--font-body);
+    -webkit-font-smoothing: antialiased;
+  }
+  button, select { font: inherit; color: inherit; }
+  code, pre { font-family: var(--font-mono); font-variant-ligatures: none; }
+
+  .app {
+    display: grid;
+    grid-template-columns: minmax(15.5rem, 18.5rem) minmax(0, 1fr);
+    min-height: 100vh;
+  }
+
+  /* The step index */
+  .rail {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    border-right: 1px solid var(--rule);
+    padding: 1.6rem 1rem 1.25rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.6rem;
+  }
+  .rail-head { display: grid; gap: 0.5rem; }
+  .rail h1 {
+    margin: 0;
+    font: 650 1.45rem/1.1 var(--font-display);
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+  }
+  .rail h1 .mark { color: var(--accent); }
+  .lede { margin: 0; color: var(--muted); font-size: 0.93rem; line-height: 1.45; }
+  .totals {
+    margin: 0;
+    font: 500 0.74rem/1.3 var(--font-mono);
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .chapters { display: grid; gap: 1.4rem; }
+  .chapter { display: grid; gap: 0.2rem; }
+  .chapter-title {
+    margin: 0;
+    font: 600 0.72rem/1.2 var(--font-mono);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+  .chapter-summary { margin: 0; font-size: 0.86rem; line-height: 1.4; color: var(--muted); }
+  .steps { list-style: none; margin: 0.45rem 0 0; padding: 0; display: grid; gap: 1px; }
+  .step-link {
+    display: grid;
+    grid-template-columns: 1.9rem minmax(0, 1fr) auto;
+    align-items: baseline;
+    gap: 0.4rem;
+    width: 100%;
+    padding: 0.38rem 0.5rem;
+    border: 0;
+    border-radius: 3px;
+    background: none;
+    text-align: left;
+    cursor: pointer;
+    font: 450 0.92rem/1.3 var(--font-display);
+  }
+  .step-link:hover { background: var(--sheet); }
+  .step-no, .step-time {
+    font: 500 0.72rem/1 var(--font-mono);
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .step-link[aria-current="step"] { background: var(--accent-soft); font-weight: 600; }
+  .step-link[aria-current="step"] .step-no { color: var(--accent); }
+  .rail-foot {
+    margin-top: auto;
+    display: grid;
+    gap: 0.6rem;
+    font-size: 0.8rem;
+    line-height: 1.45;
+    color: var(--muted);
+  }
+  .rail-foot p { margin: 0; }
+  kbd {
+    font: 500 0.72rem/1 var(--font-mono);
+    padding: 0.12rem 0.32rem;
+    border: 1px solid var(--rule);
+    border-bottom-width: 2px;
+    border-radius: 3px;
+    color: var(--ink);
+  }
+
+  /* The step */
+  .stage {
+    display: flex;
+    flex-direction: column;
+    gap: 1.15rem;
+    min-width: 0;
+    padding: 1.6rem clamp(1rem, 3.2vw, 2.75rem) 0;
+  }
+  .eyebrow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.9rem;
+    margin: 0;
+    font: 500 0.74rem/1.2 var(--font-mono);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .eyebrow .app-path { text-transform: none; letter-spacing: 0.02em; }
+  .step-title {
+    margin: 0.35rem 0 0;
+    font: 650 clamp(1.7rem, 2.8vw, 2.35rem)/1.08 var(--font-display);
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+
+  /* The pipeline strip: the stages of every request, lit where the step shows them */
+  .pipeline-block { display: grid; gap: 0.45rem; }
+  .pipeline {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 3px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .pipeline li {
+    padding: 0.5rem 0.35rem 0.5rem 0.95rem;
+    background: var(--segment);
+    color: var(--muted);
+    font: 500 0.72rem/1 var(--font-mono);
+    letter-spacing: 0.03em;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 50%, calc(100% - 9px) 100%, 0 100%, 9px 50%);
+  }
+  .pipeline li:first-child {
+    padding-left: 0.6rem;
+    clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 50%, calc(100% - 9px) 100%, 0 100%);
+  }
+  .pipeline li.lit { background: var(--accent); color: var(--on-accent); font-weight: 700; }
+  .pipeline-note { margin: 0; font: 400 0.76rem/1.3 var(--font-mono); color: var(--muted); }
+
+  /* The panel: a file, requests to the app, or a terminal */
+  .panel {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    border: 1px solid var(--rule);
+    border-radius: 5px;
+    overflow: hidden;
+    background: var(--sheet);
+  }
+  .panel-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0.6rem 0.5rem 0.9rem;
+    border-bottom: 1px solid var(--rule);
+    font: 500 0.78rem/1.3 var(--font-mono);
+    color: var(--muted);
+  }
+  .panel-bar .path { color: var(--ink); overflow-wrap: anywhere; }
+  .panel-bar .meta { margin-left: auto; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .copy {
+    padding: 0.3rem 0.55rem;
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    background: transparent;
+    font: 500 0.72rem/1 var(--font-mono);
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .copy:hover { color: var(--ink); border-color: var(--muted); }
+  .panel-body { overflow: auto; max-height: min(56vh, 40rem); }
+  .panel.is-terminal { background: var(--term); border-color: var(--term); }
+  .panel.is-terminal .panel-bar { border-color: var(--term-rule); color: var(--term-dim); }
+  .panel.is-terminal .path { color: var(--term-ink); }
+  .panel.is-terminal .copy { border-color: var(--term-rule); color: var(--term-dim); }
+  .panel.is-terminal .copy:hover { color: var(--term-cmd); }
+
+  pre { margin: 0; }
+  .code { padding: 0.7rem 0; font-size: 0.84rem; line-height: 1.62; tab-size: 2; }
+  .line { display: grid; grid-template-columns: 3.3rem max-content; min-width: 100%; }
+  .ln {
+    padding-right: 1rem;
+    text-align: right;
+    color: var(--muted);
+    opacity: 0.65;
+    user-select: none;
+    font-variant-numeric: tabular-nums;
+  }
+  .src { white-space: pre; padding-right: 1.5rem; }
+  .line.hl { background: var(--accent-soft); }
+  .line.hl .ln { opacity: 1; color: var(--accent); box-shadow: inset 2px 0 0 var(--accent); }
+
+  .term {
+    padding: 0.9rem 1.1rem 1.1rem;
+    font-size: 0.84rem;
+    line-height: 1.62;
+    color: var(--term-ink);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .term .cmdline, .term .out { display: block; }
+  .term .prompt { color: var(--prompt); font-weight: 700; }
+  .term .cmd { color: var(--term-cmd); }
+  .term .quiet { display: block; color: var(--term-dim); font-style: italic; }
+  .term .gap { display: block; height: 0.8rem; }
+
+  .exchange { display: grid; gap: 0.55rem; padding: 0.95rem 1.1rem; }
+  .exchange + .exchange { border-top: 1px solid var(--rule); }
+  .request {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.35rem 0.6rem;
+    font: 500 0.84rem/1.4 var(--font-mono);
+  }
+  .method { font-weight: 700; color: var(--accent); }
+  .url { overflow-wrap: anywhere; }
+  .who {
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    padding: 0.12rem 0.4rem;
+    border: 1px solid var(--rule);
+    border-radius: 999px;
+  }
+  .json { font-size: 0.8rem; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .sent { padding-left: 1rem; border-left: 1px solid var(--rule); }
+  .response { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.8rem; align-items: start; }
+  .status {
+    padding: 0.3rem 0.45rem;
+    border: 1px solid;
+    border-radius: 3px;
+    font: 700 0.76rem/1 var(--font-mono);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .status.ok {
+    color: var(--ok);
+    border-color: color-mix(in srgb, var(--ok) 45%, transparent);
+    background: color-mix(in srgb, var(--ok) 10%, transparent);
+  }
+  .status.bad {
+    color: var(--bad);
+    border-color: color-mix(in srgb, var(--bad) 45%, transparent);
+    background: color-mix(in srgb, var(--bad) 10%, transparent);
+  }
+  .empty { font: italic 400 0.84rem/1.6 var(--font-body); color: var(--muted); }
+
+  .hljs-keyword, .hljs-selector-tag, .hljs-built_in, .hljs-type { color: var(--tok-keyword); }
+  .hljs-string, .hljs-code, .hljs-regexp { color: var(--tok-string); }
+  .hljs-number, .hljs-literal { color: var(--tok-number); }
+  .hljs-comment { color: var(--tok-comment); font-style: italic; }
+  .hljs-attr, .hljs-attribute, .hljs-property, .hljs-title { color: var(--tok-key); font-weight: 600; }
+
+  /* The narration */
+  .voice { margin: 0; display: grid; gap: 0.4rem; }
+  .voice figcaption {
+    font: 500 0.72rem/1 var(--font-mono);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .narration { margin: 0; max-width: 64ch; font-size: 1.14rem; line-height: 1.62; text-wrap: pretty; }
+
+  /* The player: under the narration, and held at the bottom when the step runs long */
+  .player {
+    position: sticky;
+    bottom: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem 0.75rem;
+    padding: 0.8rem 0 1.05rem;
+    border-top: 1px solid var(--rule);
+    background: var(--paper);
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.58rem 0.85rem;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    background: var(--paper);
+    font: 550 0.9rem/1 var(--font-display);
+    cursor: pointer;
+  }
+  .btn:hover:not([disabled]) { border-color: var(--muted); }
+  .btn svg { width: 0.9rem; height: 0.9rem; fill: currentColor; flex: none; }
+  .btn.play { background: var(--accent); border-color: var(--accent); color: var(--on-accent); min-width: 11.5rem; }
+  .btn[disabled] { opacity: 0.45; cursor: default; }
+  .progress {
+    flex: 1 1 11rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font: 500 0.76rem/1 var(--font-mono);
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .bar {
+    flex: 1;
+    height: 4px;
+    padding: 0;
+    border: 0;
+    border-radius: 2px;
+    background: var(--rule);
+    overflow: hidden;
+    cursor: pointer;
+  }
+  .bar span { display: block; width: 0; height: 100%; background: var(--accent); }
+  .options { display: flex; align-items: center; gap: 0.9rem; font: 450 0.86rem/1 var(--font-display); color: var(--muted); }
+  .options label { display: inline-flex; align-items: center; gap: 0.4rem; cursor: pointer; }
+  .options input { accent-color: var(--accent); width: 1rem; height: 1rem; margin: 0; }
+  .options select {
+    padding: 0.32rem 0.4rem;
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    background: var(--paper);
+    font: 500 0.8rem/1 var(--font-mono);
+  }
+
+  .missing { max-width: 60ch; font-size: 1.05rem; }
+
+  :where(button, select, input, a):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  @media (max-width: 880px) {
+    .app { grid-template-columns: minmax(0, 1fr); }
+    .rail { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--rule); padding: 1.2rem 1rem; gap: 1rem; }
+    .chapters { grid-auto-flow: column; grid-auto-columns: minmax(16rem, 1fr); overflow-x: auto; }
+    .rail-foot { display: none; }
+    .stage { padding-top: 1.2rem; }
+    .pipeline li { font-size: 0.62rem; padding-left: 0.7rem; }
+    .btn.play { min-width: 0; }
+  }
+</style>
+
+<div class="app">
+  <nav class="rail" aria-label="Steps">
+    <header class="rail-head">
+      <h1><span class="mark">blendx</span>, step by step</h1>
+      <p class="lede">Both example apps in order: the code, the replies the running app really sent, and a narrator.</p>
+      <p class="totals" id="totals"></p>
+    </header>
+    <div class="chapters" id="chapters"></div>
+    <footer class="rail-foot">
+      <p><kbd>←</kbd> <kbd>→</kbd> change the step, <kbd>Space</kbd> plays or pauses.</p>
+      <p id="credits"></p>
+    </footer>
+  </nav>
+
+  <main class="stage" id="stage">
+    <header>
+      <p class="eyebrow">
+        <span id="chapter-name"></span>
+        <span class="app-path" id="app-path"></span>
+        <span id="position"></span>
+      </p>
+      <h2 class="step-title" id="step-title">Loading the steps</h2>
+    </header>
+
+    <div class="pipeline-block">
+      <ol class="pipeline" id="pipeline" aria-label="The pipeline every request runs"></ol>
+      <p class="pipeline-note" id="pipeline-note"></p>
+    </div>
+
+    <figure class="panel" id="panel">
+      <figcaption class="panel-bar">
+        <span class="path" id="panel-path"></span>
+        <span class="meta" id="panel-meta"></span>
+        <button class="copy" id="copy" type="button">Copy</button>
+      </figcaption>
+      <div class="panel-body" id="panel-body"></div>
+    </figure>
+
+    <figure class="voice">
+      <figcaption>Narration</figcaption>
+      <p class="narration" id="narration"></p>
+    </figure>
+
+    <div class="player" id="player">
+      <button class="btn" id="prev" type="button"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10.5 2.5 4.8 8l5.7 5.5 1.2-1.2L7.2 8l4.5-4.3z"/></svg>Previous</button>
+      <button class="btn play" id="play" type="button"><svg viewBox="0 0 16 16" aria-hidden="true" id="play-icon"><path d="M4 2.5v11l9-5.5z"/></svg><span id="play-label">Play narration</span></button>
+      <button class="btn" id="next" type="button">Next<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 2.5 11.2 8l-5.7 5.5-1.2-1.2L8.8 8 4.3 3.7z"/></svg></button>
+      <div class="progress">
+        <span id="elapsed">0:00</span>
+        <button class="bar" id="bar" type="button" aria-label="Seek in the narration"><span id="bar-fill"></span></button>
+        <span id="length">0:00</span>
+      </div>
+      <div class="options">
+        <label><input type="checkbox" id="auto"> Play on to the next step</label>
+        <select id="rate" aria-label="Narration speed">
+          <option value="1">1×</option>
+          <option value="1.25">1.25×</option>
+          <option value="1.5">1.5×</option>
+        </select>
+      </div>
+    </div>
+  </main>
+</div>
+<!-- biome-ignore lint/a11y/useMediaCaption: every step shows its narration in full, as text, beside the player -->
+<audio id="audio" preload="metadata"></audio>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="data.js"></script>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const data = window.WALKTHROUGH;
+  if (!data) {
+    $('stage').innerHTML =
+      '<p class="missing">The steps did not load, because data.js is missing next to this page. Run <code>bun docs/media/walkthrough/build.ts</code> to write it.</p>';
+    return;
+  }
+
+  const STAGES = ['authenticate', 'validate', 'load', 'authorize', 'calculate', 'save', 'respond'];
+  const PHRASES = {
+    200: 'OK', 201: 'Created', 204: 'No Content', 400: 'Bad Request', 401: 'Unauthorized',
+    403: 'Forbidden', 404: 'Not Found', 409: 'Conflict', 422: 'Unprocessable Content',
+  };
+  const KEYS = { step: 'blendx-walkthrough-step', auto: 'blendx-walkthrough-auto', rate: 'blendx-walkthrough-rate' };
+  const saved = {
+    get(key) { try { return localStorage.getItem(key); } catch { return null; } },
+    set(key, value) { try { localStorage.setItem(key, value); } catch { /* storage is optional */ } },
+  };
+  const esc = (text) =>
+    String(text).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  const clock = (seconds) => {
+    const s = Math.max(0, Math.round(seconds || 0));
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  };
+
+  const { steps, chapters } = data;
+  const audio = $('audio');
+  let index = 0;
+  let playing = false;
+  let advance = null;
+  let copyText = null;
+
+  /* Syntax colour, when highlight.js loaded; plain text otherwise. */
+  const hl = window.hljs;
+  if (hl) {
+    hl.registerLanguage('dbml', (h) => ({
+      case_insensitive: true,
+      keywords: {
+        keyword: 'table enum ref indexes note as',
+        built_in: 'pk increment unique default not null',
+        type: 'int integer bigint varchar text boolean uuid timestamp timestamptz date double numeric',
+        literal: 'true false',
+      },
+      contains: [
+        h.C_LINE_COMMENT_MODE,
+        h.C_BLOCK_COMMENT_MODE,
+        { className: 'string', begin: "'", end: "'" },
+        { className: 'code', begin: '`', end: '`' },
+        { className: 'number', begin: /\b\d+(\.\d+)?\b/ },
+      ],
+    }));
+  }
+  const highlighted = (code, language) => {
+    if (!hl || !language || language === 'plaintext') return null;
+    try { return hl.highlight(code, { language, ignoreIllegals: true }).value; } catch { return null; }
+  };
+  /* Splits highlighted HTML into lines, closing and reopening spans across line breaks. */
+  const toLines = (code, language) => {
+    const html = highlighted(code, language);
+    if (html === null) return code.split('\n').map(esc);
+    const lines = [];
+    const open = [];
+    let current = '';
+    for (const token of html.split(/(<span[^>]*>|<\/span>|\n)/)) {
+      if (!token) continue;
+      if (token === '\n') {
+        lines.push(current + '</span>'.repeat(open.length));
+        current = open.join('');
+      } else if (token.startsWith('<span')) {
+        open.push(token);
+        current += token;
+      } else if (token === '</span>') {
+        open.pop();
+        current += token;
+      } else {
+        current += token;
+      }
+    }
+    lines.push(current + '</span>'.repeat(open.length));
+    return lines;
+  };
+  const json = (value) => {
+    const text = JSON.stringify(value, null, 2);
+    return highlighted(text, 'json') ?? esc(text);
+  };
+
+  /* The index */
+  const stepTime = (step) => (step.duration ? clock(step.duration) : '');
+  $('chapters').innerHTML = chapters
+    .map((chapter) => {
+      const items = steps
+        .map((step, at) => (step.chapter === chapter.id ? { step, at } : null))
+        .filter(Boolean)
+        .map(({ step, at }) =>
+          `<li><button class="step-link" type="button" data-at="${at}"><span class="step-no">${String(at + 1).padStart(2, '0')}</span><span>${esc(step.title)}</span><span class="step-time">${stepTime(step)}</span></button></li>`)
+        .join('');
+      return `<section class="chapter"><h2 class="chapter-title">${esc(chapter.title)}</h2><p class="chapter-summary">${esc(chapter.summary)}</p><ol class="steps">${items}</ol></section>`;
+    })
+    .join('');
+  const links = [...document.querySelectorAll('.step-link')];
+  for (const link of links) {
+    link.addEventListener('click', () => {
+      go(Number(link.dataset.at));
+    });
+  }
+
+  const narrated = steps.reduce((sum, step) => sum + (step.duration || 0), 0);
+  $('totals').textContent = `${steps.length} steps · ${Math.round(narrated / 60)} min narrated`;
+  $('credits').textContent = `Voice: ${data.voice}. The replies were captured from the running examples on ${data.captured}.`;
+
+  $('pipeline').innerHTML = STAGES.map((stage) => `<li data-stage="${stage}">${stage}</li>`).join('');
+  const segments = [...document.querySelectorAll('#pipeline li')];
+
+  /* Panels */
+  const renderFile = (panel) => {
+    const lines = toLines(panel.code, panel.language);
+    const marked = new Set(panel.highlight);
+    const rows = lines
+      .map((html, at) => {
+        const n = panel.start + at;
+        return `<span class="line${marked.has(n) ? ' hl' : ''}"><span class="ln">${n}</span><span class="src">${html || ' '}</span></span>`;
+      })
+      .join('');
+    const last = panel.start + lines.length - 1;
+    return {
+      path: panel.path,
+      meta: panel.start === 1 && last === lines.length ? `${lines.length} lines` : `lines ${panel.start} to ${last}`,
+      body: `<pre class="code"><code>${rows}</code></pre>`,
+      terminal: false,
+      copy: panel.code,
+    };
+  };
+  const renderShell = (panel) => ({
+    path: panel.cwd,
+    meta: 'terminal',
+    body: `<pre class="term">${panel.entries
+      .map((entry) =>
+        `<span class="cmdline"><span class="prompt">$</span> <span class="cmd">${esc(entry.command)}</span></span>` +
+        (entry.output ? `<span class="out">${esc(entry.output)}</span>` : '<span class="quiet">(no output: nothing to report)</span>'))
+      .join('<span class="gap"></span>')}</pre>`,
+    terminal: true,
+    copy: panel.entries.map((entry) => entry.command).join('\n'),
+  });
+  const renderHttp = (panel) => ({
+    path: panel.app,
+    meta: `${panel.exchanges.length} request${panel.exchanges.length === 1 ? '' : 's'} to the running app`,
+    body: panel.exchanges
+      .map((x) => {
+        const who = x.as ? `<span class="who">${x.as === 'no token' ? 'no token' : `as ${esc(x.as)}`}</span>` : '';
+        const sent = x.body === undefined ? '' : `<pre class="json sent">${json(x.body)}</pre>`;
+        const reply = x.reply === null ? '<span class="empty">No body.</span>' : `<pre class="json">${json(x.reply)}</pre>`;
+        const tone = x.status < 300 ? 'ok' : 'bad';
+        return `<div class="exchange"><div class="request"><span class="method">${x.method}</span><span class="url">${esc(x.path)}</span>${who}</div>${sent}<div class="response"><span class="status ${tone}">${x.status} ${PHRASES[x.status] || ''}</span>${reply}</div></div>`;
+      })
+      .join(''),
+    terminal: false,
+    copy: null,
+  });
+
+  /* The player */
+  const setPlaying = (value) => {
+    playing = value;
+    $('play-label').textContent = value ? 'Pause narration' : 'Play narration';
+    $('play-icon').innerHTML = value
+      ? '<path d="M4 2.5h3v11H4zM9 2.5h3v11H9z"/>'
+      : '<path d="M4 2.5v11l9-5.5z"/>';
+  };
+  const showTime = () => {
+    const total = audio.duration || steps[index].duration || 0;
+    $('elapsed').textContent = clock(audio.currentTime);
+    $('length').textContent = clock(total);
+    $('bar-fill').style.width = total ? `${Math.min(100, (audio.currentTime / total) * 100)}%` : '0';
+  };
+  const play = () => {
+    if (!steps[index].audio) return;
+    audio.playbackRate = Number($('rate').value);
+    audio.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
+  };
+
+  function go(at, keepPlaying = playing) {
+    clearTimeout(advance);
+    index = Math.max(0, Math.min(steps.length - 1, at));
+    const step = steps[index];
+    const chapter = chapters.find((c) => c.id === step.chapter);
+
+    links.forEach((link, n) => {
+      if (n === index) link.setAttribute('aria-current', 'step');
+      else link.removeAttribute('aria-current');
+    });
+    links[index].scrollIntoView({ block: 'nearest', inline: 'nearest' });
+
+    $('chapter-name').textContent = chapter.title;
+    $('app-path').textContent = chapter.app;
+    $('position').textContent = `Step ${index + 1} of ${steps.length}`;
+    $('step-title').textContent = step.title;
+    document.title = `${step.title} · The blendx Walkthrough`;
+
+    for (const segment of segments) {
+      segment.classList.toggle('lit', step.stages.includes(segment.dataset.stage));
+    }
+    $('pipeline-note').textContent = step.stages.length
+      ? 'Lit: the stages of the pipeline this step shows.'
+      : 'This step sends no request, so no stage runs.';
+
+    const panel = step.panel.kind === 'file' ? renderFile(step.panel)
+      : step.panel.kind === 'shell' ? renderShell(step.panel)
+      : renderHttp(step.panel);
+    $('panel').classList.toggle('is-terminal', panel.terminal);
+    $('panel-path').textContent = panel.path;
+    $('panel-meta').textContent = panel.meta;
+    $('panel-body').innerHTML = panel.body;
+    $('panel-body').scrollTop = 0;
+    copyText = panel.copy;
+    $('copy').hidden = !copyText;
+    $('copy').textContent = 'Copy';
+
+    $('narration').textContent = step.narration;
+
+    audio.pause();
+    setPlaying(false);
+    if (step.audio) audio.src = step.audio;
+    else audio.removeAttribute('src');
+    $('play').disabled = !step.audio;
+    $('play').title = step.audio ? '' : 'No narration was recorded for this step.';
+    $('prev').disabled = index === 0;
+    $('next').disabled = index === steps.length - 1;
+    showTime();
+
+    saved.set(KEYS.step, step.id);
+    try { history.replaceState(null, '', `#${step.id}`); } catch { /* the address is optional */ }
+    if (keepPlaying) play();
+  }
+
+  audio.addEventListener('timeupdate', showTime);
+  audio.addEventListener('loadedmetadata', showTime);
+  audio.addEventListener('ended', () => {
+    setPlaying(false);
+    if ($('auto').checked && index < steps.length - 1) {
+      advance = setTimeout(() => go(index + 1, true), 700);
+    }
+  });
+
+  $('play').addEventListener('click', () => {
+    if (playing) {
+      audio.pause();
+      setPlaying(false);
+    } else {
+      play();
+    }
+  });
+  $('prev').addEventListener('click', () => go(index - 1));
+  $('next').addEventListener('click', () => go(index + 1));
+  $('bar').addEventListener('click', (event) => {
+    const total = audio.duration;
+    if (!total) return;
+    const box = event.currentTarget.getBoundingClientRect();
+    audio.currentTime = ((event.clientX - box.left) / box.width) * total;
+    showTime();
+  });
+  $('copy').addEventListener('click', async () => {
+    if (!copyText) return;
+    try {
+      await navigator.clipboard.writeText(copyText);
+      $('copy').textContent = 'Copied';
+    } catch {
+      $('copy').textContent = 'Select to copy';
+    }
+  });
+
+  $('auto').checked = saved.get(KEYS.auto) === 'true';
+  $('auto').addEventListener('change', () => saved.set(KEYS.auto, String($('auto').checked)));
+  $('rate').value = ['1', '1.25', '1.5'].includes(saved.get(KEYS.rate)) ? saved.get(KEYS.rate) : '1';
+  $('rate').addEventListener('change', () => {
+    audio.playbackRate = Number($('rate').value);
+    saved.set(KEYS.rate, $('rate').value);
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.metaKey || event.ctrlKey || event.altKey) return;
+    if (event.target.closest('input, select, textarea')) return;
+    if (event.key === 'ArrowRight') { event.preventDefault(); go(index + 1); }
+    else if (event.key === 'ArrowLeft') { event.preventDefault(); go(index - 1); }
+    else if (event.key === ' ' && !event.target.closest('button')) {
+      event.preventDefault();
+      $('play').click();
+    }
+  });
+
+  const fromAddress = steps.findIndex((step) => `#${step.id}` === location.hash);
+  const fromStore = steps.findIndex((step) => step.id === saved.get(KEYS.step));
+  go(fromAddress >= 0 ? fromAddress : Math.max(0, fromStore), false);
+})();
+</script>
