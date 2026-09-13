@@ -117,11 +117,39 @@ describe('@blendx/react types', () => {
   });
 
   test('a mutation may name the other tables it changes, by their names in the map', () => {
-    expectTypeOf(api.orders.refund.mutationOptions).parameters.toEqualTypeOf<
-      [options?: { invalidates?: readonly ('order_notes' | 'orders' | 'users')[] }]
+    type Options = NonNullable<Parameters<typeof api.orders.refund.mutationOptions>[0]>;
+    expectTypeOf<Options['invalidates']>().toEqualTypeOf<
+      readonly ('order_notes' | 'orders' | 'users')[] | undefined
     >();
     // @ts-expect-error not a table of the app
     api.orders.refund.mutationOptions({ invalidates: ['payments'] });
+  });
+
+  test('optimistic: true on update, destroy and purge; a function of the row on other member actions (D30)', () => {
+    type Row = InferResponseType<Show, 200>;
+    api.orders.update.mutationOptions({ optimistic: true });
+    api.orders.destroy.mutationOptions({ optimistic: true });
+    api.orders.purge.mutationOptions({ optimistic: true });
+    api.orders.refund.mutationOptions({
+      optimistic: (row, input) => {
+        expectTypeOf(row).toEqualTypeOf<Row>();
+        expectTypeOf(input.json.reason).toEqualTypeOf<string>();
+        return { ...row, status: 'refunded' };
+      },
+    });
+    api.orders.restore.mutationOptions({ optimistic: (row) => ({ ...row, deleted_at: null }) });
+    // @ts-expect-error update merges its body: no function
+    api.orders.update.mutationOptions({ optimistic: (row: Row) => row });
+    // @ts-expect-error a member action needs the function
+    api.orders.refund.mutationOptions({ optimistic: true });
+    // @ts-expect-error the function returns a row of the table
+    api.orders.refund.mutationOptions({ optimistic: () => ({ status: 'refunded' }) });
+    // @ts-expect-error store has no optimistic yet (N.11)
+    api.orders.store.mutationOptions({ optimistic: true });
+    // @ts-expect-error a collection action has no row
+    api.orders.estimate?.mutationOptions({ optimistic: true });
+    // @ts-expect-error order_notes has no show, so its row comes from index; a page is not a row
+    api.order_notes.store.mutationOptions({ optimistic: (row: Row) => row });
   });
 
   test("field errors are keyed by the fields of the action's input", () => {

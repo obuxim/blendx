@@ -26,13 +26,14 @@ import type { ProblemDetails } from 'blendx';
 import type { InferResponseType } from 'blendx/client';
 
 /**
- * The shape of client.gen.ts's `tables`: each table's actions, as `METHOD /path`, and its
- * includes, each the table the relation points to (N.8).
+ * The shape of client.gen.ts's `tables`: each table's actions, as `METHOD /path`, its
+ * includes, each the table the relation points to (N.8), and its primary key (D30).
  */
 export type Tables = {
   readonly [table: string]: {
     readonly actions: { readonly [action: string]: string };
     readonly includes: { readonly [name: string]: string };
+    readonly key: { readonly column: string; readonly type: 'number' | 'string' };
   };
 };
 
@@ -191,10 +192,40 @@ const toMutationOptions = <V, D>(
 ) => mutationOptions({ mutationKey, mutationFn });
 
 /** What a mutation adds to its defaults. */
-export interface MutationSettings<Table extends string> {
+export interface MutationSettings<Table extends string, Optimistic = never> {
   /** Other tables whose queries it changes: the ones its hooks write. Its own table always is. */
   invalidates?: readonly Table[];
+  /**
+   * Change the cached rows before the request is sent (D30): `true` on update (merge the
+   * body in), destroy and purge (remove the row); a function of the cached row and the input
+   * on any other member action. A failure invalidates the table's queries.
+   */
+  optimistic?: Optimistic;
 }
+
+/**
+ * The cached row of a table, as its show replies, or a row of its index; a table with
+ * neither has rows of unknown shape. What an optimistic function receives and returns (D30).
+ */
+type RowOf<Client, E extends Tables, T extends keyof E> = E[T]['actions'] extends {
+  show: infer S;
+}
+  ? Data<Call<Client, S>>
+  : E[T]['actions'] extends { index: infer I }
+    ? Data<Call<Client, I>> extends { data: (infer R)[] }
+      ? R
+      : Record<string, unknown>
+    : Record<string, unknown>;
+
+/** What `optimistic` takes on an action: nothing on store (N.11) and collection actions yet. */
+type OptimisticOf<Client, E extends Tables, T extends keyof E, A, Route, F> = A extends
+  | 'update'
+  | 'destroy'
+  | 'purge'
+  ? true
+  : Route extends `${string} /${string}/:id${string}`
+    ? (row: RowOf<Client, E, T>, input: Variables<F>) => RowOf<Client, E, T>
+    : never;
 
 /** A GET action. */
 export interface QueryAction<K extends QueryKey, F> {
@@ -212,9 +243,9 @@ export interface IndexAction<K extends QueryKey, IK extends QueryKey, F> extends
 }
 
 /** An action of any other method. `Tables` are the app's tables, which it may invalidate. */
-export interface MutationAction<F, Tables extends string> {
+export interface MutationAction<F, Tables extends string, Optimistic = never> {
   mutationOptions(
-    options?: MutationSettings<Tables>,
+    options?: MutationSettings<Tables, Optimistic>,
   ): ReturnType<typeof toMutationOptions<Variables<F>, Data<F>>>;
   /** The first problem with each field of a refused input; `{}` for any other error. */
   fieldErrors(error: unknown): FieldErrors<F>;
@@ -227,9 +258,75 @@ export type Api<Client, E extends Tables> = {
       ? A extends 'index'
         ? IndexAction<Key<T, A>, InfiniteKey<T>, Call<Client, E[T]['actions'][A]>>
         : QueryAction<Key<T, A>, Call<Client, E[T]['actions'][A]>>
-      : MutationAction<Call<Client, E[T]['actions'][A]>, keyof E & string>;
+      : MutationAction<
+          Call<Client, E[T]['actions'][A]>,
+          keyof E & string,
+          OptimisticOf<Client, E, T, A, E[T]['actions'][A], Call<Client, E[T]['actions'][A]>>
+        >;
   };
 };
+
+/** An app's optimistic function, as stored: the cached row and the input to the new row (D30). */
+type RowFunction = (row: Record<string, unknown>, input: unknown) => Record<string, unknown>;
+
+/** An optimistic change to one cached row: its replacement, or null to remove it (D30). */
+type RowChange = (row: Record<string, unknown>) => Record<string, unknown> | null;
+
+const isRow = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+/** A page with the change applied to its rows; a removed row lowers the total. */
+function changePage(page: unknown, change: RowChange): unknown {
+  if (!isRow(page) || !Array.isArray(page.data)) return page;
+  const data = page.data
+    .map((row) => (isRow(row) ? change(row) : row))
+    .filter((row) => row !== null);
+  const removed = page.data.length - data.length;
+  const meta = isRow(page.meta) ? page.meta : {};
+  const total = typeof meta.total === 'number' ? meta.total - removed : meta.total;
+  return { ...page, data, meta: { ...meta, total } };
+}
+
+/**
+ * Applies a change to the row with the given key in every cached copy (D30): the show
+ * queries for it, and the rows of every index page, plain or infinite. A show query is
+ * left as it is when the change removes the row: the refetch after the reply 404s. The
+ * table's running queries are cancelled first, so an earlier refetch cannot land on top.
+ */
+async function changeRows(
+  client: QueryClient,
+  table: string,
+  key: Tables[string]['key'],
+  id: unknown,
+  change: (row: Record<string, unknown>) => Record<string, unknown> | null,
+) {
+  await client.cancelQueries({ queryKey: [table] });
+  const matching: RowChange = (row) => (String(row[key.column]) === String(id) ? change(row) : row);
+  for (const [queryKey, data] of client.getQueriesData({ queryKey: [table] })) {
+    const action = queryKey[1];
+    if (action === 'show' && isRow(data)) {
+      const changed = matching(data);
+      if (changed !== null) client.setQueryData(queryKey, changed);
+    } else if (action === 'index' && isRow(data) && Array.isArray(data.pages)) {
+      client.setQueryData(queryKey, {
+        ...data,
+        pages: data.pages.map((page) => changePage(page, matching)),
+      });
+    } else if (action === 'index') {
+      client.setQueryData(queryKey, changePage(data, matching));
+    }
+  }
+}
+
+/** The change a mutation makes to its row before the reply, from its `optimistic` setting. */
+function changeOf(action: string, input: unknown, optimistic: true | RowFunction): RowChange {
+  if (typeof optimistic === 'function') return (row) => optimistic(row, input);
+  if (action === 'update') {
+    const json = isRow(input) && isRow(input.json) ? input.json : {};
+    return (row) => ({ ...row, ...json });
+  }
+  return () => null;
+}
 
 /** The names a query's input asked `?include=` for: comma-separated, as the server takes them. */
 function includesAsked(queryKey: readonly unknown[]): string[] {
@@ -268,7 +365,7 @@ export function createBlendxClient<Client, E extends Tables>(
   tables: E,
 ): Api<Client, E> {
   const api: Record<string, Record<string, object>> = {};
-  for (const [table, { actions }] of Object.entries(tables)) {
+  for (const [table, { actions, key }] of Object.entries(tables)) {
     api[table] = {};
     for (const [action, route] of Object.entries(actions)) {
       const [method = '', path = ''] = route.split(' ');
@@ -302,9 +399,27 @@ export function createBlendxClient<Client, E extends Tables>(
           : {
               // Invalidating inside the mutation function, not in onSuccess, lets an app spread
               // its own onSuccess over the options without losing it.
-              mutationOptions: (options?: MutationSettings<string>) =>
+              mutationOptions: (options?: MutationSettings<string, true | RowFunction>) =>
                 toMutationOptions([table, action], async (input, { client: queryClient }) => {
-                  const data = await call(input);
+                  // D30: the row changes before the request; a failure refetches the truth.
+                  const { optimistic } = options ?? {};
+                  if (optimistic) {
+                    const id = isRow(input) && isRow(input.param) ? input.param.id : undefined;
+                    await changeRows(
+                      queryClient,
+                      table,
+                      key,
+                      id,
+                      changeOf(action, input, optimistic),
+                    );
+                  }
+                  let data: unknown;
+                  try {
+                    data = await call(input);
+                  } catch (error) {
+                    if (optimistic) await invalidate(queryClient, tables, [table]);
+                    throw error;
+                  }
                   await invalidate(queryClient, tables, [table, ...(options?.invalidates ?? [])]);
                   return data;
                 }),

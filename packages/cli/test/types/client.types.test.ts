@@ -39,4 +39,11 @@ describe('client.gen.ts tables', () => {
     expectTypeOf<Tables['orders']['includes']>().toEqualTypeOf<{ readonly user: 'users' }>();
     expectTypeOf<Tables['users']['includes']>().toEqualTypeOf<Record<never, never>>();
   });
+
+  test('the key names the primary key column and whether JSON carries it as a number (D30)', () => {
+    expectTypeOf<Tables['orders']['key']>().toEqualTypeOf<{
+      readonly column: 'id';
+      readonly type: 'number';
+    }>();
+  });
 });

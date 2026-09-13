@@ -83,6 +83,7 @@ const tables = {
       void: 'DELETE /orders/:id/void',
     },
     includes: {},
+    key: { column: 'id', type: 'number' },
   },
 } as const;
 

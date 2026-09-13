@@ -397,6 +397,165 @@ describe('infinite index (N.9)', () => {
   });
 });
 
+describe('optimistic updates (N.10, D30)', () => {
+  const freshClient = () =>
+    new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Number.POSITIVE_INFINITY } },
+    });
+
+  /** The fixture's actions as user 1, with every write held until `release` is called. */
+  function gatedApi() {
+    let release = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const fetch = ((input: RequestInfo | URL, init?: RequestInit) =>
+      init?.method && init.method !== 'GET'
+        ? gate.then(() => server.request(input, init))
+        : server.request(input, init)) as typeof globalThis.fetch;
+    const headers = { 'x-user-id': '1' };
+    return {
+      api: createBlendxClient(hc<AppType>('http://localhost', { fetch, headers }), tables),
+      release: () => release(),
+    };
+  }
+
+  /** The row with the given id in a cached index page. */
+  const rowIn = <R extends { id: number }>(page: { data: R[] } | undefined, id: number) =>
+    page?.data.find((row) => row.id === id);
+
+  test('update: the body is merged into every cached copy of the row before the reply', async () => {
+    const client = freshClient();
+    const { api, release } = gatedApi();
+    const show = api.orders.show.queryOptions({ param: { id: '1' } });
+    const index = api.orders.index.queryOptions();
+    const infinite = api.orders.index.infiniteQueryOptions({ query: { per_page: '1' } });
+    const quote = api.orders.quote.queryOptions({ query: { quantity: '1' } });
+    await client.fetchQuery(show);
+    await client.fetchQuery(index);
+    await client.fetchInfiniteQuery(infinite);
+    await client.fetchQuery(quote);
+    const before = client.getQueryData(show.queryKey)?.quantity;
+
+    const update = new MutationObserver(
+      client,
+      api.orders.update.mutationOptions({ optimistic: true }),
+    );
+    const done = update.mutate({ param: { id: '1' }, json: { quantity: 7 } });
+    while (client.getQueryData(show.queryKey)?.quantity !== 7) await Bun.sleep(1);
+    // The request has not been answered, and every copy of the row shows the change.
+    expect(update.getCurrentResult().status).toBe('pending');
+    expect(client.getQueryData(index.queryKey)?.data.find((row) => row.id === 1)?.quantity).toBe(7);
+    expect(rowIn(client.getQueryData(infinite.queryKey)?.pages[0], 1)?.quantity).toBe(7);
+    // A query that holds no rows of the table is untouched.
+    expect(client.getQueryData(quote.queryKey)?.total).toBe('9.50');
+
+    release();
+    const saved = await done;
+    expect(saved.quantity).toBe(7);
+    expect(before).not.toBe(7);
+  });
+
+  test('destroy: the row leaves every cached page and the total drops; show is left alone', async () => {
+    const client = freshClient();
+    const { api, release } = gatedApi();
+    const created = await new MutationObserver(
+      freshClient(),
+      apiFor(1).orders.store.mutationOptions(),
+    ).mutate({
+      json: { user_id: 1, total: '1.00' },
+    });
+    const id = created.id;
+    const show = api.orders.show.queryOptions({ param: { id: String(id) } });
+    const index = api.orders.index.queryOptions({ query: { per_page: '100' } });
+    await client.fetchQuery(show);
+    const { meta } = await client.fetchQuery(index);
+
+    const destroy = new MutationObserver(
+      client,
+      api.orders.destroy.mutationOptions({ optimistic: true }),
+    );
+    const done = destroy.mutate({ param: { id: String(id) } });
+    while (rowIn(client.getQueryData(index.queryKey), id)) await Bun.sleep(1);
+    expect(client.getQueryData(index.queryKey)?.meta.total).toBe(meta.total - 1);
+    expect(client.getQueryData(show.queryKey)?.id).toBe(id);
+    release();
+    expect(await done).toBeNull();
+  });
+
+  test('a member action takes a function of the cached row and the input', async () => {
+    const client = freshClient();
+    const { api, release } = gatedApi();
+    const show = api.orders.show.queryOptions({ param: { id: '1' } });
+    await client.fetchQuery(show);
+    const refund = new MutationObserver(
+      client,
+      api.orders.refund.mutationOptions({
+        optimistic: (row, input) => ({
+          ...row,
+          status: 'refunded',
+          meta: { reason: input.json.reason },
+        }),
+      }),
+    );
+    const done = refund.mutate({ param: { id: '1' }, json: { reason: 'damaged' } });
+    // Order 1 may already be refunded by an earlier test: meta shows the optimistic change.
+    while (!client.getQueryData(show.queryKey)?.meta) await Bun.sleep(1);
+    expect(client.getQueryData(show.queryKey)).toMatchObject({
+      status: 'refunded',
+      meta: { reason: 'damaged' },
+    });
+    release();
+    await done;
+  });
+
+  test("a failure brings the server's rows back", async () => {
+    const client = freshClient();
+    const api = apiFor(1);
+    const show = api.orders.show.queryOptions({ param: { id: '1' } });
+    const server = await client.fetchQuery(show);
+    const observer = new QueryObserver(client, show);
+    const unsubscribe = observer.subscribe(() => {});
+    try {
+      const refund = new MutationObserver(
+        client,
+        api.orders.refund.mutationOptions({ optimistic: (row) => ({ ...row, status: 'pending' }) }),
+      );
+      // A reason too short: 422, after the cache already showed 'pending'.
+      await rejection(refund.mutate({ param: { id: '1' }, json: { reason: 'no' } }));
+      while (observer.getCurrentResult().isFetching) await Bun.sleep(1);
+      expect(observer.getCurrentResult().data?.status).toBe(server.status);
+    } finally {
+      unsubscribe();
+    }
+  });
+
+  test("the app's own onMutate and onSuccess, spread over the options, keep it", async () => {
+    const client = freshClient();
+    const { api, release } = gatedApi();
+    const show = api.orders.show.queryOptions({ param: { id: '1' } });
+    await client.fetchQuery(show);
+    const seen: string[] = [];
+    const options = {
+      ...api.orders.update.mutationOptions({ optimistic: true }),
+      onMutate: () => {
+        seen.push('mutate');
+      },
+      onSuccess: () => {
+        seen.push('success');
+      },
+    };
+    const done = new MutationObserver(client, options).mutate({
+      param: { id: '1' },
+      json: { quantity: 9 },
+    });
+    while (client.getQueryData(show.queryKey)?.quantity !== 9) await Bun.sleep(1);
+    release();
+    await done;
+    expect(seen).toEqual(['mutate', 'success']);
+  });
+});
+
 describe('fieldErrors (N.3)', () => {
   const problem = (errors: { detail: string; pointer?: string; parameter?: string }[]) =>
     new ProblemDetailsError({

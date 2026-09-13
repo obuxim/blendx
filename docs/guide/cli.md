@@ -27,7 +27,7 @@ Run it after every change to `schema.dbml`, a blend or `src/app.ts`. It works in
 | File | What it is |
 |---|---|
 | `routes.gen.ts` | the routes of every listed action, and `AppType` for the typed client |
-| `client.gen.ts` | every table's actions, each as its method and path, and the tables its includes point to, for clients that call actions by name ([The React client](react.md)); it imports nothing, so a web app can load it |
+| `client.gen.ts` | every table's actions, each as its method and path, the tables its includes point to, and its primary key, for clients that call actions by name ([The React client](react.md)); it imports nothing, so a web app can load it |
 | `register.gen.ts` | registers the app's type, so hooks and policies see the identity's type |
 | `outbox.gen.ts` | the outbox table, once any hook is a `later` hook, so the next migration creates it; otherwise nothing |
 | `drizzle.config.gen.ts` | the drizzle-kit config that `blendx migrate generate` uses: `schema.gen.ts` and `outbox.gen.ts` |

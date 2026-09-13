@@ -22,12 +22,13 @@ describe('emitClient', () => {
     await expectGolden(golden, emitClient([users, orders, orderNotes]));
   });
 
-  test('each table: its actions with their routes, in the order of routes.gen.ts, and its includes', async () => {
+  test('each table: its actions with their routes, in the order of routes.gen.ts, its includes and its key', async () => {
     const { tables } = await import('./golden/client.gen.ts');
     expect(tables).toEqual({
       order_notes: {
         actions: { index: 'GET /order_notes', store: 'POST /order_notes' },
         includes: {},
+        key: { column: 'id', type: 'number' },
       },
       orders: {
         actions: {
@@ -42,10 +43,13 @@ describe('emitClient', () => {
         },
         // The table the include points to, not the relation's column (N.8).
         includes: { user: 'users' },
+        // The primary key, and whether JSON carries it as a number or a string (D30).
+        key: { column: 'id', type: 'number' },
       },
       users: {
         actions: { store: 'POST /users', show: 'GET /users/:id', update: 'PATCH /users/:id' },
         includes: {},
+        key: { column: 'id', type: 'number' },
       },
     });
     // toEqual ignores key order.
