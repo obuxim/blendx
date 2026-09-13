@@ -48,6 +48,7 @@ const PAGES: Page[] = [
   { source: 'docs/guide/hooks.md', slug: 'hooks', group: 'Reference' },
   { source: 'docs/guide/app.md', slug: 'app', group: 'Reference' },
   { source: 'docs/guide/http.md', slug: 'http', group: 'Reference' },
+  { source: 'docs/guide/react.md', slug: 'react', group: 'Reference' },
   { source: 'docs/guide/review.md', slug: 'review', group: 'Reference' },
   { source: 'docs/guide/testing.md', slug: 'testing', group: 'Reference' },
   { source: 'docs/guide/deployment.md', slug: 'deployment', group: 'Reference' },

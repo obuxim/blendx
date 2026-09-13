@@ -153,3 +153,5 @@ const quoted = await client.expenses.quote.$get({ query: { amount: '10', categor
 - An action the blend does not list is not on the client at all.
 
 Import `hc` from `blendx/client`, not from `hono/client`: `AppType` is built with the Hono that blendx uses, and the client must use the same one.
+
+For a React app, [The React client](react.md) turns this client into TanStack Query options for every action.
