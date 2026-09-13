@@ -11,6 +11,7 @@ Status: the framework is under construction. Work is driven by `docs/todo.md` (s
 - `bun run fix`: Biome autofix and format.
 - `bun test <path>`: run a subset. Tests use in-process PGlite. `BLENDX_TEST_DB=pg DATABASE_URL=postgres://postgres@localhost:5432/blendx_test bun test` also runs the real-PostgreSQL tests (`*.pg.test.ts`); they reset that database's public schema, so use a scratch database.
 - `DATABASE_URL=... bun run smoke:node`: the Node smoke test (Node 24, @hono/node-server, pg). It resets the same scratch database.
+- `DATABASE_URL=... bun run conformance:node`: the conformance suite on Node with pg. Bun with PGlite runs in `bun test`, and Bun with pg in the `BLENDX_TEST_DB=pg` run. All three reset the scratch database.
 - From P7 on: `bunx blendx generate [--check]`, `bunx blendx review [--check]`, `bunx blendx migrate generate|up`.
 
 ## Layout

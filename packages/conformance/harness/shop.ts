@@ -4,12 +4,16 @@
  * every table, restarting identities, and runs seed.sql. The fixture's modules load by
  * computed path, so they stay out of the root tsc program: their auth type comes from the
  * fixture's own register.gen.ts, which only its own project includes.
+ *
+ * On a server database (P11.5) it first drops and recreates the public and drizzle schemas,
+ * so point it at a scratch database.
  */
 import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { type App, createDatabase, createServer, type DatabaseConfig } from 'blendx';
 import { sql } from 'blendx/drizzle';
 import type { CaseFile, ConformanceCase } from '../src/case.ts';
+import { type ConformanceResult, runConformance } from '../src/run.ts';
 
 const root = join(import.meta.dirname, '..');
 const fixture = join(root, 'fixtures', 'shop');
@@ -26,6 +30,11 @@ export async function startShop(
   database: DatabaseConfig['database'] = { driver: 'pglite', url: undefined },
 ): Promise<Shop> {
   const opened = await createDatabase({ database });
+  if (database.driver !== 'pglite') {
+    await opened.db.execute(sql.raw('drop schema if exists drizzle cascade'));
+    await opened.db.execute(sql.raw('drop schema if exists public cascade'));
+    await opened.db.execute(sql.raw('create schema public'));
+  }
   await opened.migrate(join(fixture, 'drizzle'));
 
   const app = (await import(join(fixture, 'src', 'app.ts'))).default as App;
@@ -47,6 +56,16 @@ export async function startShop(
     },
     close: () => opened.close(),
   };
+}
+
+/** The whole suite against the fixture on one database: PGlite in memory by default. */
+export async function runSuite(database?: DatabaseConfig['database']): Promise<ConformanceResult> {
+  const shop = await startShop(database);
+  try {
+    return await runConformance(await loadCases(), shop.fetch, { reset: shop.reset });
+  } finally {
+    await shop.close();
+  }
 }
 
 /** Every case in packages/conformance/cases, file by file in name order. */

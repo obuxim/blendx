@@ -1,17 +1,9 @@
 /** P11.4: the conformance suite against the shop fixture, on Bun with PGlite. */
-import { afterAll, beforeAll, expect, test } from 'bun:test';
-import { loadCases, type Shop, startShop } from '../harness/shop.ts';
-import { runConformance } from '../src/run.ts';
-
-let shop: Shop;
-beforeAll(async () => {
-  shop = await startShop();
-}, 60_000);
-afterAll(() => shop.close());
+import { expect, test } from 'bun:test';
+import { loadCases, runSuite } from '../harness/shop.ts';
 
 test('every case passes on Bun with PGlite', async () => {
-  const cases = await loadCases();
-  const result = await runConformance(cases, shop.fetch, { reset: shop.reset });
+  const result = await runSuite();
   expect(result.failed).toEqual([]);
-  expect(result.passed).toBe(cases.length);
+  expect(result.passed).toBe((await loadCases()).length);
 }, 60_000);

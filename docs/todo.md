@@ -97,7 +97,7 @@ One item ≈ one focused session. Work top to bottom (see "Todo loop" in `CLAUDE
 - [x] P11.3 Shop fixture (users: hidden password, unique email; orders: FK, enum, soft delete, owner policy, `refund` member action, `quote` collection action, filters). Done: `generate --check` passes.
 - [x] P11.4a Harness: serve the shop fixture in-process (committed migration, reset = truncate + `seed.sql`), load `cases/*.json`, raw `text` request bodies; one case per error status (400, 401, 403, 404, 409, 422). Done: the suite passes on Bun + PGlite.
 - [x] P11.4b One case per derivation rule. Done: coverage meta-test (every DR id and every error status has a case) passes.
-- [ ] P11.5 Matrix: Bun + PGlite, Bun + pg, Node + pg. Done: all three pass (locally, and as CI jobs).
+- [x] P11.5 Matrix: Bun + PGlite, Bun + pg, Node + pg. Done: all three pass (locally, and as CI jobs).
 - [ ] P11.6 bun-sql opt-in run, results recorded. Done: ADR entry.
 
 ## P12 Docs & polish
