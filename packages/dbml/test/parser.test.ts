@@ -314,4 +314,28 @@ describe('errors', () => {
       { message: 'a ref between b.id and c.id is defined twice', line: 13, column: 1 },
     ]);
   });
+
+  test('a ref is the same written from either side, its column pairs in any order', async () => {
+    const source = [
+      'Table a {',
+      '  id int [pk]',
+      '  x int',
+      '  y int',
+      '}',
+      'Table b {',
+      '  id int [pk]',
+      '  p int',
+      '  q int',
+      '  indexes {',
+      '    (p, q) [unique]',
+      '  }',
+      '}',
+      'Ref: a.(x, y) > b.(p, q)',
+      'Ref: b.(q, p) < a.(y, x)',
+      'Ref: a.(x, y) > b.(q, p)',
+    ].join('\n');
+    expect(await problems(source)).toEqual([
+      { message: 'a ref between a.(y, x) and b.(q, p) is defined twice', line: 15, column: 1 },
+    ]);
+  });
 });

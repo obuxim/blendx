@@ -58,6 +58,7 @@ Ref: memberships.(tenant_a, tenant_b) > tenants.(a, b)
 
 - `>` is many-to-one, `<` one-to-many and `-` one-to-one. The foreign key goes on the many side, or on the side of a one-to-one that is not a primary key. `<>` (many-to-many) is refused: add a join table.
 - `delete` and `update` take `cascade`, `restrict`, `set null`, `set default` or `no action`.
+- A ref is the same relation from either side, with its column pairs in any order: `a.(x, y) > b.(p, q)` and `b.(q, p) < a.(y, x)` are one ref written twice.
 
 ## Ignored
 
@@ -79,6 +80,7 @@ Tests:
 - [every name must resolve, and be defined once](../dbml/test/parser.test.ts)
 - [an index on an expression is refused, as a primary key too](../dbml/test/parser.test.ts)
 - [another schema, many-to-many refs, ambiguous one-to-one refs and repeated refs are refused](../dbml/test/parser.test.ts)
+- [a ref is the same written from either side, its column pairs in any order](../dbml/test/parser.test.ts)
 - [reports every unsupported column at once, each with its location](../dbml/test/types.test.ts)
 - [a table without a primary key is rejected](../dbml/test/validate.test.ts)
 - [table and enum names must be free identifiers in generated code](../dbml/test/validate.test.ts)

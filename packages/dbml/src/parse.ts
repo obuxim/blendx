@@ -257,6 +257,17 @@ function foreignKeysByTable(
     const pk = primaryKeyOf(end.table);
     return pk.length === end.columns.length && end.columns.every((c) => pk.includes(c));
   };
+  /** One key per relation, whichever side is written first and in whatever order its pairs are. */
+  const keyOf = (from: End, to: End) => {
+    const oriented = (a: End, b: End) => {
+      const pairs = a.columns
+        .map((column, i) => [column, b.columns[i]] as const)
+        .sort(([x], [y]) => (x < y ? -1 : 1));
+      return `${a.table.name}.(${pairs.map((p) => p[0])}) ${b.table.name}.(${pairs.map((p) => p[1])})`;
+    };
+    const [one, other] = [oriented(from, to), oriented(to, from)];
+    return one < other ? one : other;
+  };
 
   const byTable = new Map<string, ForeignKeyIR[]>();
   const written = new Set<string>();
@@ -272,7 +283,7 @@ function foreignKeysByTable(
       continue;
     }
     const [first, second] = [shown(from), shown(to)].sort();
-    const key = `${first} ${second}`;
+    const key = keyOf(from, to);
     if (written.has(key)) {
       report(`a ref between ${first} and ${second} is defined twice`, ref.loc);
       continue;
