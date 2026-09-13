@@ -12,6 +12,11 @@ import { models } from '../../../dbml/test/golden/shop.schema.gen.ts';
 /** Pattern 11's mailer: the app's own. The hook never runs here, so it needs no body. */
 declare function notify(userId: number, text: string): Promise<void>;
 
+/** Pattern 12's payment provider: the app's own client. */
+declare const payments: {
+  refund(orderId: number, options: { idempotencyKey: string }): Promise<void>;
+};
+
 test('the cookbook, compiled', () => {
   const patterns = [
     // 1. Expose a table read-only, hiding a column
@@ -108,8 +113,19 @@ test('the cookbook, compiled', () => {
         }),
       ],
     }),
+    // 12. An effect that must not be lost
+    blend(models.orders, {
+      policy: allow.public,
+      actions: (a) => [
+        a.member('refund', {
+          rules: () => z.object({ reason: z.string().min(3) }),
+          calculate: () => ({ status: 'refunded' as const }),
+          later: ({ saved, id }) => payments.refund(saved.id, { idempotencyKey: `refund-${id}` }),
+        }),
+      ],
+    }),
   ];
-  // Patterns 4 to 7 share one orders blend: eight blends for eleven patterns.
-  expect(patterns).toHaveLength(8);
+  // Patterns 4 to 7 share one orders blend: nine blends for twelve patterns.
+  expect(patterns).toHaveLength(9);
   expect(patterns.every((pattern) => pattern.kind === 'blendx/resource')).toBe(true);
 });

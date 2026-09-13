@@ -136,4 +136,19 @@ describe('emitReview', () => {
     ]);
     expect(actions.show.stages).not.toHaveProperty('after');
   });
+
+  test('later is listed where a hook sets it, between save and after (D27)', () => {
+    const orders = blend(shop.orders, {
+      policy: allow.public,
+      actions: (a) => [a.update({ later: () => {}, after: () => {} })],
+    });
+    const text = emitReview({
+      review: reviewResource(orders, defineApp({})),
+      source: 'blends/orders.ts',
+    });
+    expect(text).toContain('    later: nothing # from: schema, action\n');
+    expect(Object.keys(parse(text).actions.update.stages)).toEqual([
+      ...['rules', 'load', 'authorize', 'calculate', 'save', 'later', 'after', 'respond'],
+    ]);
+  });
 });

@@ -53,7 +53,7 @@ How to read it:
 - Each action has its `route`, the `input` it accepts (one line per field, from the resolved rules), and one line per pipeline stage saying what the default does. A string with a format reads as that format, such as `string (date)` or `string (email)`.
 - `# from: schema, action` marks a stage that a hook changed: here the action's own rules, authorize and calculate replaced or extended the schema's defaults. A stage without the comment does exactly what its line says.
 - The authorize line is the policy's description (`an approver`, `owner (user_id = auth.id)`). An authorize hook on top of it shows as `# from: schema, action`; its condition is in the blend.
-- An action with an `after` hook lists `after: nothing # from: schema, action` between save and respond: something happens once its write has committed, such as an email, and the comment says which levels' hooks run ([Hooks](hooks.md#after)). Actions without one have no after line.
+- An action with an `after` hook lists `after: nothing # from: schema, action` between save and respond: something happens once its write has committed, such as an email, and the comment says which levels' hooks run ([Hooks](hooks.md#after)). Actions without one have no after line. A `later` hook shows the same way, as `later: nothing # from: ...` just before after: an effect the outbox worker runs, at least once ([Hooks](hooks.md#later)).
 - `calculate` shows the hook exactly as written, and the columns it `writes` (for a collection action, the keys it `returns`).
 - `reveals` lists the hidden columns an action's reply carries, and its reply then reads `the record, with api_token`. It is where to check that a secret leaves the server only where it should.
 - `reply` is the status and the body.

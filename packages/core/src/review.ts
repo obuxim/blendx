@@ -38,8 +38,11 @@ export interface ActionReview {
   /** 'POST /addition_results' */
   readonly route: string;
   readonly input: Readonly<Record<string, string>>;
-  /** Every stage, and `after` only where a hook sets it (D26). */
-  readonly stages: Readonly<Record<ReviewedStage, StageReview>> & { readonly after?: StageReview };
+  /** Every stage; `later` and `after` only where a hook sets them (D26, D27). */
+  readonly stages: Readonly<Record<ReviewedStage, StageReview>> & {
+    readonly later?: StageReview;
+    readonly after?: StageReview;
+  };
   /**
    * What calculate writes, for actions that calculate (store, update, custom). Without a
    * hook, the input's writable columns; with one, it is left for the CLI to fill in.
@@ -62,7 +65,7 @@ export interface ResourceReview {
   readonly actions: readonly ActionReview[];
 }
 
-/** The stages every action lists; after (D26) is listed only where a hook sets it. */
+/** The stages every action lists; later and after (D26, D27) only where a hook sets them. */
 type ReviewedStage = Exclude<Stage, 'after' | 'later'>;
 
 const EMPTY = 'nothing (an empty object)';
@@ -184,11 +187,10 @@ export function reviewResource(resource: Resource, app: App): ResourceReview {
       defaults: defaultEffects(definition, { perPage: app.index.perPage }),
     });
     const defaults = stageDefaults(definition);
-    // after does nothing at the schema level, so it is listed only where a hook sets it (D26):
-    // an app that uses none keeps its review files as they were.
-    // later (D27) joins the review in P16.6.
+    // later and after do nothing at the schema level, so they are listed only where a hook sets
+    // them (D26, D27): an app that uses neither keeps its review files as they were.
     const listed = STAGES.filter(
-      (stage) => stage !== 'later' && (stage !== 'after' || endpoint.provenance.after.length > 1),
+      (stage) => (stage !== 'later' && stage !== 'after') || endpoint.provenance[stage].length > 1,
     );
     const stages = Object.fromEntries(
       listed.map((stage) => [

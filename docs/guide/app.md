@@ -48,7 +48,7 @@ For tests, an app can take its identity from a header, as the [conformance fixtu
 
 ## App hooks
 
-App hooks run for every action of every table, before the resource's and the action's hooks ([The cascade](hooks.md#the-cascade)). They can hook `rules`, `authorize`, `respond` and `after`, receive the action's name (`action`) and its `model`, and must return the type they receive. An app `after` runs once every write of every table has committed, before the resource's and the action's, so it is where an audit log goes ([Hooks](hooks.md#after)). `authorize` also receives the identity, `auth`, typed from what the app's `auth` function returns.
+App hooks run for every action of every table, before the resource's and the action's hooks ([The cascade](hooks.md#the-cascade)). They can hook `rules`, `authorize`, `respond`, `after` and `later`, receive the action's name (`action`) and its `model`, and must return the type they receive. An app `after` runs once every write of every table has committed, before the resource's and the action's, so it is where an audit log goes ([Hooks](hooks.md#after)); an app `later` runs from the outbox for every write ([Hooks](hooks.md#later)). `authorize` also receives the identity, `auth`, typed from what the app's `auth` function returns.
 
 ```ts
 type Identity = { id: number; suspended: boolean };

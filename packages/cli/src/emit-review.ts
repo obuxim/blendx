@@ -12,8 +12,17 @@ const HEADER = [
   ' Change the blend until `blendx review --check` passes.',
 ].join('\n');
 
-/** In pipeline order; after (D26) appears only on actions whose review lists it. */
-const STAGES = ['rules', 'load', 'authorize', 'calculate', 'save', 'after', 'respond'] as const;
+/** In pipeline order; later and after (D26, D27) appear only on actions whose review lists them. */
+const STAGES = [
+  'rules',
+  'load',
+  'authorize',
+  'calculate',
+  'save',
+  'later',
+  'after',
+  'respond',
+] as const;
 const BUILTINS: ReadonlySet<string> = new Set([
   'index',
   'show',

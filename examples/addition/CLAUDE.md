@@ -81,8 +81,9 @@ More patterns (scoping a listing to the requester, reshaping a reply, an extra a
 
 ## Hook rules
 
-- One hook per stage: `rules`, `load`, `authorize`, `calculate`, `save`, `after`, `respond`.
+- One hook per stage: `rules`, `load`, `authorize`, `calculate`, `save`, `later`, `after`, `respond`.
 - `after({ saved, record, input, auth, db })` runs once a write has committed, for side effects such as an email or a webhook. Only actions that write have it; app, resource and action hooks all run, in that order. What it throws goes to `onError`, not to the reply. Writes that must be atomic go in `save`.
+- `later({ ..., id, attempt })` is for effects that must not be lost: the write leaves an outbox entry, and the worker (`startOutbox` in the server) runs it at least once, so it must be safe to repeat (`id` is an idempotency key). Its context arrives as JSON. After adding the first one, run `bunx blendx generate` and `bunx blendx migrate generate`: the outbox table comes with it.
 - `rules`, `authorize`, `calculate` and `respond` receive `prev` and return the replacement. Ignore `prev` to replace it, use it to extend it. Never mutate it.
 - `load` and `save` receive `runDefault()`. Call it to extend the default, skip it to replace it.
 - `calculate({ prev, input, record })` is pure and synchronous: no database, no request, no I/O. It returns only columns of its table.

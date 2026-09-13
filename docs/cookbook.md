@@ -1,6 +1,6 @@
 # Blend cookbook
 
-Eleven patterns that cover most of what a blend ever says. Each shows only what differs from the defaults; everything left out is derived from the schema. Every pattern links to the test that pins its behaviour.
+Twelve patterns that cover most of what a blend ever says. Each shows only what differs from the defaults; everything left out is derived from the schema. Every pattern links to the test that pins its behaviour.
 
 The examples use the `shop` tables: `users` (with a `password`), and `orders` (with a `user_id` and soft delete). Every snippet also compiles, with a typed identity, in [the cookbook, compiled](../packages/core/test/register/cookbook.types.test.ts).
 
@@ -168,3 +168,20 @@ a.member('refund', {
 - [after runs once the write has committed, with the saved row, the loaded row and the input](../packages/core/test/after.test.ts)
 - [a failing after is reported, the other levels still run, and the reply stands](../packages/core/test/after.test.ts)
 - [app, resource and action after run in that order, none replacing another](../packages/core/test/after.test.ts)
+
+## 12. An effect that must not be lost
+
+```ts
+a.member('refund', {
+  rules: () => z.object({ reason: z.string().min(3) }),
+  calculate: () => ({ status: 'refunded' as const }),
+  // From the outbox, at least once: the provider ignores a repeat with the same key.
+  later: ({ saved, id }) => payments.refund(saved.id, { idempotencyKey: `refund-${id}` }),
+}),
+```
+
+A `later` hook does not run in the request. The write leaves an outbox entry in its own transaction, so the entry exists exactly when the refund does, and the worker that `startOutbox({ app, db, resources })` starts in the server runs it: at least once, retrying until it succeeds or its tenth attempt fails. It may run twice, so give the other system the entry's `id` as an idempotency key. The first later hook brings the outbox table with it: run `blendx generate`, then `blendx migrate generate`. `payments` stands for the app's own client.
+
+- [a write leaves one outbox entry per level, with the hook's context as JSON](../packages/core/test/later.test.ts)
+- [a failing entry is reported, keeps its last error, and runs again once its delay has passed](../packages/core/test/outbox-worker.test.ts)
+- [an entry a stopped worker held runs again once its lease ends](../packages/core/test/outbox-worker.test.ts)

@@ -113,10 +113,27 @@ serve({
 
 Since it is a Hono app, you can add routes of your own to it, such as the OpenAPI document ([The HTTP API](http.md#openapi)). An unexpected error never reaches the client: it gets a bare 500 problem, and `onError` gets the error, which is where to log it or send it to an error tracker.
 
+## Running the outbox worker
+
+An app with `later` hooks ([Hooks](hooks.md#later)) needs something to run its outbox entries. In a long-running server, start the worker beside it:
+
+```ts
+import { createDatabase, createServer, startOutbox } from 'blendx';
+import { resources, routes } from './src/generated/routes.gen.ts';
+
+// After the database and its migrations, as above:
+startOutbox({ app, db: database.db, resources });
+```
+
+It drains the due entries every second (`every`, in seconds, changes that) until its `stop()` is called. Several servers can each run one: entries are claimed with `FOR UPDATE SKIP LOCKED`, so no two run the same entry at once. On a platform that stops the process between requests, call `drainOutbox({ app, db: database.db, resources })` from a scheduled job instead: it runs every due entry once, and says how many ran, will run again, or failed. Both take `onError`, which gets what a later hook throws, and the retry settings: `attempts` (10), `lease` (300 seconds, how long a worker holds an entry it claimed) and `retryDelay` (2, 4, 8 and so on seconds after each failure, at most an hour). An app without later hooks can call either; they do nothing.
+
+A failed entry stays in the `blendx_outbox` table with its `failed_at` and `last_error`, for you to look at. Clearing its `failed_at` gives it one more attempt.
+
 ## Checklist
 
 - `DATABASE_URL` set, and the driver's package installed.
 - Migrations applied, at start-up or as a release step.
+- With `later` hooks: an outbox worker running, or `drainOutbox` on a schedule.
 - `.data/` (PGlite) and `.env` files kept out of git and out of the image.
 - `onError` sends errors somewhere you will see them.
 - CI runs `bunx blendx generate --check`, `bunx blendx review --check`, `bunx tsc --noEmit` and `bun test`.

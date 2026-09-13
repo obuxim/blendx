@@ -200,3 +200,25 @@ describe('after in the review (D26)', () => {
     expect(byName(plain, 'destroy')?.stages).not.toHaveProperty('after');
   });
 });
+
+describe('later in the review (D27)', () => {
+  test('later is listed only where a hook sets it, with its levels', () => {
+    const orders = blend(shop.orders, {
+      policy: allow.public,
+      hooks: { later: () => {} },
+      actions: (a) => [a.show(), a.update({ later: () => {} }), a.destroy()],
+    });
+    const byName = (review: ReturnType<typeof reviewResource>, name: string) =>
+      review.actions.find((a) => a.name === name);
+    const review = reviewResource(orders, defineApp({}));
+    expect(byName(review, 'update')?.stages.later).toEqual({
+      from: ['schema', 'resource', 'action'],
+      default: 'nothing',
+    });
+    expect(byName(review, 'destroy')?.stages.later).toEqual({
+      from: ['schema', 'resource'],
+      default: 'nothing',
+    });
+    expect(byName(review, 'show')?.stages).not.toHaveProperty('later');
+  });
+});

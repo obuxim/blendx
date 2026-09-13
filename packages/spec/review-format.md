@@ -11,7 +11,7 @@ The file is generated. A header comment says so, and says that an edit is a fix 
 - `actions`, in route order, each with:
   - `route`: `POST /addition_results`.
   - `input`, when the action takes any: one line per field, described from the resolved rules. For example `a: number` or `status: one of pending, paid, refunded, optional`.
-  - `stages`: one line per stage, saying what the schema level does, such as `insert, setting created_at and updated_at`. For authorize, the line is the policy. A stage that more than the schema shaped carries a `# from: schema, action` comment (`cascade.md`). `after` (docs/decisions.md D26) is listed only on an action where a hook sets it, between save and respond, as `after: nothing # from: schema, action`: the schema does nothing, and the comment names the levels whose hooks run. An app that sets no after hook has no after lines.
+  - `stages`: one line per stage, saying what the schema level does, such as `insert, setting created_at and updated_at`. For authorize, the line is the policy. A stage that more than the schema shaped carries a `# from: schema, action` comment (`cascade.md`). `later` and `after` (docs/decisions.md D27, D26) are listed only on an action where a hook sets them, between save and respond and in that order, as `later: nothing # from: schema, action`: the schema does nothing, and the comment names the levels whose hooks run. An app that sets neither has no such lines.
   - `scope`, for an index with one (docs/decisions.md D22): the function exactly as written, as a literal block, with the `columns` it scopes by. The index's load stage then carries `# from: schema, action`.
   - `calculate`, for actions that calculate: the hook exactly as written, as a literal block, with the columns it `writes` (`returns` for a collection action). Without a hook, the default's writes.
   - `reveals`, for an action that reveals hidden columns (docs/decisions.md D24): the columns its reply carries. Its reply body then says so: `the record, with api_token`.
@@ -34,6 +34,8 @@ Tests:
 - [the review lists what an action reveals, and its reply says so](../core/test/reveal.test.ts)
 - [after is listed only where a hook sets it, with its levels](../core/test/review.test.ts)
 - [after is listed where a hook sets it, between save and respond (D26)](../cli/test/emit-review.test.ts)
+- [later is listed only where a hook sets it, with its levels](../core/test/review.test.ts)
+- [later is listed where a hook sets it, between save and after (D27)](../cli/test/emit-review.test.ts)
 - [an index scope yields its source and the columns it scopes by (D22)](../cli/test/calculates.test.ts)
 - [writes one file per blend](../cli/test/review.test.ts)
 - [--check: an edited file and a file without a blend drift; nothing is written](../cli/test/review.test.ts)
