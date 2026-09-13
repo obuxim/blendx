@@ -73,6 +73,9 @@
     "packages/conformance": {
       "name": "@blendx/conformance",
       "version": "0.0.0",
+      "devDependencies": {
+        "blendx": "workspace:*",
+      },
     },
     "packages/core": {
       "name": "@blendx/core",

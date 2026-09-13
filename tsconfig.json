@@ -8,6 +8,7 @@
     "**/node_modules",
     "packages/core/test/register",
     "packages/cli/test/register",
-    "packages/cli/test/fixtures/shop-app"
+    "packages/cli/test/fixtures/shop-app",
+    "packages/conformance/fixtures"
   ]
 }

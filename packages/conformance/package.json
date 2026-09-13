@@ -6,5 +6,8 @@
   "description": "Runtime-agnostic conformance suite: request → expected response cases.",
   "exports": {
     ".": "./src/index.ts"
+  },
+  "devDependencies": {
+    "blendx": "workspace:*"
   }
 }

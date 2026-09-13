@@ -2,6 +2,19 @@
 
 The conformance suite defines blendx's behaviour over HTTP, independent of any language: cases of requests and the responses they must get. Every runtime runs the same cases against the same fixture app and must pass all of them. The TypeScript types and matchers are in `packages/conformance/src`.
 
+## The shop fixture
+
+`packages/conformance/fixtures/shop` is the app every runtime serves for the suite. It is the `shop` schema (users; orders with an enum, a foreign key, soft delete and indexes; order notes) and three blends. Between them they exercise:
+
+- a hidden column (`users.password`) and a unique one (`users.email`);
+- foreign keys, from orders to users and from order notes to orders;
+- the owner policy: an order belongs to its `user_id`, and users update only themselves;
+- an action-level authorize hook: an order can only be placed for oneself;
+- index filters and sorting, soft delete, `?trashed` and restore;
+- a custom member action (`POST /orders/:id/refund`) and a custom collection action (`GET /orders/quote`, with a declared reply).
+
+The identity is the `x-user-id` request header: a positive integer is that user, anything else is no identity.
+
 ## Case files
 
 A case file is JSON:
