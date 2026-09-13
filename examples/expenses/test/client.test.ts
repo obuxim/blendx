@@ -54,10 +54,9 @@ test('sign up, file, submit and quote, typed by the routes', async () => {
   expectTypeOf(claim.status).toEqualTypeOf<'draft' | 'submitted' | 'approved' | 'rejected'>();
   expect(claim).toMatchObject({ user_id: ada.id, tax: '4.00', total: '44.00' });
 
-  // A custom action without rules still takes a JSON body: an empty one.
+  // submit's rules accept nothing, so it takes only the id.
   const submitted = await client.expenses[':id'].submit.$post({
     param: { id: String(claim.id) },
-    json: {},
   });
   expect(submitted.status).toBe(200);
 

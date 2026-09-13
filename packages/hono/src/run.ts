@@ -28,9 +28,23 @@ type ProblemResponse = TypedResponse<
   'json'
 >;
 
-type JsonInput<Rules> = Rules extends z.ZodType
-  ? { in: { json: z.input<Rules> }; out: { json: z.output<Rules> } }
-  : BlankInput;
+type JsonBody<Rules extends z.ZodType> = {
+  in: { json: z.input<Rules> };
+  out: { json: z.output<Rules> };
+};
+
+/**
+ * A JSON body typed by the rules; none when they are an object that accepts no keys, as
+ * OpenAPI has no request body for it (P15.6). Other schemas keep their body.
+ */
+type JsonInput<Rules> =
+  Rules extends z.ZodObject<infer Shape>
+    ? [keyof Shape] extends [never]
+      ? BlankInput
+      : JsonBody<Rules>
+    : Rules extends z.ZodType
+      ? JsonBody<Rules>
+      : BlankInput;
 
 type QueryInput = {
   in: { query: Record<string, string> };
@@ -44,7 +58,7 @@ type QueryFromRules<Rules> = Rules extends z.ZodType
 /**
  * What a request sends. index takes its filters and paging as a query; show, destroy and
  * restore take nothing; other GET actions take their rules as a query, DELETE ones
- * nothing, and the rest a JSON body.
+ * nothing, and the rest a JSON body, unless their rules accept nothing.
  */
 export type InputOf<A> =
   A extends ActionDefinition<infer Name, infer Rules, unknown, infer Method>

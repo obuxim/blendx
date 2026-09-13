@@ -142,13 +142,13 @@ const filed = await client.expenses.$post({
 });
 if (filed.status === 201) {
   const claim = await filed.json(); // claim.status is 'draft' | 'submitted' | 'approved' | 'rejected'
-  await client.expenses[':id'].submit.$post({ param: { id: String(claim.id) }, json: {} });
+  await client.expenses[':id'].submit.$post({ param: { id: String(claim.id) } });
 }
 
 const quoted = await client.expenses.quote.$get({ query: { amount: '10', category: 'office' } });
 ```
 
-- Input is typed by the action's rules: `category: 'food'` is a type error. A custom action that is not a GET takes a JSON body even when its rules accept nothing, so the client passes `json: {}`, as for `submit` above ([Known issues](known-issues.md#custom-actions-without-a-body-still-need-an-empty-body-in-the-typed-client)).
+- Input is typed by the action's rules: `category: 'food'` is a type error. An action whose rules accept nothing, like `submit`, takes only its path parameter.
 - Checking `status` narrows the body: the record for 201, a problem for 422.
 - An action the blend does not list is not on the client at all.
 

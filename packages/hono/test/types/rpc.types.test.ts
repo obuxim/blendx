@@ -35,6 +35,10 @@ const additions = blend(addition.addition_results, {
       rules: () => z.object({ times: z.number() }),
       calculate: ({ input, record }) => ({ result: (record.result ?? 0) * input.times }),
     }),
+    // No rules: the action accepts nothing, so it takes no body (P15.6).
+    a.member('halve', {
+      calculate: ({ record }) => ({ result: (record.result ?? 0) / 2 }),
+    }),
   ],
 });
 
@@ -53,6 +57,7 @@ const routes = new Hono<BlendxEnv>()
   .delete('/addition_results/:id', ...run(additions, 'destroy'))
   .post('/addition_results/:id/restore', ...run(additions, 'restore'))
   .post('/addition_results/:id/double', ...run(additions, 'double'))
+  .post('/addition_results/:id/halve', ...run(additions, 'halve'))
   .get('/users/:id', ...run(users, 'show'));
 
 type Client = ReturnType<typeof hc<typeof routes>>;
@@ -115,6 +120,12 @@ describe('P6.3 RPC types over run()', () => {
     type Double = InferRequestType<Member['double']['$post']>;
     expectTypeOf<Double['param']>().toEqualTypeOf<{ id: string }>();
     expectTypeOf<Double['json']>().toEqualTypeOf<{ times: number }>();
+  });
+
+  test('an action whose rules accept nothing takes only the id, as OpenAPI says (P15.6)', () => {
+    expectTypeOf<InferRequestType<Member['halve']['$post']>>().toEqualTypeOf<{
+      param: { id: string };
+    }>();
   });
 
   test('hidden columns are not in the reply type', () => {
