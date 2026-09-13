@@ -33,15 +33,23 @@ export type UpdateRules<M extends Model> = z.ZodObject<
 /** show, destroy, restore and custom actions start from an empty object. */
 export type EmptyRules = z.ZodObject<Record<never, never>, z.core.$strict>;
 
-/** The parsed index query: pagination, sorting, opt-in trashed, and flat column filters. */
+/** The parsed index query: pagination, sorting, opt-in trashed, includes, and column filters. */
 export interface IndexQuery {
   page?: number;
   per_page?: number;
   /** A sortable column, or `-column` for descending. */
   sort?: string;
   trashed?: 'with' | 'only';
-  [filter: string]: string | number | undefined;
+  /** The relations `?include=` names (D28). */
+  include?: string[];
+  [filter: string]: string | number | string[] | undefined;
 }
+
+/** show with includes (D28): only `?include=`, parsed into the names it lists. */
+export type IncludeRules = z.ZodObject<
+  { include: z.ZodOptional<z.ZodType<string[], string>> },
+  z.core.$strict
+>;
 
 /** index: parses query-string values (strings) into an IndexQuery. */
 export type IndexRules = z.ZodType<IndexQuery, Record<string, string | undefined>>;

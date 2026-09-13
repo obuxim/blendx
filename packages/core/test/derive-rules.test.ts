@@ -202,6 +202,19 @@ describe('actions without a body', () => {
     }
   });
 
+  test("DR-INCLUDE: index and show take ?include=, the comma-separated names of the blend's includes", () => {
+    const options = { includes: ['user'] };
+    const index = defaultRules(shop.orders, builtin('index'), options);
+    expect(index.parse({ include: 'user,user' })).toEqual({ include: ['user'] });
+    expect(issues(index, { include: 'customer' })).toEqual([{ code: 'custom', path: 'include' }]);
+    const show = defaultRules(shop.orders, builtin('show'), options);
+    expect(show.parse({ include: 'user' })).toEqual({ include: ['user'] });
+    expect(show.parse({})).toEqual({});
+    // Without includes, include is an unknown key, as any other is.
+    const plain = defaultRules(shop.orders, builtin('show'));
+    expect(issues(plain, { include: 'user' })).toEqual(unknownKeys);
+  });
+
   test('DR-CUSTOM-EMPTY: custom actions start from an empty object', () => {
     const refund = defaultRules(shop.orders, { name: 'refund', builtin: false });
     expect(ok(refund, {})).toBe(true);

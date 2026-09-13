@@ -40,7 +40,7 @@ import type {
 } from './model.ts';
 import type { Policy } from './policy.ts';
 import { relationsOf } from './relations.ts';
-import type { DefaultRules, EmptyRules, IndexRules, ResolvedRules } from './rules.ts';
+import type { DefaultRules, EmptyRules, IncludeRules, IndexRules, ResolvedRules } from './rules.ts';
 
 export type BuiltinAction = 'index' | 'show' | 'store' | 'update' | 'destroy' | 'restore';
 export type HttpMethod = 'get' | 'post' | 'patch' | 'delete';
@@ -119,12 +119,31 @@ type StillHidden<Hidden extends string, V> = readonly Hidden[] extends V
   : Exclude<Hidden, V extends readonly (infer Revealed)[] ? Revealed : never>;
 
 /** A row reply of this resource: the public record, at a status. */
-type RowReply<M extends Model, Hidden extends string, Status extends number> = Reply<
-  Status,
-  Public<M, Hidden>
+type RowReply<
+  M extends Model,
+  Hidden extends string,
+  Status extends number,
+  Extra = unknown,
+> = Reply<Status, Public<M, Hidden> & Extra>;
+
+type PageReply<M extends Model, Hidden extends string, Extra = unknown> = Reply<
+  200,
+  IndexPage<Public<M, Hidden> & Extra>
 >;
 
-type PageReply<M extends Model, Hidden extends string> = Reply<200, IndexPage<Public<M, Hidden>>>;
+/** A target blend's public record (D28): its columns, minus its hidden ones. */
+type IncludedRow<T> =
+  T extends Resource<infer TM, readonly ActionDefinition[], infer TH>
+    ? PublicRow<TM, Extract<TH[number], Column<TM>>>
+    : never;
+
+/** What `?include=` may add to a record of index or show: each include's record, or null (D28). */
+export type Included<I> = [keyof I] extends [never]
+  ? unknown
+  : { [K in keyof I]?: IncludedRow<I[K]> | null };
+
+/** show's rules: an empty object, or `?include=` when the blend declares includes (D28). */
+type ShowRules<I> = [keyof I] extends [never] ? EmptyRules : IncludeRules;
 
 /**
  * The action, or the reason its declared reply does not describe the actual one (D14). The
@@ -139,31 +158,41 @@ type Checked<X, Default, D> =
       : ReplyCheck<X, Out, Default>
     : D;
 
-export type ActionBuilder<M extends Model, Hidden extends string = never> = {
+export type ActionBuilder<
+  M extends Model,
+  Hidden extends string = never,
+  I = Record<never, never>,
+> = {
   index<const R extends Reply, const X extends ReplySchema>(
-    spec?: IndexSpec<M, R, Hidden> & ReplyOption<X>,
+    spec?: IndexSpec<M, R, Hidden, Included<I>> & ReplyOption<X>,
   ): Checked<
     X,
-    PageReply<M, Hidden>,
-    ActionDefinition<'index', IndexRules, ResolvedReply<R, PageReply<M, Hidden>>, 'get'>
+    PageReply<M, Hidden, Included<I>>,
+    ActionDefinition<
+      'index',
+      IndexRules,
+      ResolvedReply<R, PageReply<M, Hidden, Included<I>>>,
+      'get'
+    >
   >;
   show<const R extends Reply, const X extends ReplySchema, const V extends readonly Hidden[]>(
     spec?: RecordSpec<
       M,
       'show',
       R,
-      RowReply<M, StillHidden<Hidden, V>, 200>,
-      StillHidden<Hidden, V>
+      RowReply<M, StillHidden<Hidden, V>, 200, Included<I>>,
+      StillHidden<Hidden, V>,
+      Included<I>
     > &
       ReplyOption<X> &
       RevealOption<V>,
   ): Checked<
     X,
-    RowReply<M, StillHidden<Hidden, V>, 200>,
+    RowReply<M, StillHidden<Hidden, V>, 200, Included<I>>,
     ActionDefinition<
       'show',
-      EmptyRules,
-      ResolvedReply<R, RowReply<M, StillHidden<Hidden, V>, 200>>,
+      ShowRules<I>,
+      ResolvedReply<R, RowReply<M, StillHidden<Hidden, V>, 200, Included<I>>>,
       'get'
     >
   >;
@@ -328,7 +357,7 @@ export interface ResourceSpec<
   includes?: I & { readonly [K in Exclude<keyof I, Relation<M>>]: never };
   /** Hooks that run for every action of this resource. */
   hooks?: ResourceHooks<M>;
-  actions: (a: ActionBuilder<M, H[number]>) => A;
+  actions: (a: ActionBuilder<M, H[number], I>) => A;
 }
 
 export interface Resource<
@@ -525,7 +554,7 @@ export function blend<
     throw new BlendxDefinitionError(model.name, message);
   };
 
-  const actions = spec.actions(builderFor(model) as unknown as ActionBuilder<M, H[number]>);
+  const actions = spec.actions(builderFor(model) as unknown as ActionBuilder<M, H[number], I>);
   const seen = new Set<string>();
   for (const action of actions) {
     if (seen.has(action.name)) fail(`action "${action.name}" is listed twice`);

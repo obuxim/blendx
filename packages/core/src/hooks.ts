@@ -247,6 +247,8 @@ export type RecordSpec<
   R,
   Default,
   Hidden extends string = never,
+  /** What the public record carries besides its columns: show's includes (D28). */
+  Extra = unknown,
 > = Pick<
   ValueHooks<
     M,
@@ -255,7 +257,7 @@ export type RecordSpec<
     Row<M>,
     Writes<M>,
     Default,
-    PublicRow<M, Extract<Hidden, keyof Row<M>>>,
+    PublicRow<M, Extract<Hidden, keyof Row<M>>> & Extra,
     R
   >,
   'authorize' | 'respond'
@@ -310,7 +312,7 @@ export type Scope<M extends Model> = {
 };
 
 /** index: opt in to ?trashed, scope the listing, and override load or respond. */
-export type IndexSpec<M extends Model, R, Hidden extends string> = {
+export type IndexSpec<M extends Model, R, Hidden extends string, Extra = unknown> = {
   /** Accept ?trashed=with|only. Soft-delete tables only. */
   trashed?: boolean;
   /** The rows the listing is limited to, worked out from the identity (D22). */
@@ -322,8 +324,8 @@ export type IndexSpec<M extends Model, R, Hidden extends string> = {
     z.ZodType,
     undefined,
     undefined,
-    Reply<200, IndexPage<PublicRow<M, Extract<Hidden, keyof Row<M>>>>>,
-    IndexPage<PublicRow<M, Extract<Hidden, keyof Row<M>>>>,
+    Reply<200, IndexPage<PublicRow<M, Extract<Hidden, keyof Row<M>>> & Extra>>,
+    IndexPage<PublicRow<M, Extract<Hidden, keyof Row<M>>> & Extra>,
     R
   >,
   'authorize' | 'respond'

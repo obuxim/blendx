@@ -20,5 +20,5 @@ test('every derivation rule and error status has a case, and ids are unique', as
   expect(ids.filter((id, index) => ids.indexOf(id) !== index)).toEqual([]);
   expect(rules.filter((rule) => !ids.includes(rule))).toEqual([]);
   expect(ERROR_STATUSES.filter((status) => !ids.includes(status))).toEqual([]);
-  expect(rules).toHaveLength(23);
+  expect(rules).toHaveLength(24);
 });

@@ -4,7 +4,16 @@
  * inside `refused`, which is never called: blend() would throw.
  */
 import { describe, expectTypeOf, test } from 'bun:test';
-import { allow, blend, type Relation, type RelationTable } from '@blendx/core';
+import {
+  type ActionReply,
+  type ActionRules,
+  allow,
+  blend,
+  type PublicRow,
+  type Relation,
+  type RelationTable,
+} from '@blendx/core';
+import type { z } from 'zod';
 import { models } from '../../../dbml/test/golden/shop.schema.gen.ts';
 
 const users = blend(models.users, { policy: allow.public, actions: (a) => [a.show()] });
@@ -43,5 +52,36 @@ describe('relations (D28)', () => {
       }),
     ];
     expectTypeOf(refused).toBeFunction();
+  });
+});
+
+describe('?include= in the types (P16.8, D28)', () => {
+  const guarded = blend(models.users, {
+    policy: allow.public,
+    hidden: ['password'],
+    actions: (a) => [a.show()],
+  });
+  const orders = blend(models.orders, {
+    policy: allow.public,
+    includes: { user: guarded },
+    actions: (a) => [a.index(), a.show(), a.update()],
+  });
+  type Action<N> = Extract<(typeof orders)['actions'][number], { name: N }>;
+  type User = PublicRow<typeof models.users, 'password'>;
+
+  test('index and show replies carry each include as an optional, nullable record, without its hidden columns', () => {
+    expectTypeOf<ActionReply<Action<'show'>>['body']['user']>().toEqualTypeOf<
+      User | null | undefined
+    >();
+    expectTypeOf<ActionReply<Action<'index'>>['body']['data'][number]['user']>().toEqualTypeOf<
+      User | null | undefined
+    >();
+    expectTypeOf<ActionReply<Action<'update'>>['body']>().not.toHaveProperty('user');
+  });
+
+  test("show's query takes include when the blend declares includes", () => {
+    expectTypeOf<z.input<ActionRules<Action<'show'>>>>().toEqualTypeOf<{
+      include?: string | undefined;
+    }>();
   });
 });

@@ -1,5 +1,6 @@
 import { allow, blend, z } from 'blendx';
 import { models } from '../src/generated/schema.gen.ts';
+import users from './users.ts';
 
 export default blend(models.orders, {
   // An order belongs to its user_id; listing and quoting are public.
@@ -9,6 +10,8 @@ export default blend(models.orders, {
     store: allow.authenticated,
     quote: allow.public,
   },
+  // ?include=user nests the order's user, as GET /users/:id would reply (D28).
+  includes: { user: users },
   actions: (a) => [
     a.index({ trashed: true }),
     a.store({

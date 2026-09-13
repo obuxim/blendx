@@ -5,9 +5,20 @@
  * writes the later hooks' outbox entries (D27). after (D26) runs once a write has committed,
  * and what it throws is reported, not answered.
  */
-import { and, asc, count, desc, eq, getColumns, isNotNull, isNull, sql } from 'drizzle-orm';
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  getColumns,
+  inArray,
+  isNotNull,
+  isNull,
+  sql,
+} from 'drizzle-orm';
 import type { RegisteredAuth } from './app.ts';
-import type { EffectDefaults, ResolvedEndpoint } from './cascade.ts';
+import type { EffectDefaults, IncludedTarget, ResolvedEndpoint } from './cascade.ts';
 import { isDateText, isTimestampText } from './datetime.ts';
 import type { EndpointDefinition } from './endpoints.ts';
 import type { Db, Reply } from './hooks.ts';
@@ -102,6 +113,76 @@ function publicRow(row: unknown, hidden: readonly string[]): unknown {
 function publicPage(page: unknown, hidden: readonly string[]): unknown {
   if (!isObject(page) || !Array.isArray(page.data)) return page;
   return { ...page, data: page.data.map((row) => publicRow(row, hidden)) };
+}
+
+/** The relations `?include=` names, as the rules parsed them (D28). */
+const includesOf = (input: unknown): string[] =>
+  isObject(input) && Array.isArray(input.include) ? (input.include as string[]) : [];
+
+/**
+ * One relation's rows, by key (D28): a single query for every key the rows hold, live rows
+ * only, each through the target's show as GET /<table>/:id decides it; a refused row is null.
+ * The included record is the target's public one, so reveal does not apply.
+ */
+async function includedRows(
+  db: Db,
+  include: IncludedTarget,
+  rows: readonly Record<string, unknown>[],
+  auth: RegisteredAuth | null,
+): Promise<Map<unknown, unknown>> {
+  const { show } = include;
+  const { model } = show;
+  const found = new Map<unknown, unknown>();
+  const keys = [...new Set(rows.map((row) => row[include.column]))].filter(
+    (key) => key !== null && key !== undefined,
+  );
+  const key = model.meta.primaryKey;
+  const columns = getColumns(model.table);
+  const primaryKey = key ? columns[key] : undefined;
+  if (keys.length === 0 || !key || !primaryKey) return found;
+  const deletedAt = model.meta.softDelete ? columns[model.meta.softDelete] : undefined;
+  const byKey = inArray(primaryKey, keys);
+  const targets = (await db
+    .select()
+    .from(model.table as never)
+    .where(deletedAt ? and(byKey, isNull(deletedAt)) : byKey)) as Record<string, unknown>[];
+  const hidden = [...show.hidden, ...(show.revealed ?? [])];
+  for (const target of targets) {
+    const allowed = await show.authorize({ auth, record: target, input: {} });
+    found.set(target[key], allowed ? publicRow(target, hidden) : null);
+  }
+  return found;
+}
+
+/** The public record or page with each named relation nested, or null where there is none. */
+async function withIncludes(
+  db: Db,
+  endpoint: ResolvedEndpoint,
+  names: readonly string[],
+  raw: unknown,
+  out: unknown,
+  auth: RegisteredAuth | null,
+): Promise<unknown> {
+  const page = isObject(raw) && Array.isArray(raw.data);
+  // The keys come from the loaded rows: a hidden foreign key still includes.
+  const sources = (page ? (raw.data as unknown[]) : [raw]).map((row) => (isObject(row) ? row : {}));
+  const nested = new Map<string, Map<unknown, unknown>>();
+  for (const name of names) {
+    const include = endpoint.included[name];
+    if (include) nested.set(name, await includedRows(db, include, sources, auth));
+  }
+  const nest = (row: unknown, source: Record<string, unknown> | undefined) => {
+    if (!isObject(row) || !source) return row;
+    const added = names.map((name) => {
+      const column = endpoint.included[name]?.column;
+      return [name, column ? (nested.get(name)?.get(source[column]) ?? null) : null] as const;
+    });
+    return { ...row, ...Object.fromEntries(added) };
+  };
+  if (page && isObject(out) && Array.isArray(out.data)) {
+    return { ...out, data: out.data.map((row, index) => nest(row, sources[index])) };
+  }
+  return nest(out, sources[0]);
 }
 
 /** The schema-default reply, built from the already public record or page. */
@@ -330,11 +411,16 @@ export async function execute(
       );
     }
 
-    // respond, after the commit
-    const out =
+    // respond, after the commit, with the rows ?include= names (D28)
+    let out =
       endpoint.action === 'index'
         ? publicPage(loaded, endpoint.hidden)
         : publicRow(saved, endpoint.hidden);
+    const names = includesOf(input);
+    if (names.length > 0) {
+      const raw = endpoint.action === 'index' ? loaded : saved;
+      out = await withIncludes(deps.db, endpoint, names, raw, out, auth);
+    }
     const reply = endpoint.respond({
       prev: defaultReply(endpoint, out, result),
       record: out,
@@ -361,7 +447,7 @@ export interface DefaultEffectOptions {
 }
 
 /** Index query keys that are not column filters. */
-const INDEX_CONTROLS = new Set(['page', 'per_page', 'sort', 'trashed']);
+const INDEX_CONTROLS = new Set(['page', 'per_page', 'sort', 'trashed', 'include']);
 
 /**
  * The schema-level load and save for an endpoint.

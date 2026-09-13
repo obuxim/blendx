@@ -39,6 +39,18 @@ Tests:
 - [store: the entry has no loaded row](../core/test/later.test.ts)
 - [reads write no entry, even with app and resource later hooks](../core/test/later.test.ts)
 
+## Includes
+
+index and show accept `?include=` with the names of the blend's includes (docs/decisions.md D28). After authorize and before respond, each relation's rows are loaded in one query for the whole reply, by the keys the loaded rows hold, live rows only. Each goes through the target blend's show, its policy and authorize hooks, and loses the target's hidden columns; a row that show would refuse or not find is `null`. The row is nested under the relation's name, and respond receives the record with it.
+
+Tests:
+- [show nests the row its foreign key points to, without its hidden columns](../core/test/engine-include.test.ts)
+- [each included row goes through the target's show: a row it refuses is null](../core/test/engine-include.test.ts)
+- [the target show's authorize hooks decide too](../core/test/engine-include.test.ts)
+- [a row that show would not find, such as a soft-deleted one, is null](../core/test/engine-include.test.ts)
+- [one query per relation, for the whole page](../core/test/engine-include.test.ts)
+- [respond receives the record with its includes](../core/test/engine-include.test.ts)
+
 ## The order of failures
 
 A request stops at the first stage that fails, so the statuses come in a fixed order:

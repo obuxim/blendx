@@ -13,6 +13,13 @@ import type {
 import type { ReplyDeclaration } from './hooks.ts';
 import type { Model } from './model.ts';
 import type { Policy } from './policy.ts';
+import { relationsOf } from './relations.ts';
+
+/** What `?include=<name>` nests (D28): the foreign key column, and the blend it points to. */
+export interface IncludeDefinition {
+  readonly column: string;
+  readonly target: Resource;
+}
 
 export interface EndpointDefinition {
   /** `<table>.<action>`: a stable id for OpenAPI operation ids, review files and logs. */
@@ -38,6 +45,8 @@ export interface EndpointDefinition {
   readonly resourceHooks: ResourceHooks;
   /** The reply schema the action declares for OpenAPI (D14), if any. */
   readonly reply?: ReplyDeclaration;
+  /** index and show: what `?include=` may nest, by relation name (D28). Empty elsewhere. */
+  readonly includes: Readonly<Record<string, IncludeDefinition>>;
 }
 
 const BUILTIN_ORDER = ['index', 'store', 'show', 'update', 'destroy', 'restore'];
@@ -66,6 +75,20 @@ function byRank(a: ActionDefinition, b: ActionDefinition): number {
 /** The endpoints of one resource, in route order. */
 export function toEndpoints(resource: Resource): EndpointDefinition[] {
   const { model, hidden, policies } = resource;
+  const relations = relationsOf(model);
+  const includes = Object.freeze(
+    Object.fromEntries(
+      Object.entries(resource.includes ?? {}).map(([name, target]) => [
+        name,
+        Object.freeze({
+          column: relations.get(name)?.column ?? `${name}_id`,
+          target: target as Resource,
+        }),
+      ]),
+    ),
+  );
+  const reads = (action: ActionDefinition) =>
+    action.builtin && (action.name === 'index' || action.name === 'show');
   return [...resource.actions].sort(byRank).map((action) => {
     const policy = policies[action.name];
     if (!policy) throw new Error(`${model.name}.${action.name} has no policy`);
@@ -87,6 +110,8 @@ export function toEndpoints(resource: Resource): EndpointDefinition[] {
       hooks: action.hooks,
       resourceHooks: resource.hooks as ResourceHooks,
       ...(action.reply ? { reply: action.reply } : {}),
+      // D28: only index and show take ?include=.
+      includes: reads(action) ? includes : {},
     });
   });
 }

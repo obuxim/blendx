@@ -10,7 +10,8 @@ import { z } from 'zod';
 import type { App, RegisteredAuth } from './app.ts';
 import { defaultRules } from './derive-rules.ts';
 import type { EndpointDefinition } from './endpoints.ts';
-import { saves } from './engine.ts';
+import { toEndpoints } from './endpoints.ts';
+import { defaultEffects, saves } from './engine.ts';
 import type { Db, Reply } from './hooks.ts';
 
 export type Level = 'schema' | 'app' | 'resource' | 'action';
@@ -73,6 +74,12 @@ export interface LaterInput extends AfterInput {
   attempt: number;
 }
 
+/** An include (D28): the foreign key column, and the target's show that decides each row. */
+export interface IncludedTarget {
+  readonly column: string;
+  readonly show: ResolvedEndpoint;
+}
+
 /** The engine's schema-level load and save for one endpoint. */
 export interface EffectDefaults {
   load(context: LoadInput): Promise<unknown>;
@@ -86,6 +93,8 @@ export interface ResolvedEndpoint extends EndpointDefinition {
   readonly provenance: Readonly<Record<Stage, readonly Level[]>>;
   /** From the policy: a request without an identity gets 401 before validation. */
   readonly requiresAuth: boolean;
+  /** index and show: each include's target, as its show runs for GET /<table>/:id (D28). */
+  readonly included: Readonly<Record<string, IncludedTarget>>;
   load(context: LoadInput): Promise<unknown>;
   authorize(context: { auth: Auth; record: unknown; input: unknown }): Promise<boolean>;
   /** `prev` is the schema default: the validated input's writable columns. */
@@ -141,18 +150,36 @@ export function resolveEndpoint(
   let rules: z.ZodType = defaultRules(
     model,
     { name: action, builtin: endpoint.builtin },
-    { hidden: endpoint.hidden, maxPerPage: app.index.maxPerPage, trashed: endpoint.trashed },
+    {
+      hidden: endpoint.hidden,
+      maxPerPage: app.index.maxPerPage,
+      trashed: endpoint.trashed,
+      includes: Object.keys(endpoint.includes ?? {}),
+    },
   );
   if (appHooks.rules) rules = appHooks.rules({ prev: rules, model, action });
   if (resourceHooks.rules) rules = resourceHooks.rules({ prev: rules, action });
   if (actionHooks.rules) rules = actionHooks.rules({ prev: rules });
   rules = strictByDefault(rules);
 
+  // D28: each include's target show, with this app, as it answers GET /<table>/:id.
+  const included = Object.freeze(
+    Object.fromEntries(
+      Object.entries(endpoint.includes ?? {}).map(([name, { column, target }]) => {
+        const show = toEndpoints(target).find((definition) => definition.action === 'show');
+        if (!show) throw new Error(`${model.name}: include "${name}" has no show to go through`);
+        const resolved = resolveEndpoint(show, { app, defaults: defaultEffects(show) });
+        return [name, Object.freeze({ column, show: resolved })];
+      }),
+    ),
+  );
+
   return Object.freeze({
     ...endpoint,
     rules,
     provenance: Object.freeze(provenance),
     requiresAuth: endpoint.policy.requiresAuth,
+    included,
 
     load: (context: LoadInput) => {
       const runDefault = () => defaults.load(context);

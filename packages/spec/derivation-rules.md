@@ -50,7 +50,8 @@ Query values arrive as strings and are parsed.
 
 | Id | Rule |
 |---|---|
-| DR-MEMBER-EMPTY | `show`, `destroy` and `restore` accept only an empty object. |
+| DR-MEMBER-EMPTY | `show`, `destroy` and `restore` accept only an empty object, except show's `?include=` (DR-INCLUDE). |
+| DR-INCLUDE | `index` and `show` take `?include=`, the comma-separated names of the blend's includes, when it declares any (docs/decisions.md D28); any other name is rejected with 422. |
 | DR-CUSTOM-EMPTY | Custom actions start from an empty object; their `rules` hook adds the fields they need. |
 
 ## Replies

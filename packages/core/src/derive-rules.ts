@@ -19,6 +19,8 @@ export interface DeriveOptions {
   maxPerPage?: number;
   /** Accept ?trashed=with|only on a soft-delete table. Off unless the resource enables it. */
   trashed?: boolean;
+  /** The names `?include=` accepts on index and show: the blend's includes (D28). */
+  includes?: readonly string[];
 }
 
 /**
@@ -96,6 +98,27 @@ const count = (max?: number) =>
  * DR-INDEX-PAGE, DR-INDEX-PER-PAGE, DR-INDEX-SORT, DR-INDEX-FILTER, DR-INDEX-HIDDEN,
  * DR-INDEX-TRASHED, DR-INDEX-STRICT, DR-DATE-FORMAT. Values arrive as query strings.
  */
+/**
+ * DR-INCLUDE: `?include=user,order`, comma-separated names of the blend's includes, parsed into
+ * a list without repeats (D28). Any other name is refused.
+ */
+function includeRule(names: readonly string[]): z.ZodType {
+  return z
+    .string()
+    .transform((value, context) => {
+      const asked = [...new Set(value.split(',').map((name) => name.trim()))].filter(Boolean);
+      const unknown = asked.filter((name) => !names.includes(name));
+      if (unknown.length === 0) return asked;
+      context.addIssue({
+        code: 'custom',
+        message: `not an include: ${unknown.join(', ')} (one of ${names.join(', ')})`,
+      });
+      return z.NEVER;
+    })
+    .optional()
+    .describe(`comma-separated, of: ${names.join(', ')}`);
+}
+
 function indexRules(model: Model, options: DeriveOptions): z.ZodObject {
   const hidden = new Set(options.hidden ?? []);
   const keyed = new Set<string>([
@@ -123,6 +146,7 @@ function indexRules(model: Model, options: DeriveOptions): z.ZodObject {
   if (options.trashed && model.meta.softDelete !== null) {
     shape.trashed = z.enum(['with', 'only']).optional();
   }
+  if (options.includes?.length) shape.include = includeRule(options.includes);
   return z.object(shape).strict();
 }
 
@@ -140,6 +164,10 @@ export function defaultRules(
     if (action.name === 'store') return storeRules(model);
     if (action.name === 'update') return storeRules(model).partial(); // DR-UPDATE-PARTIAL
     if (action.name === 'index') return indexRules(model, options);
+    // DR-INCLUDE: show takes ?include= when the blend declares includes (D28).
+    if (action.name === 'show' && options.includes?.length) {
+      return z.object({ include: includeRule(options.includes) }).strict();
+    }
   }
   return z.object({}).strict();
 }

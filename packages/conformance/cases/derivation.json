@@ -45,7 +45,16 @@
           },
           "expect": {
             "status": 422,
-            "body": { "errors": [{ "pointer": "/id" }, { "pointer": "/created_at" }] }
+            "body": {
+              "errors": [
+                {
+                  "pointer": "/id"
+                },
+                {
+                  "pointer": "/created_at"
+                }
+              ]
+            }
           }
         }
       ]
@@ -58,10 +67,25 @@
           "request": {
             "method": "POST",
             "path": "/orders",
-            "headers": { "x-user-id": "1" },
-            "body": { "user_id": 1, "total": "5.00", "coupon": "FREE" }
+            "headers": {
+              "x-user-id": "1"
+            },
+            "body": {
+              "user_id": 1,
+              "total": "5.00",
+              "coupon": "FREE"
+            }
           },
-          "expect": { "status": 422, "body": { "errors": [{ "pointer": "/coupon" }] } }
+          "expect": {
+            "status": 422,
+            "body": {
+              "errors": [
+                {
+                  "pointer": "/coupon"
+                }
+              ]
+            }
+          }
         }
       ]
     },
@@ -73,10 +97,23 @@
           "request": {
             "method": "POST",
             "path": "/orders",
-            "headers": { "x-user-id": "1" },
-            "body": { "user_id": 1 }
+            "headers": {
+              "x-user-id": "1"
+            },
+            "body": {
+              "user_id": 1
+            }
           },
-          "expect": { "status": 422, "body": { "errors": [{ "pointer": "/total" }] } }
+          "expect": {
+            "status": 422,
+            "body": {
+              "errors": [
+                {
+                  "pointer": "/total"
+                }
+              ]
+            }
+          }
         }
       ]
     },
@@ -88,19 +125,44 @@
           "request": {
             "method": "POST",
             "path": "/orders",
-            "headers": { "x-user-id": "1" },
-            "body": { "user_id": 1, "total": "5.00", "placed_on": null }
+            "headers": {
+              "x-user-id": "1"
+            },
+            "body": {
+              "user_id": 1,
+              "total": "5.00",
+              "placed_on": null
+            }
           },
-          "expect": { "status": 201, "body": { "placed_on": null } }
+          "expect": {
+            "status": 201,
+            "body": {
+              "placed_on": null
+            }
+          }
         },
         {
           "request": {
             "method": "POST",
             "path": "/orders",
-            "headers": { "x-user-id": "1" },
-            "body": { "user_id": 1, "total": null }
+            "headers": {
+              "x-user-id": "1"
+            },
+            "body": {
+              "user_id": 1,
+              "total": null
+            }
           },
-          "expect": { "status": 422, "body": { "errors": [{ "pointer": "/total" }] } }
+          "expect": {
+            "status": 422,
+            "body": {
+              "errors": [
+                {
+                  "pointer": "/total"
+                }
+              ]
+            }
+          }
         }
       ]
     },
@@ -118,7 +180,16 @@
               "display_name": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
             }
           },
-          "expect": { "status": 422, "body": { "errors": [{ "pointer": "/display_name" }] } }
+          "expect": {
+            "status": 422,
+            "body": {
+              "errors": [
+                {
+                  "pointer": "/display_name"
+                }
+              ]
+            }
+          }
         }
       ]
     },
@@ -130,10 +201,25 @@
           "request": {
             "method": "POST",
             "path": "/orders",
-            "headers": { "x-user-id": "1" },
-            "body": { "user_id": 1, "total": "5.00", "quantity": 2147483648 }
+            "headers": {
+              "x-user-id": "1"
+            },
+            "body": {
+              "user_id": 1,
+              "total": "5.00",
+              "quantity": 2147483648
+            }
           },
-          "expect": { "status": 422, "body": { "errors": [{ "pointer": "/quantity" }] } }
+          "expect": {
+            "status": 422,
+            "body": {
+              "errors": [
+                {
+                  "pointer": "/quantity"
+                }
+              ]
+            }
+          }
         }
       ]
     },
@@ -145,19 +231,45 @@
           "request": {
             "method": "POST",
             "path": "/orders",
-            "headers": { "x-user-id": "1" },
-            "body": { "user_id": 1, "total": "5.00", "status": "shipped" }
+            "headers": {
+              "x-user-id": "1"
+            },
+            "body": {
+              "user_id": 1,
+              "total": "5.00",
+              "status": "shipped"
+            }
           },
-          "expect": { "status": 422, "body": { "errors": [{ "pointer": "/status" }] } }
+          "expect": {
+            "status": 422,
+            "body": {
+              "errors": [
+                {
+                  "pointer": "/status"
+                }
+              ]
+            }
+          }
         },
         {
           "request": {
             "method": "POST",
             "path": "/orders",
-            "headers": { "x-user-id": "1" },
-            "body": { "user_id": 1, "total": "5.00", "status": "pending" }
+            "headers": {
+              "x-user-id": "1"
+            },
+            "body": {
+              "user_id": 1,
+              "total": "5.00",
+              "status": "pending"
+            }
           },
-          "expect": { "status": 201, "body": { "status": "pending" } }
+          "expect": {
+            "status": 201,
+            "body": {
+              "status": "pending"
+            }
+          }
         }
       ]
     },
@@ -169,19 +281,43 @@
           "request": {
             "method": "POST",
             "path": "/orders",
-            "headers": { "x-user-id": "1" },
-            "body": { "user_id": 1, "total": 5.5 }
+            "headers": {
+              "x-user-id": "1"
+            },
+            "body": {
+              "user_id": 1,
+              "total": 5.5
+            }
           },
-          "expect": { "status": 422, "body": { "errors": [{ "pointer": "/total" }] } }
+          "expect": {
+            "status": 422,
+            "body": {
+              "errors": [
+                {
+                  "pointer": "/total"
+                }
+              ]
+            }
+          }
         },
         {
           "request": {
             "method": "POST",
             "path": "/orders",
-            "headers": { "x-user-id": "1" },
-            "body": { "user_id": 1, "total": "5.50" }
+            "headers": {
+              "x-user-id": "1"
+            },
+            "body": {
+              "user_id": 1,
+              "total": "5.50"
+            }
           },
-          "expect": { "status": 201, "body": { "total": "5.50" } }
+          "expect": {
+            "status": 201,
+            "body": {
+              "total": "5.50"
+            }
+          }
         }
       ]
     },
@@ -190,16 +326,66 @@
       "title": "a scoped index lists only the rows in scope: users list only themselves",
       "steps": [
         {
-          "request": { "method": "GET", "path": "/users", "headers": { "x-user-id": "1" } },
-          "expect": { "status": 200, "body": { "data": [{ "id": 1 }], "meta": { "total": 1 } } }
+          "request": {
+            "method": "GET",
+            "path": "/users",
+            "headers": {
+              "x-user-id": "1"
+            }
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "data": [
+                {
+                  "id": 1
+                }
+              ],
+              "meta": {
+                "total": 1
+              }
+            }
+          }
         },
         {
-          "request": { "method": "GET", "path": "/users", "headers": { "x-user-id": "2" } },
-          "expect": { "status": 200, "body": { "data": [{ "id": 2 }], "meta": { "total": 1 } } }
+          "request": {
+            "method": "GET",
+            "path": "/users",
+            "headers": {
+              "x-user-id": "2"
+            }
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "data": [
+                {
+                  "id": 2
+                }
+              ],
+              "meta": {
+                "total": 1
+              }
+            }
+          }
         },
         {
-          "request": { "method": "GET", "path": "/users?id=2", "headers": { "x-user-id": "1" } },
-          "expect": { "status": 200, "body": { "data": [], "meta": { "total": 0 } } }
+          "request": {
+            "method": "GET",
+            "path": "/users?id=2",
+            "headers": {
+              "x-user-id": "1"
+            }
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "data": [],
+              "meta": {
+                "total": 0
+              }
+            }
+          }
         }
       ]
     },
@@ -211,18 +397,53 @@
           "request": {
             "method": "POST",
             "path": "/orders",
-            "headers": { "x-user-id": "1" },
-            "body": { "user_id": 1, "total": "5.00", "placed_on": "yesterday" }
+            "headers": {
+              "x-user-id": "1"
+            },
+            "body": {
+              "user_id": 1,
+              "total": "5.00",
+              "placed_on": "yesterday"
+            }
           },
-          "expect": { "status": 422, "body": { "errors": [{ "pointer": "/placed_on" }] } }
+          "expect": {
+            "status": 422,
+            "body": {
+              "errors": [
+                {
+                  "pointer": "/placed_on"
+                }
+              ]
+            }
+          }
         },
         {
-          "request": { "method": "GET", "path": "/orders?created_at=2026-09-13T00:00:00Z" },
-          "expect": { "status": 200, "body": { "data": [] } }
+          "request": {
+            "method": "GET",
+            "path": "/orders?created_at=2026-09-13T00:00:00Z"
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "data": []
+            }
+          }
         },
         {
-          "request": { "method": "GET", "path": "/orders?created_at=now" },
-          "expect": { "status": 422, "body": { "errors": [{ "parameter": "created_at" }] } }
+          "request": {
+            "method": "GET",
+            "path": "/orders?created_at=now"
+          },
+          "expect": {
+            "status": 422,
+            "body": {
+              "errors": [
+                {
+                  "parameter": "created_at"
+                }
+              ]
+            }
+          }
         }
       ]
     },
@@ -234,22 +455,46 @@
           "request": {
             "method": "POST",
             "path": "/orders",
-            "headers": { "x-user-id": "1" },
-            "body": { "user_id": 1, "total": "5.00", "placed_on": "2026-09-13" }
+            "headers": {
+              "x-user-id": "1"
+            },
+            "body": {
+              "user_id": 1,
+              "total": "5.00",
+              "placed_on": "2026-09-13"
+            }
           },
           "expect": {
             "status": 201,
-            "body": { "placed_on": "2026-09-13", "created_at": "$timestamp" }
+            "body": {
+              "placed_on": "2026-09-13",
+              "created_at": "$timestamp"
+            }
           }
         },
         {
           "request": {
             "method": "POST",
             "path": "/orders",
-            "headers": { "x-user-id": "1" },
-            "body": { "user_id": 1, "total": "5.00", "placed_on": 20260913 }
+            "headers": {
+              "x-user-id": "1"
+            },
+            "body": {
+              "user_id": 1,
+              "total": "5.00",
+              "placed_on": 20260913
+            }
           },
-          "expect": { "status": 422, "body": { "errors": [{ "pointer": "/placed_on" }] } }
+          "expect": {
+            "status": 422,
+            "body": {
+              "errors": [
+                {
+                  "pointer": "/placed_on"
+                }
+              ]
+            }
+          }
         }
       ]
     },
@@ -261,10 +506,21 @@
           "request": {
             "method": "POST",
             "path": "/orders",
-            "headers": { "x-user-id": "1" },
-            "body": { "user_id": 1, "total": "1.00", "weight": 1e20 }
+            "headers": {
+              "x-user-id": "1"
+            },
+            "body": {
+              "user_id": 1,
+              "total": "1.00",
+              "weight": 1e20
+            }
           },
-          "expect": { "status": 201, "body": { "weight": 1e20 } }
+          "expect": {
+            "status": 201,
+            "body": {
+              "weight": 1e20
+            }
+          }
         }
       ]
     },
@@ -276,19 +532,43 @@
           "request": {
             "method": "PATCH",
             "path": "/orders/1",
-            "headers": { "x-user-id": "1" },
-            "body": { "quantity": 5 }
+            "headers": {
+              "x-user-id": "1"
+            },
+            "body": {
+              "quantity": 5
+            }
           },
-          "expect": { "status": 200, "body": { "id": 1, "quantity": 5, "total": "19.00" } }
+          "expect": {
+            "status": 200,
+            "body": {
+              "id": 1,
+              "quantity": 5,
+              "total": "19.00"
+            }
+          }
         },
         {
           "request": {
             "method": "PATCH",
             "path": "/orders/1",
-            "headers": { "x-user-id": "1" },
-            "body": { "coupon": "x" }
+            "headers": {
+              "x-user-id": "1"
+            },
+            "body": {
+              "coupon": "x"
+            }
           },
-          "expect": { "status": 422, "body": { "errors": [{ "pointer": "/coupon" }] } }
+          "expect": {
+            "status": 422,
+            "body": {
+              "errors": [
+                {
+                  "pointer": "/coupon"
+                }
+              ]
+            }
+          }
         }
       ]
     },
@@ -297,12 +577,36 @@
       "title": "page is a positive integer",
       "steps": [
         {
-          "request": { "method": "GET", "path": "/orders?page=0" },
-          "expect": { "status": 422, "body": { "errors": [{ "parameter": "page" }] } }
+          "request": {
+            "method": "GET",
+            "path": "/orders?page=0"
+          },
+          "expect": {
+            "status": 422,
+            "body": {
+              "errors": [
+                {
+                  "parameter": "page"
+                }
+              ]
+            }
+          }
         },
         {
-          "request": { "method": "GET", "path": "/orders?page=2" },
-          "expect": { "status": 200, "body": { "data": [], "meta": { "page": 2, "total": 1 } } }
+          "request": {
+            "method": "GET",
+            "path": "/orders?page=2"
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "data": [],
+              "meta": {
+                "page": 2,
+                "total": 1
+              }
+            }
+          }
         }
       ]
     },
@@ -311,12 +615,35 @@
       "title": "per_page is a positive integer, at most 100",
       "steps": [
         {
-          "request": { "method": "GET", "path": "/orders?per_page=101" },
-          "expect": { "status": 422, "body": { "errors": [{ "parameter": "per_page" }] } }
+          "request": {
+            "method": "GET",
+            "path": "/orders?per_page=101"
+          },
+          "expect": {
+            "status": 422,
+            "body": {
+              "errors": [
+                {
+                  "parameter": "per_page"
+                }
+              ]
+            }
+          }
         },
         {
-          "request": { "method": "GET", "path": "/orders?per_page=1" },
-          "expect": { "status": 200, "body": { "meta": { "per_page": 1, "total": 1 } } }
+          "request": {
+            "method": "GET",
+            "path": "/orders?per_page=1"
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "meta": {
+                "per_page": 1,
+                "total": 1
+              }
+            }
+          }
         }
       ]
     },
@@ -325,12 +652,38 @@
       "title": "key and indexed columns filter by exact value",
       "steps": [
         {
-          "request": { "method": "GET", "path": "/orders?user_id=1" },
-          "expect": { "status": 200, "body": { "data": [{ "id": 1 }], "meta": { "total": 1 } } }
+          "request": {
+            "method": "GET",
+            "path": "/orders?user_id=1"
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "data": [
+                {
+                  "id": 1
+                }
+              ],
+              "meta": {
+                "total": 1
+              }
+            }
+          }
         },
         {
-          "request": { "method": "GET", "path": "/orders?user_id=2" },
-          "expect": { "status": 200, "body": { "data": [], "meta": { "total": 0 } } }
+          "request": {
+            "method": "GET",
+            "path": "/orders?user_id=2"
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "data": [],
+              "meta": {
+                "total": 0
+              }
+            }
+          }
         }
       ]
     },
@@ -342,18 +695,58 @@
           "request": {
             "method": "POST",
             "path": "/orders",
-            "headers": { "x-user-id": "2" },
-            "body": { "user_id": 2, "total": "3.00" }
+            "headers": {
+              "x-user-id": "2"
+            },
+            "body": {
+              "user_id": 2,
+              "total": "3.00"
+            }
           },
-          "expect": { "status": 201, "body": { "id": 2 } }
+          "expect": {
+            "status": 201,
+            "body": {
+              "id": 2
+            }
+          }
         },
         {
-          "request": { "method": "GET", "path": "/orders?sort=-id" },
-          "expect": { "status": 200, "body": { "data": [{ "id": 2 }, { "id": 1 }] } }
+          "request": {
+            "method": "GET",
+            "path": "/orders?sort=-id"
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "data": [
+                {
+                  "id": 2
+                },
+                {
+                  "id": 1
+                }
+              ]
+            }
+          }
         },
         {
-          "request": { "method": "GET", "path": "/orders?sort=id" },
-          "expect": { "status": 200, "body": { "data": [{ "id": 1 }, { "id": 2 }] } }
+          "request": {
+            "method": "GET",
+            "path": "/orders?sort=id"
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "data": [
+                {
+                  "id": 1
+                },
+                {
+                  "id": 2
+                }
+              ]
+            }
+          }
         }
       ]
     },
@@ -362,8 +755,20 @@
       "title": "any other query parameter is rejected",
       "steps": [
         {
-          "request": { "method": "GET", "path": "/orders?color=red" },
-          "expect": { "status": 422, "body": { "errors": [{ "parameter": "color" }] } }
+          "request": {
+            "method": "GET",
+            "path": "/orders?color=red"
+          },
+          "expect": {
+            "status": 422,
+            "body": {
+              "errors": [
+                {
+                  "parameter": "color"
+                }
+              ]
+            }
+          }
         }
       ]
     },
@@ -375,17 +780,39 @@
           "request": {
             "method": "GET",
             "path": "/users?password=ada-secret",
-            "headers": { "x-user-id": "1" }
+            "headers": {
+              "x-user-id": "1"
+            }
           },
-          "expect": { "status": 422, "body": { "errors": [{ "parameter": "password" }] } }
+          "expect": {
+            "status": 422,
+            "body": {
+              "errors": [
+                {
+                  "parameter": "password"
+                }
+              ]
+            }
+          }
         },
         {
           "request": {
             "method": "GET",
             "path": "/users?sort=password",
-            "headers": { "x-user-id": "1" }
+            "headers": {
+              "x-user-id": "1"
+            }
           },
-          "expect": { "status": 422, "body": { "errors": [{ "parameter": "sort" }] } }
+          "expect": {
+            "status": 422,
+            "body": {
+              "errors": [
+                {
+                  "parameter": "sort"
+                }
+              ]
+            }
+          }
         }
       ]
     },
@@ -394,28 +821,164 @@
       "title": "soft-deleted rows leave the index; ?trashed brings them back where enabled",
       "steps": [
         {
-          "request": { "method": "DELETE", "path": "/orders/1", "headers": { "x-user-id": "1" } },
-          "expect": { "status": 204, "body": "$absent" }
+          "request": {
+            "method": "DELETE",
+            "path": "/orders/1",
+            "headers": {
+              "x-user-id": "1"
+            }
+          },
+          "expect": {
+            "status": 204,
+            "body": "$absent"
+          }
         },
         {
-          "request": { "method": "GET", "path": "/orders" },
-          "expect": { "status": 200, "body": { "data": [], "meta": { "total": 0 } } }
+          "request": {
+            "method": "GET",
+            "path": "/orders"
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "data": [],
+              "meta": {
+                "total": 0
+              }
+            }
+          }
         },
         {
-          "request": { "method": "GET", "path": "/orders?trashed=with" },
-          "expect": { "status": 200, "body": { "meta": { "total": 1 } } }
+          "request": {
+            "method": "GET",
+            "path": "/orders?trashed=with"
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "meta": {
+                "total": 1
+              }
+            }
+          }
         },
         {
-          "request": { "method": "GET", "path": "/orders?trashed=only" },
-          "expect": { "status": 200, "body": { "data": [{ "id": 1, "deleted_at": "$timestamp" }] } }
+          "request": {
+            "method": "GET",
+            "path": "/orders?trashed=only"
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "data": [
+                {
+                  "id": 1,
+                  "deleted_at": "$timestamp"
+                }
+              ]
+            }
+          }
         },
         {
           "request": {
             "method": "GET",
             "path": "/users?trashed=with",
-            "headers": { "x-user-id": "1" }
+            "headers": {
+              "x-user-id": "1"
+            }
           },
-          "expect": { "status": 422, "body": { "errors": [{ "parameter": "trashed" }] } }
+          "expect": {
+            "status": 422,
+            "body": {
+              "errors": [
+                {
+                  "parameter": "trashed"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "DR-INCLUDE",
+      "title": "?include=user nests each order's user as its show would reply, or null; other names are refused",
+      "steps": [
+        {
+          "request": {
+            "method": "GET",
+            "path": "/orders/1?include=user",
+            "headers": {
+              "x-user-id": "1"
+            }
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "id": 1,
+              "user_id": 1,
+              "user": {
+                "id": 1,
+                "email": "ada@example.com",
+                "password": "$absent"
+              }
+            }
+          }
+        },
+        {
+          "request": {
+            "method": "GET",
+            "path": "/orders?include=user"
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "data": [
+                {
+                  "id": 1,
+                  "user": null
+                }
+              ]
+            }
+          }
+        },
+        {
+          "request": {
+            "method": "GET",
+            "path": "/orders?include=user",
+            "headers": {
+              "x-user-id": "2"
+            }
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "data": [
+                {
+                  "id": 1,
+                  "user": {
+                    "id": 1
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "request": {
+            "method": "GET",
+            "path": "/orders?include=customer"
+          },
+          "expect": {
+            "status": 422,
+            "body": {
+              "errors": [
+                {
+                  "parameter": "include"
+                }
+              ]
+            }
+          }
         }
       ]
     },
@@ -427,18 +990,42 @@
           "request": {
             "method": "GET",
             "path": "/orders/1?note=x",
-            "headers": { "x-user-id": "1" }
+            "headers": {
+              "x-user-id": "1"
+            }
           },
-          "expect": { "status": 422, "body": { "errors": [{ "parameter": "note" }] } }
+          "expect": {
+            "status": 422,
+            "body": {
+              "errors": [
+                {
+                  "parameter": "note"
+                }
+              ]
+            }
+          }
         },
         {
           "request": {
             "method": "POST",
             "path": "/orders/1/restore",
-            "headers": { "x-user-id": "1" },
-            "body": { "note": "x" }
+            "headers": {
+              "x-user-id": "1"
+            },
+            "body": {
+              "note": "x"
+            }
           },
-          "expect": { "status": 422, "body": { "errors": [{ "pointer": "/note" }] } }
+          "expect": {
+            "status": 422,
+            "body": {
+              "errors": [
+                {
+                  "pointer": "/note"
+                }
+              ]
+            }
+          }
         }
       ]
     },
@@ -450,23 +1037,55 @@
           "request": {
             "method": "POST",
             "path": "/orders/1/refund",
-            "headers": { "x-user-id": "1" },
-            "body": { "reason": "broken", "coupon": "x" }
+            "headers": {
+              "x-user-id": "1"
+            },
+            "body": {
+              "reason": "broken",
+              "coupon": "x"
+            }
           },
-          "expect": { "status": 422, "body": { "errors": [{ "pointer": "/coupon" }] } }
+          "expect": {
+            "status": 422,
+            "body": {
+              "errors": [
+                {
+                  "pointer": "/coupon"
+                }
+              ]
+            }
+          }
         },
         {
           "request": {
             "method": "POST",
             "path": "/orders/1/refund",
-            "headers": { "x-user-id": "1" },
-            "body": { "reason": "broken" }
+            "headers": {
+              "x-user-id": "1"
+            },
+            "body": {
+              "reason": "broken"
+            }
           },
-          "expect": { "status": 200, "body": { "id": 1, "status": "refunded" } }
+          "expect": {
+            "status": 200,
+            "body": {
+              "id": 1,
+              "status": "refunded"
+            }
+          }
         },
         {
-          "request": { "method": "GET", "path": "/orders/quote?quantity=2" },
-          "expect": { "status": 200, "body": { "total": "19.00" } }
+          "request": {
+            "method": "GET",
+            "path": "/orders/quote?quantity=2"
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "total": "19.00"
+            }
+          }
         }
       ]
     },
@@ -475,7 +1094,13 @@
       "title": "a reply holds the row's columns, minus hidden ones",
       "steps": [
         {
-          "request": { "method": "GET", "path": "/users/1", "headers": { "x-user-id": "1" } },
+          "request": {
+            "method": "GET",
+            "path": "/users/1",
+            "headers": {
+              "x-user-id": "1"
+            }
+          },
           "expect": {
             "status": 200,
             "body": {
