@@ -48,21 +48,26 @@ For tests, an app can take its identity from a header, as the [conformance fixtu
 
 ## App hooks
 
-App hooks run for every action of every table, before the resource's and the action's hooks ([The cascade](hooks.md#the-cascade)). They can hook `rules`, `authorize` and `respond`, receive the action's name (`action`) and its `model`, and must return the type they receive.
+App hooks run for every action of every table, before the resource's and the action's hooks ([The cascade](hooks.md#the-cascade)). They can hook `rules`, `authorize` and `respond`, receive the action's name (`action`) and its `model`, and must return the type they receive. `authorize` also receives the identity, `auth`, typed from what the app's `auth` function returns.
 
 ```ts
+type Identity = { id: number; suspended: boolean };
+
 export default defineApp({
-  auth: ...,
+  // lookUp stands for finding the identity, as in the example above.
+  auth: async ({ request, db }): Promise<Identity | null> => lookUp(request, db),
   hooks: {
-    // Nothing is deleted through this API.
-    authorize: ({ prev, action }) => prev && action !== 'destroy',
+    // A suspended account is refused everywhere, whatever the policies say.
+    authorize: ({ prev, auth }) => prev && auth?.suspended !== true,
     // No reply is cached.
     respond: ({ prev }) => ({ ...prev, headers: { ...prev.headers, 'cache-control': 'no-store' } }),
   },
 });
 ```
 
-An app-level authorize hook cannot read `auth` yet: in a registered app that is a circular type, which `tsc` refuses (`'auth' is referenced directly or indirectly in its own type annotation`), though it runs. Put a rule about the identity in a policy, or in each resource's `hooks`, where `auth` is typed ([Known issues](known-issues.md#app-wide-hooks-cannot-read-the-identity)).
+`action` lets a hook single out actions: `({ prev, action }) => prev && action !== 'destroy'` refuses every destroy, in every table.
+
+Write `auth` before `hooks`. TypeScript reads the object in order, and the hooks' `auth` type comes from the `auth` function; written the other way round, `auth` is `never` in the hooks, and `tsc` reports the `auth` function as not assignable.
 
 ## Paging
 

@@ -83,7 +83,7 @@ More patterns (scoping a listing to the requester, reshaping a reply, an extra a
 - `rules`, `authorize`, `calculate` and `respond` receive `prev` and return the replacement. Ignore `prev` to replace it, use it to extend it. Never mutate it.
 - `load` and `save` receive `runDefault()`. Call it to extend the default, skip it to replace it.
 - `calculate({ prev, input, record })` is pure and synchronous: no database, no request, no I/O. It returns only columns of its table.
-- Put `rules` before `calculate` in the object: `calculate`'s input type comes from `rules`.
+- Put `rules` before `calculate` in the object: `calculate`'s input type comes from `rules`. Likewise, in `defineApp`, put `auth` before `hooks`: the app hooks' identity type comes from `auth`.
 - A reply blendx cannot derive (a collection action's result, or what `respond` builds) declares `reply: z.object(...)`, or `reply: { status, body }` when `respond` returns another status.
 - Import only from `blendx` (and `@blendx/cli/examples` in tests), and use its `z`.
 

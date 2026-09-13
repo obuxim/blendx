@@ -3,9 +3,10 @@
  * (schema default, then app, then resource, then action). App hooks run for every
  * table, so they must keep the type they receive.
  *
- * The app's auth type reaches every hook and policy through the Register interface,
- * which the generated register.gen.ts augments:
- *   declare module '@blendx/core' { interface Register { app: typeof app } }
+ * The identity's type is inferred from the app's `auth` function. App hooks take it from
+ * there; every policy and every resource or action hook takes it through the Register
+ * interface, which the generated register.gen.ts augments:
+ *   declare module 'blendx' { interface Register { app: typeof app } }
  */
 import type { z } from 'zod';
 import type { Db, Reply } from './hooks.ts';
@@ -19,41 +20,45 @@ export interface AuthContext {
   db: Db;
 }
 
-/** App-level hooks. They see every table, so each must return the type it receives. */
-export interface AppHooks {
-  rules?: <T extends z.ZodType>(context: { prev: T; model: Model; action: string }) => T;
-  authorize?: (context: {
+/**
+ * App-level hooks. They see every table, so each must return the type it receives. `Auth` is
+ * the identity as the app's own `auth` types it: through Register, the app's type would
+ * depend on itself (TS2502). Declared as methods, so an App<User> still fits App.
+ */
+export interface AppHooks<Auth = unknown> {
+  rules?<T extends z.ZodType>(context: { prev: T; model: Model; action: string }): T;
+  authorize?(context: {
     prev: boolean;
-    auth: RegisteredAuth | null;
+    auth: Auth | null;
     model: Model;
     action: string;
-  }) => boolean | Promise<boolean>;
-  respond?: <R extends Reply>(context: { prev: R; model: Model; action: string }) => R;
+  }): boolean | Promise<boolean>;
+  respond?<R extends Reply>(context: { prev: R; model: Model; action: string }): R;
 }
 
-export interface AppSpec {
+/** `Auth` is what `auth` resolves to, null included. */
+export interface AppSpec<Auth = unknown> {
   /** Resolves the identity of a request, or null when there is none. Identity only. */
-  auth?: (context: AuthContext) => unknown;
-  hooks?: AppHooks;
+  auth?: (context: AuthContext) => Auth | Promise<Auth>;
+  /**
+   * Hooks for every table. Write them after `auth`, whose return type types them. Exclude,
+   * not NonNullable, so that the generic App's identity stays `unknown` rather than `{}`.
+   */
+  hooks?: AppHooks<Exclude<Auth, null | undefined>>;
   index?: { perPage?: number; maxPerPage?: number };
   problems?: { typeBase?: string };
 }
 
-export interface App<S extends AppSpec = AppSpec> {
+export interface App<Auth = unknown> {
   readonly kind: 'blendx/app';
-  readonly spec: S;
+  readonly spec: AppSpec<Auth>;
   readonly index: { readonly perPage: number; readonly maxPerPage: number };
 }
 
-type AuthOfApp<A> =
-  A extends App<infer S>
-    ? S['auth'] extends (context: AuthContext) => infer R
-      ? NonNullable<Awaited<R>>
-      : never
-    : unknown;
-
 /** The identity type of the registered app: unknown until register.gen.ts registers one. */
-export type RegisteredAuth = Register extends { app: infer A } ? AuthOfApp<A> : unknown;
+export type RegisteredAuth = Register extends { app: App<infer Auth> }
+  ? NonNullable<Auth>
+  : unknown;
 
 /** Thrown when the app or config is invalid. */
 export class BlendxConfigError extends Error {
@@ -65,7 +70,8 @@ export class BlendxConfigError extends Error {
 
 const isPositiveInteger = (n: number) => Number.isInteger(n) && n > 0;
 
-export function defineApp<const S extends AppSpec>(spec: S): App<S> {
+/** `Auth` is inferred from `auth`; an app without one has no identity (null). */
+export function defineApp<Auth = null>(spec: AppSpec<Auth>): App<Auth> {
   const perPage = spec.index?.perPage ?? 25;
   const maxPerPage = spec.index?.maxPerPage ?? 100;
   if (!isPositiveInteger(perPage) || !isPositiveInteger(maxPerPage)) {

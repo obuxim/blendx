@@ -47,6 +47,37 @@ describe('defineApp', () => {
     expect(typeOnly).toBeFunction();
   });
 
+  test('app hooks see the identity that auth returns', () => {
+    type Identity = { id: number; suspended: boolean };
+    const app = defineApp({
+      auth: ({ request }): Identity | null =>
+        request.headers.has('authorization') ? { id: 1, suspended: false } : null,
+      hooks: {
+        authorize: ({ prev, auth }) => {
+          expectTypeOf(auth).toEqualTypeOf<Identity | null>();
+          return prev && auth?.suspended !== true;
+        },
+      },
+    });
+    const authorize = app.spec.hooks?.authorize;
+    if (!authorize) throw new Error('the app has an authorize hook');
+    const context = { prev: true, model: {} as never, action: 'store' };
+    expect(authorize({ ...context, auth: { id: 1, suspended: true } })).toBe(false);
+    expect(authorize({ ...context, auth: { id: 1, suspended: false } })).toBe(true);
+    expect(authorize({ ...context, auth: null })).toBe(true);
+  });
+
+  test('without auth, app hooks see no identity', () => {
+    defineApp({
+      hooks: {
+        authorize: ({ prev, auth }) => {
+          expectTypeOf(auth).toEqualTypeOf<null>();
+          return prev;
+        },
+      },
+    });
+  });
+
   test('without a registered app, auth is unknown', () => {
     expectTypeOf<RegisteredAuth>().toEqualTypeOf<unknown>();
   });

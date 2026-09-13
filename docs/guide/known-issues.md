@@ -5,7 +5,6 @@ What does not work yet, or not as it should, and what to do instead. Each was fo
 | Issue | Affects | Fixed by |
 |---|---|---|
 | [Invalid dates answer 500](#invalid-dates-answer-500) | date and timestamp columns | P15.2, P15.3 |
-| [App-wide hooks cannot read the identity](#app-wide-hooks-cannot-read-the-identity) | `defineApp({ hooks })` | P15.1 |
 | [A listing cannot be scoped to the requester](#a-listing-cannot-be-scoped-to-the-requester) | index, load hooks | P15.7 |
 | [A column cannot be shown once and hidden elsewhere](#a-column-cannot-be-shown-once-and-hidden-elsewhere) | `hidden` | P15.8 |
 | [The review lists every column for a calculate that spreads prev](#the-review-lists-every-column-for-a-calculate-that-spreads-prev) | review files | P15.4 |
@@ -23,21 +22,6 @@ rules: ({ prev }) => prev.extend({ spent_on: z.iso.date() }),
 ```
 
 `z.iso.datetime()` does the same for timestamps. [The schema](schema.md#types).
-
-## App-wide hooks cannot read the identity
-
-**What happens.** In an app whose `auth` returns an identity, an app-level `authorize` hook that reads `auth` does not typecheck: the identity's type comes from the app, and the hook is part of the app, so `tsc` reports a circular type (`'auth' is referenced directly or indirectly in its own type annotation`). Annotating the hook's parameter does not help. The hook runs correctly; only the types fail. App hooks that do not read `auth`, such as a respond hook or an authorize hook that looks at `action`, typecheck.
-
-**What to do.** Put a rule about the identity in a policy, or in each resource's `hooks`, where `auth` has its type:
-
-```ts
-hooks: {
-  authorize: ({ prev, auth, action }) =>
-    prev && (action === 'index' || action === 'show' || auth?.suspended !== true),
-},
-```
-
-[The app and identity](app.md#app-hooks).
 
 ## A listing cannot be scoped to the requester
 

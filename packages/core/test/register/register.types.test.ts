@@ -22,6 +22,13 @@ interface User {
 const app = defineApp({
   auth: async ({ request }): Promise<User | null> =>
     request.headers.has('authorization') ? { id: 1, role: 'admin' } : null,
+  hooks: {
+    // P15.1: an app hook reads the identity. Typed through Register, this was a circular type.
+    authorize: ({ prev, auth, action }) => {
+      expectTypeOf(auth).toEqualTypeOf<User | null>();
+      return prev && (action !== 'destroy' || auth?.role === 'admin');
+    },
+  },
 });
 
 declare module '@blendx/core' {
@@ -63,11 +70,21 @@ describe('Register', () => {
     expect(typeOnly).toBeFunction();
   });
 
+  test('app hooks see the identity that auth returns', () => {
+    const authorize = app.spec.hooks?.authorize;
+    if (!authorize) throw new Error('the app has an authorize hook');
+    const context = { prev: true, model: {} as never, action: 'destroy' };
+    expect(authorize({ ...context, auth: { id: 2, role: 'member' } })).toBe(false);
+    expect(authorize({ ...context, auth: { id: 1, role: 'admin' } })).toBe(true);
+    // @ts-expect-error the identity is a User, not any object
+    authorize({ ...context, auth: { id: 3 } });
+  });
+
   test('auth resolves the identity from the request', async () => {
     const request = new Request('http://blendx.test', { headers: { authorization: 'Bearer x' } });
-    expect(await app.spec.auth({ request, db: {} as never })).toEqual({ id: 1, role: 'admin' });
+    expect(await app.spec.auth?.({ request, db: {} as never })).toEqual({ id: 1, role: 'admin' });
     expect(
-      await app.spec.auth({ request: new Request('http://blendx.test'), db: {} as never }),
+      await app.spec.auth?.({ request: new Request('http://blendx.test'), db: {} as never }),
     ).toBe(null);
   });
 });

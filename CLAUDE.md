@@ -42,7 +42,7 @@ Working on an app built with blendx rather than on the framework? Its own `CLAUD
 - Value stages (`rules`, `authorize`, `calculate`, `respond`) receive `prev` and return the replacement. Ignore `prev` to replace it, use it to extend. Never mutate.
 - Effect stages (`load`, `save`) receive `runDefault()`. Call it to extend, skip it to replace.
 - `calculate({ prev, input, record })` is pure and synchronous: no db, no request, no I/O imports.
-- Put `rules` before `calculate` in the object literal (type inference runs left to right).
+- Put `rules` before `calculate` in the object literal (type inference runs left to right). Likewise `auth` before `hooks` in `defineApp`: the app hooks' identity type comes from `auth`.
 - Override only the stage that differs from the default.
 - A reply blendx can't derive (a collection action's calculate result, or what respond builds) declares `reply: z.object(...)` for OpenAPI, or `reply: { status, body }` when respond returns another status. `blendx generate` warns about any reply it can't describe.
 

@@ -136,6 +136,12 @@ Confirmed with hono 4.13.7: an explicitly typed `readonly [MiddlewareHandler, Ha
 ### D9 note: P10.5 review examples (2026-09-13)
 `review/<resource>.examples.yaml` is human-owned. It maps action names to lists of examples; each gives `input` (and `record` for member actions) and then `writes` (what calculate must return), `returns` (the same, for a collection action) or `rejects` (the JSON pointers, or query parameters, that validation must reject), plus an optional `name`. `runExamples` (core, no database) checks them the way the engine runs an action: the resolved rules validate, calculate runs with the engine's default `prev`, writes pass `assertWritable`, and the result is compared as sorted JSON. Each failure is one line naming the file, action, example number and name, what came out and what was expected. `blendx review --check` runs them; an app's tests call `checkExamples(appRoot)` from `blendx/examples`, a subpath so that importing `blendx` at runtime never loads the CLI. (D18 moves it to `@blendx/cli/examples`.)
 
+### D9 note: P15.1 the identity's type (2026-09-13)
+`defineApp` infers the identity's type from `auth` and types the app hooks with it directly. `App` is generic over that type, `App<Auth>`, where it was generic over the whole spec, and `RegisteredAuth` reads it from the registered `App<Auth>`. Through `RegisteredAuth`, an app hook that read `auth` made `typeof app` depend on itself (TS2502). Policies and resource and action hooks still take the type through `Register`. Consequences:
+- App hooks are declared as methods, as resource hooks are, so an `App<User>` still fits `App`.
+- `app.spec` is typed as `AppSpec<Auth>`, not as the literal spec, so `app.spec.auth` is optional in its type.
+- `auth` comes before `hooks` in `defineApp`, as `rules` comes before `calculate` in an action (D12): inference reads the object in order, and written the other way round the hooks see `never`.
+
 ## D10: Out of scope for v1 (2026-09-13)
 Composite PKs, `?include=` relations, force-delete, PUT, and a post-commit side-effect stage (future: outbox or an `after` stage). The React adapter is the next phase.
 
