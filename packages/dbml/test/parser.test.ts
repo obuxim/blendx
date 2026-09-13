@@ -108,6 +108,31 @@ describe('the DBML blendx accepts', () => {
     expect(type('ts')).toEqual({ kind: 'timestamp', withTimezone: false });
   });
 
+  test('a multi-line string takes backslash escapes, and a backslash ending a line joins the next', async () => {
+    const schema = await parseDbml(
+      [
+        String.raw`Table a [note: '''it is ''a\''''] {`,
+        '  id int [pk]',
+        '}',
+        String.raw`Table b [note: '''C:\\blendx'''] {`,
+        '  id int [pk]',
+        '}',
+        "Table c [note: '''one \\",
+        "two'''] {",
+        '  id int [pk]',
+        '}',
+        "Table d [note: '''one \\\r\ntwo'''] {",
+        '  id int [pk]',
+        '}',
+      ].join('\n'),
+    );
+    const note = (name: string) => tableNamed(schema, name).note;
+    expect(note('a')).toBe("it is ''a'");
+    expect(note('b')).toBe('C:\\blendx');
+    expect(note('c')).toBe('one two');
+    expect(note('d')).toBe('one two');
+  });
+
   test('refs: short and block forms, composite keys, aliases, and which side holds the key', async () => {
     const schema = await parseDbml(
       [

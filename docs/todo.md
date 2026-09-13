@@ -115,7 +115,7 @@ One item ≈ one focused session. Work top to bottom (see "Todo loop" in `CLAUDE
 - [x] P13.2 Our own DBML parser for the subset blendx accepts, replacing @dbml/core and the oven-sh/bun#42512 workaround (D21). Done: the DBML tests and goldens pass on it, @dbml/core and `loadDbmlCore()` are gone.
 - [x] P13.3 An index on an expression marked `pk`, `` (`lower(id)`) [pk] ``, is refused with the same located error as any other expression index. Today it gives `primaryKey: ['lower(id)']`. (Found by the P13.2 review; the bug predates P13.2.) Done: the parser test refuses both kinds of expression index, each at its line.
 - [x] P13.4 Composite refs that are the same relation written differently, `a.(x, y) > b.(p, q)` and `b.(q, p) < a.(y, x)`, are reported as defined twice. (P13.2 review.) Done: the parser test reports that pair, and not a ref that pairs the same columns differently.
-- [ ] P13.5 A `'''` string takes the escapes upstream DBML gives it, so it can end in a quote. Today the first `'''` closes the string, and `'''it is ''a''''` is reported as unterminated. (P13.2 review.)
+- [x] P13.5 A `'''` string takes the escapes upstream DBML gives it, so it can end in a quote. Today the first `'''` closes the string, and `'''it is ''a''''` is reported as unterminated. (P13.2 review.) Done: `'''` strings take the escapes of `'...'` strings, and a `\` at the end of a line joins the next, as upstream's lexer does (`@dbml/parse`, `escapedString`).
 
 ## Inbox
 Discovered work goes here. Triage it into a phase before starting it.

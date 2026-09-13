@@ -163,6 +163,30 @@ function tokenize(source: string): Token[] {
       }
     }
   };
+  /** A '''...''' string: it may span lines, takes the escapes of a '...' string, and a `\` at the end of a line joins the next. */
+  const block = (): string => {
+    const loc = here();
+    let text = '';
+    i += 3;
+    for (;;) {
+      if (i >= source.length) throw new DbmlSyntaxError('unterminated string', loc);
+      if (source.startsWith("'''", i)) {
+        i += 3;
+        return dedent(text);
+      }
+      const c = source[i] ?? '';
+      const next = source[i + 1];
+      if (c === '\\' && source.startsWith('\n', i + 1)) moveTo(i + 2);
+      else if (c === '\\' && source.startsWith('\r\n', i + 1)) moveTo(i + 3);
+      else if (c === '\\' && next !== undefined) {
+        text += ESCAPES[next] ?? next;
+        i += 2;
+      } else {
+        text += c;
+        moveTo(i + 1);
+      }
+    }
+  };
   /** Everything between `open` and `close`, which may span lines. */
   const between = (open: string, close: string, what: string): string => {
     const loc = here();
@@ -189,7 +213,7 @@ function tokenize(source: string): Token[] {
     } else if (source.startsWith('/*', i)) {
       between('/*', '*/', 'comment');
     } else if (source.startsWith("'''", i)) {
-      push('string', dedent(between("'''", "'''", 'string')));
+      push('string', block());
     } else if (c === "'") {
       push('string', quoted("'", 'string'));
     } else if (c === '"') {
