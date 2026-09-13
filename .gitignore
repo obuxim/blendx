@@ -5,6 +5,8 @@ coverage/
 /site/
 /.vercel
 .data/
+test-results/
+playwright-report/
 *.tsbuildinfo
 .env
 .env.*

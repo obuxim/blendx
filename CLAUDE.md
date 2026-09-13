@@ -7,17 +7,18 @@ Status: the framework is under construction. Work is driven by `docs/todo.md` (s
 ## Commands
 
 - `bun install`
-- `bun run check`: Biome, then `tsc --noEmit` (root, `tsconfig.portable.json`, and each project that augments `Register` and so needs a program of its own: `packages/core/test/register`, `packages/cli/test/register`, `packages/cli/test/fixtures/shop-app`, `examples/addition`, `examples/expenses`, `packages/react/test`), then `blendx generate --check` on the examples, then `bun test`. Must pass before ticking any todo item.
+- `bun run check`: Biome, then `tsc --noEmit` (root, `tsconfig.portable.json`, and each project that augments `Register` and so needs a program of its own: `packages/core/test/register`, `packages/cli/test/register`, `packages/cli/test/fixtures/shop-app`, `examples/addition`, `examples/expenses`, `packages/react/test`, `examples/addition/web`), then `blendx generate --check` on the examples, then `bun test`. Must pass before ticking any todo item.
 - `bun run fix`: Biome autofix and format.
 - `bun test <path>`: run a subset. Tests use in-process PGlite. `BLENDX_TEST_DB=pg DATABASE_URL=postgres://postgres@localhost:5432/blendx_test bun test` also runs the real-PostgreSQL tests (`*.pg.test.ts`); they reset that database's public schema, so use a scratch database.
 - `DATABASE_URL=... bun run smoke:node`: the Node smoke test (Node 24, @hono/node-server, pg). It resets the same scratch database.
 - `DATABASE_URL=... bun run conformance:node`: the conformance suite on Node with pg. Bun with PGlite runs in `bun test`, and Bun with pg in the `BLENDX_TEST_DB=pg` run. All three reset the scratch database.
+- `bun run e2e:web`: the React example (`examples/addition/web`) in Chromium through Playwright, against its API on in-memory PGlite. Not part of `check`. The first time, `bun run --cwd examples/addition/web e2e:install` downloads the browser.
 - `bunx blendx generate [--check]`, `bunx blendx review [--check]`, `bunx blendx migrate generate|up`: the CLI. `--cwd <app>` runs it on another folder, such as `examples/addition`.
 - `PIPER=<piper> PIPER_VOICE=<en_US-ljspeech-medium.onnx> bun docs/media/walkthrough/build.ts`: rebuilds the narrated walkthrough after an example changes; its steps are in `docs/media/walkthrough/script.ts`. Without `PIPER` it refreshes the captures and keeps the audio of unchanged narration.
 
 ## Layout
 
-`packages/blendx` (facade: the only runtime import for app code), `spec` (Markdown only), `core` + `dbml` (portable), `hono` (adapter), `cli` (the `blendx` command; apps add it as a dev dependency, D18), `conformance` (cases, the shop fixture and the harness), `react` (`@blendx/react`: TanStack Query options for every action, D25); `examples/addition` (end-to-end proof) and `examples/expenses` (a fuller app: a bearer-token identity, an approver role, state rules and pricing).
+`packages/blendx` (facade: the only runtime import for app code), `spec` (Markdown only), `core` + `dbml` (portable), `hono` (adapter), `cli` (the `blendx` command; apps add it as a dev dependency, D18), `conformance` (cases, the shop fixture and the harness), `react` (`@blendx/react`: TanStack Query options for every action, D25); `examples/addition` (end-to-end proof, with `web/`, a React page through `@blendx/react`) and `examples/expenses` (a fuller app: a bearer-token identity, an approver role, state rules and pricing).
 
 Working on an app built with blendx rather than on the framework? Its own `CLAUDE.md` is the guide: `examples/addition/CLAUDE.md` is the template, with the recipes for adding a table and a custom action. `docs/guide/` is the app author's guide (getting started, a tutorial that builds `examples/expenses`, and reference pages), and `docs/cookbook.md` has ten blend patterns, each linked to the test that pins it. When behaviour the guide describes changes, update the guide with it.
 

@@ -1,0 +1,10 @@
+{
+  "//": "Own project: JSX, and the addition app's register.gen.ts, which augments blendx for the whole program.",
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["bun"],
+    "jsx": "react-jsx"
+  },
+  "include": [".", "../src/generated/register.gen.ts"],
+  "exclude": ["node_modules", "dist"]
+}

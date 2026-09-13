@@ -48,3 +48,18 @@ jobs:
       - run: bun run smoke:node
       # The conformance suite on Node with pg (Bun with pg runs in bun test above).
       - run: bun run conformance:node
+
+  e2e-web:
+    # examples/addition/web in Chromium, through Playwright (Node) against Vite and the API (Bun).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: bun install --frozen-lockfile
+      - run: bun run --cwd examples/addition/web e2e:install
+      - run: bun run e2e:web

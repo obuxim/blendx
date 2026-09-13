@@ -10,6 +10,7 @@ This app is built with blendx. **The only code anyone writes is business logic: 
 | `blends/<table>.ts` | you: one per exposed table, what differs from the defaults |
 | `src/app.ts` | you: `defineApp`, the identity (`auth`) and app-wide hooks |
 | `test/**` | you |
+| `web/**` | you: a React page over this API through `@blendx/react`, a package of its own |
 | `src/generated/**`, `drizzle/**` | generated. **Never read or edit.** Run `bunx blendx generate` or `bunx blendx migrate generate`. |
 | `review/<table>.yaml` | generated for human review. Never edit it; a human edit is a fix request (below). |
 | `review/<table>.examples.yaml` | the humans'. Do not edit unless asked. |
@@ -24,6 +25,7 @@ The app depends on `blendx` (what it imports and serves with) and, as a dev depe
 - `bunx tsc --noEmit`: typecheck. The hook types catch most mistakes before anything runs: calculate's input comes from `rules`, calculate may return only the table's columns, and a declared `reply` must match what the action sends.
 - `bun test`: the app's tests, including `test/examples.test.ts`.
 - `bun server.ts`: serves the API. It applies pending migrations on start.
+- In `web/`: `bun run dev` serves the React page on port 5173 and sends `/api` to the API above; `bun run e2e` runs its Playwright tests in Chromium, against the API on in-memory PGlite (`bun run e2e:install` downloads the browser once).
 
 Done means `bunx blendx generate --check`, `bunx blendx review --check`, `bunx tsc --noEmit` and `bun test` all pass.
 
