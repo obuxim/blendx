@@ -108,7 +108,7 @@ One item ≈ one focused session. Work top to bottom (see "Todo loop" in `CLAUDE
 - [x] P12.4 `bun build --compile` CLI. Decided against for v1 (D17): the CLI ships only as a package bin, `bunx blendx` (`@blendx/cli`'s since D18).
 - [x] P12.5a Split the runtime from the CLI (D18): `blendx` drops its bin and its dependency on `@blendx/cli`, which owns the `blendx` bin and `@blendx/cli/examples`. Done: `bunx blendx` works from the repo and from the example, and `bun run check` passes.
 - [x] P12.5b README. Done: README.
-- [ ] P12.6 Drizzle 1.0 GA migration spike (drizzle-orm/zod, kit folder format). Done: ADR go/no-go.
+- [x] P12.6 Drizzle 1.0 GA migration spike (drizzle-orm/zod, kit folder format). Done: ADR go/no-go. Decided in D19: no-go until 1.0.0 is on npm `latest`; the upgrade checklist is in D19.
 
 ## Inbox
 Discovered work goes here. Triage it into a phase before starting it.
@@ -116,6 +116,7 @@ Discovered work goes here. Triage it into a phase before starting it.
 - [x] P4.1: decide whether to drop drizzle-zod's ±2^47 bounds on `doublePrecision` columns (real doubles like 1e20 are rejected today). Decided in D13: dropped.
 - [x] P9.1: add `format: date-time` / `date` to string-mode timestamp and date columns in OpenAPI output. Decided in the D8 P9.1 note: `format: date` on date columns only; Postgres timestamps are not RFC 3339, so they stay plain strings.
 - [x] P12.5: the `blendx` facade depends on `@blendx/cli` for its bin (D9 note), so production installs also get the CLI's dependencies (drizzle-kit, typescript6 once review lands). Decide before publishing whether to make them optional or lazy. Decided in D18: split; now P12.5a.
+- [ ] Upgrade to Drizzle 1.0.0 once it is on npm `latest`, following the D19 checklist, with the new pins recorded (D5).
 
 ## Next: React adapter (not in current scope; don't start until asked)
 - [ ] N.1 `@blendx/react`: `createBlendxClient<AppType>()` → TanStack Query hooks per resource/action over `hc`.

@@ -189,6 +189,19 @@ One generic call per action infers correctly in every case tested:
 - When `rules` is omitted, TS falls back to the type parameter's constraint, not to a generic default. The types therefore swap in the action's defaults with a conditional (`Resolved<S, Defaults>`).
 - Inside one spec, `rules` still comes before `calculate`.
 
+## D19: Stay on Drizzle 0.x until 1.0.0 is released (2026-09-13)
+No-go for now. On npm, `latest` is still drizzle-orm 0.45.2, drizzle-kit 0.31.10 and drizzle-zod 0.8.3. Drizzle 1.0 exists only under the `rc` tag (1.0.0-rc.4) and `beta`, with newer rc.5 snapshot builds. Pins are exact (D5), and a release candidate can still change. The upstream question, drizzle-team/drizzle-orm#5660, is open with no date. Go when 1.0.0 is on `latest`.
+
+The spike ran the whole suite on drizzle-orm and drizzle-kit 1.0.0-rc.4, in a scratch worktree. The upgrade is small and mechanical. When 1.0.0 is out:
+1. Pin drizzle-orm and drizzle-kit to 1.0.0 (core, dbml, hono, blendx, cli) and drop drizzle-zod. It is now `drizzle-orm/zod`, with the same `createInsertSchema`, `createSelectSchema` and `BuildSchema`. Only `derive-rules.ts` and `rules.ts` import it (plus the P1.3 and P1.6 spikes), which is what keeping it in one module was for. Every derivation rule test passes unchanged.
+2. `Db` in `hooks.ts`: `PgDatabase` is now `PgAsyncDatabase`.
+3. `getTableConfig` now takes a `PgTable`, not a `Table`: narrow the model's table type, or cast in `indexRules`.
+4. The Node smoke test: `drizzle-kit/api` is now `drizzle-kit/api-postgres`, and `generateDrizzleJson` returns a promise.
+5. Migration folders. The v1 migrator refuses the old layout ("run drizzle-kit up"). `drizzle-kit up`, run once per app with the kit's own binary, turns `0000_init.sql` plus `meta/_journal.json` into `<timestamp>_init/migration.sql` plus `snapshot.json`, and `migrate generate` writes that layout from then on. Convert the committed folders (`examples/addition`, the shop fixture, `packages/blendx/test/fixtures`). `blendx migrate up` looks for `meta/_journal.json` before migrating; look for any migration folder instead, and tell an app with the old layout to run `drizzle-kit up`. Tests that name `0000_init.sql` or `meta` change with it.
+6. Existing databases upgrade in place. Checked on PGlite: a database migrated by 0.45.2, then migrated by rc.4 from the converted folder, kept its rows and did not run the migration again. The migrator matched it by hash, filled the new `name` column and left `applied_at` null. `database.migrate()` counts rows in `drizzle.__drizzle_migrations`, which still works.
+
+Unchanged: the generated schema (the goldens typecheck and run), string-mode timestamps and numerics, identity, enums, soft delete, the engine, and the conformance suite on Bun with PGlite. With steps 1 to 4 the suite gave 439 pass and 8 fail, all 8 about the migration layout. After `drizzle-kit up`, only the tests that assert the old layout failed. The spike did not run the pg, bun-sql and Node rows of the matrix; the upgrade runs them.
+
 ## D18: The CLI is a dev dependency of its own (2026-09-13)
 `blendx` is the runtime package: what an app imports and serves with. The `blendx` command and the review examples runner live in `@blendx/cli`, which an app adds as a dev dependency (`bun add blendx`, then `bun add -d @blendx/cli`). Before this, the `blendx` package declared the bin and so depended on the CLI, and every production install also pulled in drizzle-kit, typescript6 and yaml, which only matter while developing. `bunx blendx` still works: it finds the `blendx` bin that `@blendx/cli` links into the app's `node_modules/.bin`. Tests import `checkExamples` from `@blendx/cli/examples`; the `blendx/examples` subpath is gone. The CLI depends on `blendx` (for `createDatabase`), and nothing depends the other way.
 
