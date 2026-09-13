@@ -3,15 +3,16 @@
  * and action name (D25). The map comes from the app's generated client.gen.ts and the calls
  * go through the app's hc client, whose types give each action its input and data:
  *
- *   const api = createBlendxClient(hc<AppType>('/api'), endpoints);
+ *   const api = createBlendxClient(hc<AppType>('/api'), tables);
  *   useQuery(api.orders.show.queryOptions({ param: { id: '1' } }));
  *   useMutation(api.orders.store.mutationOptions());
  *
  * A GET action gives queryOptions, any other method mutationOptions. Both resolve to the
  * body of the action's success reply (null for a 204), and reject with a ProblemDetailsError
  * for any other reply. A mutation that succeeds invalidates every query of its table, and of
- * the tables it names (D25 note, N.2). Every action's fieldErrors(error) turns a refusal into
- * the first problem with each field of its input, for a form to show (N.3).
+ * the tables it names (D25 note, N.2), and the queries of other tables that included one of
+ * those (N.8). Every action's fieldErrors(error) turns a refusal into the first problem with
+ * each field of its input, for a form to show (N.3).
  */
 import {
   mutationOptions,
@@ -22,8 +23,16 @@ import {
 import type { ProblemDetails } from 'blendx';
 import type { InferResponseType } from 'blendx/client';
 
-/** The shape of client.gen.ts's `endpoints`: each table's actions, as `METHOD /path`. */
-export type Endpoints = { readonly [table: string]: { readonly [action: string]: string } };
+/**
+ * The shape of client.gen.ts's `tables`: each table's actions, as `METHOD /path`, and its
+ * includes, each the table the relation points to (N.8).
+ */
+export type Tables = {
+  readonly [table: string]: {
+    readonly actions: { readonly [action: string]: string };
+    readonly includes: { readonly [name: string]: string };
+  };
+};
 
 /** A reply's Problem Details (RFC 9457). Any status: a proxy in front of the app can answer too. */
 export type Problem = Omit<ProblemDetails, 'status'> & { status: number };
@@ -59,24 +68,40 @@ type Call<Client, Route> = Route extends `${infer Method} /${infer Path}`
     : never
   : never;
 
-/** True when no part of an input (its query, json or param) has a key that must be given. */
+/** True when a part of an input (its query, json or param) has no key that must be given. */
+type Optional<Part> = Record<never, never> extends Part ? true : false;
+
+/** True when no part of an input has a key that must be given. */
 type NothingRequired<R> = {
-  [K in keyof R]-?: Record<never, never> extends R[K] ? never : K;
+  [K in keyof R]-?: Optional<R[K]> extends true ? never : K;
 }[keyof R] extends never
   ? true
   : false;
 
 /**
+ * hc's input, with its query made optional when nothing in it is required: hc makes index
+ * take `{ query: {} }` and a show with includes take `query: { include?: string }`, and the
+ * adapter lets both be left out. Any other input is hc's as it is.
+ */
+type Loosened<A> = A extends { query: infer Q }
+  ? Optional<Q> extends true
+    ? { [K in keyof A as K extends 'query' ? never : K]: A[K] } & { query?: Q } extends infer L
+      ? { [K in keyof L]: L[K] }
+      : never
+    : A
+  : A;
+
+/**
  * hc's input parameter. It is optional where hc's is, and also where nothing in it is
- * required: hc makes index take `{ query: {} }`, and the adapter lets it take nothing.
+ * required, so index takes nothing.
  */
 type InputArgs<F> = F extends (...args: infer P) => unknown
   ? P extends [infer A, ...unknown[]]
     ? NothingRequired<A> extends true
-      ? [input?: A]
-      : [input: A]
+      ? [input?: Loosened<A>]
+      : [input: Loosened<A>]
     : P extends [(infer A)?, ...unknown[]]
-      ? [input?: A]
+      ? [input?: Loosened<A>]
       : []
   : never;
 
@@ -104,7 +129,7 @@ type Paths<J> = {
 /** The fields a refusal can name: a body field by its path, a query parameter by its name. */
 type Fields<I> =
   | (I extends { json: infer J } ? Paths<J> : never)
-  | (I extends { query: infer Q } ? keyof Q & string : never);
+  | (I extends { query?: infer Q } ? keyof NonNullable<Q> & string : never);
 
 /** The first problem with each field of the action's input. */
 export type FieldErrors<F> = { [K in Fields<Input<F>>]?: string };
@@ -149,21 +174,52 @@ export interface MutationAction<F, Tables extends string> {
 }
 
 /** Every action of the map, by table and name, typed by the hc client's route for it. */
-export type Api<Client, E extends Endpoints> = {
+export type Api<Client, E extends Tables> = {
   readonly [T in keyof E & string]: {
-    readonly [A in keyof E[T] & string]: E[T][A] extends `GET ${string}`
-      ? QueryAction<Key<T, A>, Call<Client, E[T][A]>>
-      : MutationAction<Call<Client, E[T][A]>, keyof E & string>;
+    readonly [A in keyof E[T]['actions'] & string]: E[T]['actions'][A] extends `GET ${string}`
+      ? QueryAction<Key<T, A>, Call<Client, E[T]['actions'][A]>>
+      : MutationAction<Call<Client, E[T]['actions'][A]>, keyof E & string>;
   };
 };
 
-/** TanStack Query options for every action in `endpoints`, called through `client`. */
-export function createBlendxClient<Client, E extends Endpoints>(
+/** The names a query's input asked `?include=` for: comma-separated, as the server takes them. */
+function includesAsked(queryKey: readonly unknown[]): string[] {
+  const input = queryKey[2] as { query?: { include?: unknown } } | undefined;
+  const include = input?.query?.include;
+  const parts = Array.isArray(include) ? include : [include];
+  return parts.flatMap((part) => (typeof part === 'string' ? part.split(',') : []));
+}
+
+/**
+ * Invalidates the queries a write to `written` may have changed (N.2, N.8): every query of
+ * those tables, and, in each table that includes one of them, the queries whose input asked
+ * for that include.
+ */
+async function invalidate(client: QueryClient, tables: Tables, written: Iterable<string>) {
+  const changed = new Set(written);
+  const own = [...changed].map((table) => client.invalidateQueries({ queryKey: [table] }));
+  const including = Object.entries(tables).flatMap(([table, { includes }]) => {
+    const names = Object.entries(includes)
+      .filter(([, target]) => changed.has(target))
+      .map(([name]) => name);
+    if (names.length === 0 || changed.has(table)) return [];
+    return [
+      client.invalidateQueries({
+        queryKey: [table],
+        predicate: (query) => includesAsked(query.queryKey).some((name) => names.includes(name)),
+      }),
+    ];
+  });
+  await Promise.all([...own, ...including]);
+}
+
+/** TanStack Query options for every action in `tables`, called through `client`. */
+export function createBlendxClient<Client, E extends Tables>(
   client: Client,
-  endpoints: E,
+  tables: E,
 ): Api<Client, E> {
   const api: Record<string, Record<string, object>> = {};
-  for (const [table, actions] of Object.entries(endpoints)) {
+  for (const [table, { actions }] of Object.entries(tables)) {
     api[table] = {};
     for (const [action, route] of Object.entries(actions)) {
       const [method = '', path = ''] = route.split(' ');
@@ -183,10 +239,7 @@ export function createBlendxClient<Client, E extends Endpoints>(
               mutationOptions: (options?: MutationSettings<string>) =>
                 toMutationOptions([table, action], async (input, { client: queryClient }) => {
                   const data = await call(input);
-                  const tables = new Set([table, ...(options?.invalidates ?? [])]);
-                  await Promise.all(
-                    [...tables].map((name) => queryClient.invalidateQueries({ queryKey: [name] })),
-                  );
+                  await invalidate(queryClient, tables, [table, ...(options?.invalidates ?? [])]);
                   return data;
                 }),
               fieldErrors,

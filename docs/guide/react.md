@@ -12,13 +12,13 @@ One file creates the client. From [`src/api.ts`](../../examples/addition/web/src
 import { createBlendxClient } from '@blendx/react';
 import { hc } from 'blendx/client';
 import type { AppType } from '../../server.ts';
-import { endpoints } from '../../src/generated/client.gen.ts';
+import { tables } from '../../src/generated/client.gen.ts';
 
-export const api = createBlendxClient(hc<AppType>('/api'), endpoints);
+export const api = createBlendxClient(hc<AppType>('/api'), tables);
 ```
 
 - `hc<AppType>` is the typed client of [the HTTP API](http.md#the-typed-client). It carries the base URL, and whatever else every request needs, such as `headers: { authorization: ... }`.
-- `endpoints` comes from `src/generated/client.gen.ts`, which `blendx generate` writes ([The CLI](cli.md#blendx-generate)): every action's method and path, by table and action name. It imports nothing.
+- `tables` comes from `src/generated/client.gen.ts`, which `blendx generate` writes ([The CLI](cli.md#blendx-generate)): every table's actions, each as its method and path, and what the table includes. It imports nothing.
 - `AppType` is a type-only import, so no server code reaches the page's bundle.
 
 The page provides a QueryClient, as any TanStack Query app does. From [`src/main.tsx`](../../examples/addition/web/src/main.tsx):
@@ -59,7 +59,7 @@ and, when the form is submitted:
 add.mutate({ json: { a: numberIn(form, 'a'), b: numberIn(form, 'b') } });
 ```
 
-- **Input** is what `hc` takes: `json` for a body, `param` for a member action's id, `query` for a GET action's input. An input with nothing required may be left out, as index's is above. Show needs its id: `api.orders.show.queryOptions({ param: { id: '1' } })`.
+- **Input** is what `hc` takes: `json` for a body, `param` for a member action's id, `query` for a GET action's input. A part with nothing required may be left out, where `hc` itself would take `query: {}`: the whole input for index, as above, or show's `query` when its blend declares includes. Show needs its id: `api.orders.show.queryOptions({ param: { id: '1' } })`, or with an include, `{ param: { id: '1' }, query: { include: 'user' } }`.
 - **Data** is the body of the action's success reply, typed as `hc` types it: a page for index (the example lists `results.data.data`), the record for store, show, update, restore and member actions, what calculate returns for a collection action, and `null` for the 204 of destroy and purge.
 - The options are plain objects, so they work wherever TanStack Query takes options: `useQuery`, `useSuspenseQuery`, `queryClient.fetchQuery`, `prefetchQuery`, `ensureQueryData`, a router's loader. The adapter wraps none of them.
 - A query hands TanStack's abort signal to its request, so a query that TanStack cancels (its component unmounted, or the page called `cancelQueries`) aborts its request too. The signal goes in the call's `init`, which `hc` merges into the client's own `init` key by key. So give the client no `init.signal` of its own: an AbortSignal does not survive that merge.
@@ -80,6 +80,12 @@ A reply holds only rows of its own table, so an action changes another table onl
 
 ```ts
 const naming = api.orders.refund.mutationOptions({ invalidates: ['users'] });
+```
+
+A query with `?include=` holds rows of another table ([Blends](blends.md#includes)), so a write to that table follows the include: after `users.update`, an orders query that asked for `include: 'user'` refetches, and one that did not keeps its data. The generated `tables` says which tables each table includes, and the tables a mutation names are followed the same way. From the tests:
+
+```ts
+const withUser = api.orders.index.queryOptions({ query: { include: 'user' } });
 ```
 
 The invalidation runs inside the mutation function, not in `onSuccess`, so the page's own options can be spread over the adapter's without losing it:

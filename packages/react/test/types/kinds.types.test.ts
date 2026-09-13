@@ -63,28 +63,31 @@ const routes = router()
   .patch('/orders/:id/reprice', ...run(kinds, 'reprice'))
   .delete('/orders/:id/void', ...run(kinds, 'void'));
 
-const endpoints = {
+const tables = {
   orders: {
-    index: 'GET /orders',
-    store: 'POST /orders',
-    estimate: 'POST /orders/estimate',
-    quote: 'GET /orders/quote',
-    recount: 'POST /orders/recount',
-    show: 'GET /orders/:id',
-    update: 'PATCH /orders/:id',
-    destroy: 'DELETE /orders/:id',
-    restore: 'POST /orders/:id/restore',
-    purge: 'DELETE /orders/:id/purge',
-    cancel: 'POST /orders/:id/cancel',
-    history: 'GET /orders/:id/history',
-    refund: 'POST /orders/:id/refund',
-    reprice: 'PATCH /orders/:id/reprice',
-    void: 'DELETE /orders/:id/void',
+    actions: {
+      index: 'GET /orders',
+      store: 'POST /orders',
+      estimate: 'POST /orders/estimate',
+      quote: 'GET /orders/quote',
+      recount: 'POST /orders/recount',
+      show: 'GET /orders/:id',
+      update: 'PATCH /orders/:id',
+      destroy: 'DELETE /orders/:id',
+      restore: 'POST /orders/:id/restore',
+      purge: 'DELETE /orders/:id/purge',
+      cancel: 'POST /orders/:id/cancel',
+      history: 'GET /orders/:id/history',
+      refund: 'POST /orders/:id/refund',
+      reprice: 'PATCH /orders/:id/reprice',
+      void: 'DELETE /orders/:id/void',
+    },
+    includes: {},
   },
 } as const;
 
 const client = hc<typeof routes>('http://localhost');
-const api = createBlendxClient(client, endpoints);
+const api = createBlendxClient(client, tables);
 type Orders = typeof client.orders;
 type Member = Orders[':id'];
 type Api = (typeof api)['orders'];
@@ -129,7 +132,7 @@ describe('every kind of action', () => {
       endpoint.action,
       `${endpoint.method.toUpperCase()} ${endpoint.path}`,
     ]);
-    expect(Object.entries<string>(endpoints.orders)).toEqual(generated);
+    expect(Object.entries<string>(tables.orders.actions)).toEqual(generated);
   });
 
   test('a GET action is a query, any other method a mutation', () => {
@@ -154,8 +157,9 @@ describe('every kind of action', () => {
   });
 
   test('queries take hc input and resolve to hc data', () => {
+    // hc wants `query: {}` on index; the adapter lets a query with nothing required go (N.8).
     expectTypeOf(api.orders.index.queryOptions).parameters.toEqualTypeOf<
-      [input?: InferRequestType<Orders['$get']>]
+      [input?: { query?: InferRequestType<Orders['$get']>['query'] }]
     >();
     expectTypeOf<Query<'index'>>().toEqualTypeOf<InferResponseType<Orders['$get'], 200>>();
 

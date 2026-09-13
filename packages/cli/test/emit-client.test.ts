@@ -1,7 +1,8 @@
 /**
- * N.1a: client.gen.ts, every action's method and path by table and action name (D25). The
- * golden comes from the same shop blends as golden/routes.gen.ts, and
- * test/types/client.types.test.ts checks that its entries are exactly that AppType's routes.
+ * N.1a, N.8: client.gen.ts, every table's actions by name, each as its method and path, and
+ * what the table includes (D25). The golden comes from the same shop blends as
+ * golden/routes.gen.ts, and test/types/client.types.test.ts checks that its entries are
+ * exactly that AppType's routes.
  */
 import { describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
@@ -21,25 +22,35 @@ describe('emitClient', () => {
     await expectGolden(golden, emitClient([users, orders, orderNotes]));
   });
 
-  test('each action by table and name, with its route, in the order of routes.gen.ts', async () => {
-    const { endpoints } = await import('./golden/client.gen.ts');
-    expect(endpoints).toEqual({
-      order_notes: { index: 'GET /order_notes', store: 'POST /order_notes' },
-      orders: {
-        index: 'GET /orders',
-        store: 'POST /orders',
-        quote: 'GET /orders/quote',
-        show: 'GET /orders/:id',
-        update: 'PATCH /orders/:id',
-        destroy: 'DELETE /orders/:id',
-        restore: 'POST /orders/:id/restore',
-        refund: 'POST /orders/:id/refund',
+  test('each table: its actions with their routes, in the order of routes.gen.ts, and its includes', async () => {
+    const { tables } = await import('./golden/client.gen.ts');
+    expect(tables).toEqual({
+      order_notes: {
+        actions: { index: 'GET /order_notes', store: 'POST /order_notes' },
+        includes: {},
       },
-      users: { store: 'POST /users', show: 'GET /users/:id', update: 'PATCH /users/:id' },
+      orders: {
+        actions: {
+          index: 'GET /orders',
+          store: 'POST /orders',
+          quote: 'GET /orders/quote',
+          show: 'GET /orders/:id',
+          update: 'PATCH /orders/:id',
+          destroy: 'DELETE /orders/:id',
+          restore: 'POST /orders/:id/restore',
+          refund: 'POST /orders/:id/refund',
+        },
+        // The table the include points to, not the relation's column (N.8).
+        includes: { user: 'users' },
+      },
+      users: {
+        actions: { store: 'POST /users', show: 'GET /users/:id', update: 'PATCH /users/:id' },
+        includes: {},
+      },
     });
     // toEqual ignores key order.
-    expect(Object.keys(endpoints)).toEqual(['order_notes', 'orders', 'users']);
-    expect(Object.keys(endpoints.orders)).toEqual([
+    expect(Object.keys(tables)).toEqual(['order_notes', 'orders', 'users']);
+    expect(Object.keys(tables.orders.actions)).toEqual([
       ...['index', 'store', 'quote', 'show', 'update', 'destroy', 'restore', 'refund'],
     ]);
   });
@@ -57,6 +68,6 @@ describe('emitClient', () => {
   });
 
   test('no blends: an empty map', () => {
-    expect(emitClient([])).toContain('export const endpoints = {} as const;');
+    expect(emitClient([])).toContain('export const tables = {} as const;');
   });
 });

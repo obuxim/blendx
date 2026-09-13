@@ -11,7 +11,7 @@ import { createDatabase, createServer, type Database } from 'blendx';
 import { hc } from 'blendx/client';
 import { sql } from 'blendx/drizzle';
 import app from '../../conformance/fixtures/shop/src/app.ts';
-import { endpoints } from '../../conformance/fixtures/shop/src/generated/client.gen.ts';
+import { tables } from '../../conformance/fixtures/shop/src/generated/client.gen.ts';
 import { type AppType, routes } from '../../conformance/fixtures/shop/src/generated/routes.gen.ts';
 import { createBlendxClient, ProblemDetailsError } from '../src/index.ts';
 
@@ -37,7 +37,7 @@ function apiFor(userId?: number) {
   const fetch = ((input: RequestInfo | URL, init?: RequestInit) =>
     server.request(input, init)) as typeof globalThis.fetch;
   const headers: Record<string, string> = userId ? { 'x-user-id': String(userId) } : {};
-  return createBlendxClient(hc<AppType>('http://localhost', { fetch, headers }), endpoints);
+  return createBlendxClient(hc<AppType>('http://localhost', { fetch, headers }), tables);
 }
 
 /** A client without retries, so a refusal fails the first time. */
@@ -55,8 +55,8 @@ const rejection = (promise: Promise<unknown>) =>
 describe('createBlendxClient', () => {
   test('every table and action of the map, a GET action as a query and any other as a mutation', () => {
     const api = apiFor();
-    expect(Object.keys(api)).toEqual(Object.keys(endpoints));
-    expect(Object.keys(api.orders)).toEqual(Object.keys(endpoints.orders));
+    expect(Object.keys(api)).toEqual(Object.keys(tables));
+    expect(Object.keys(api.orders)).toEqual(Object.keys(tables.orders.actions));
     expect(Object.keys(api.orders.index)).toEqual(['queryOptions', 'fieldErrors']);
     expect(Object.keys(api.orders.quote)).toEqual(['queryOptions', 'fieldErrors']);
     expect(Object.keys(api.orders.store)).toEqual(['mutationOptions', 'fieldErrors']);
@@ -207,6 +207,54 @@ describe('invalidation (N.2)', () => {
     expect(invalidated(client, notes.queryKey)).toBe(false);
   });
 
+  test('a write to an included table refetches the queries that include it, and leaves the others (N.8)', async () => {
+    const client = freshClient();
+    const api = apiFor(1);
+    const withUser = api.orders.index.queryOptions({ query: { include: 'user' } });
+    const shownWithUser = api.orders.show.queryOptions({
+      param: { id: '1' },
+      query: { include: 'user' },
+    });
+    const plain = api.orders.index.queryOptions();
+    const notes = api.order_notes.index.queryOptions();
+    const before = await client.fetchQuery(withUser);
+    expect(before.data[0]?.user).toMatchObject({ id: 1 });
+    await client.fetchQuery(shownWithUser);
+    await client.fetchQuery(plain);
+    await client.fetchQuery(notes);
+    const observer = new QueryObserver(client, withUser);
+    const unsubscribe = observer.subscribe(() => {});
+    try {
+      await new MutationObserver(client, api.users.update.mutationOptions()).mutate({
+        param: { id: '1' },
+        json: { display_name: 'Ada L.' },
+      });
+      // The active query refetched before the mutation resolved, and holds the new user.
+      expect(observer.getCurrentResult().data?.data[0]?.user?.display_name).toBe('Ada L.');
+      expect(invalidated(client, shownWithUser.queryKey)).toBe(true);
+      expect(invalidated(client, plain.queryKey)).toBe(false);
+      expect(invalidated(client, notes.queryKey)).toBe(false);
+    } finally {
+      unsubscribe();
+    }
+  });
+
+  test('a table a mutation names is followed to the queries that include it too', async () => {
+    const client = freshClient();
+    const api = apiFor(1);
+    const withUser = api.orders.index.queryOptions({ query: { include: 'user' } });
+    const plain = api.orders.index.queryOptions();
+    await client.fetchQuery(withUser);
+    await client.fetchQuery(plain);
+    // A write to order_notes says it changes users: orders including user refetch, plain orders do not.
+    await new MutationObserver(
+      client,
+      api.order_notes.store.mutationOptions({ invalidates: ['users'] }),
+    ).mutate({ json: { order_id: 1, body: 'ring twice' } });
+    expect(invalidated(client, withUser.queryKey)).toBe(true);
+    expect(invalidated(client, plain.queryKey)).toBe(false);
+  });
+
   test('a failed mutation invalidates nothing', async () => {
     const client = freshClient();
     const api = apiFor(1);
@@ -306,7 +354,7 @@ describe('a reply that is not Problem Details', () => {
         status: 502,
         statusText: 'Bad Gateway',
       })) as unknown as typeof globalThis.fetch;
-    const api = createBlendxClient(hc<AppType>('http://localhost', { fetch }), endpoints);
+    const api = createBlendxClient(hc<AppType>('http://localhost', { fetch }), tables);
     const failed = await rejection(queryClient().fetchQuery(api.orders.index.queryOptions()));
     expect(failed).toBeInstanceOf(ProblemDetailsError);
     expect((failed as ProblemDetailsError).problem).toEqual({
@@ -328,7 +376,7 @@ describe('cancellation (N.7)', () => {
       });
     }) as typeof globalThis.fetch;
     const client = hc<AppType>('http://localhost', { fetch, init: { credentials: 'include' } });
-    const api = createBlendxClient(client, endpoints);
+    const api = createBlendxClient(client, tables);
     const queries = queryClient();
     const options = api.orders.index.queryOptions();
 

@@ -49,6 +49,13 @@ const users = blend(shop.users, {
   actions: (a) => [a.show()],
 });
 
+// A show with includes takes ?include= (D28); one without takes nothing.
+const orders = blend(shop.orders, {
+  policy: allow.public,
+  includes: { user: users },
+  actions: (a) => [a.show()],
+});
+
 const routes = new Hono<BlendxEnv>()
   .get('/addition_results', ...run(additions, 'index'))
   .post('/addition_results', ...run(additions, 'store'))
@@ -60,7 +67,8 @@ const routes = new Hono<BlendxEnv>()
   .delete('/addition_results/:id/purge', ...run(additions, 'purge'))
   .post('/addition_results/:id/double', ...run(additions, 'double'))
   .post('/addition_results/:id/halve', ...run(additions, 'halve'))
-  .get('/users/:id', ...run(users, 'show'));
+  .get('/users/:id', ...run(users, 'show'))
+  .get('/orders/:id', ...run(orders, 'show'));
 
 type Client = ReturnType<typeof hc<typeof routes>>;
 type Additions = Client['addition_results'];
@@ -114,6 +122,15 @@ describe('P6.3 RPC types over run()', () => {
       param: { id: string };
     }>();
     expectTypeOf<InferResponseType<Member['purge']['$delete'], 204>>().toEqualTypeOf<null>();
+  });
+
+  test('a show whose blend declares includes takes ?include= as its query (D28)', () => {
+    type Order = Client['orders'][':id']['$get'];
+    expectTypeOf<InferRequestType<Order>['param']>().toEqualTypeOf<{ id: string }>();
+    expectTypeOf<InferRequestType<Order>['query']>().toEqualTypeOf<{ include?: string }>();
+    expectTypeOf<InferResponseType<Order, 200>['user']>().toEqualTypeOf<
+      PublicRow<typeof shop.users, 'password'> | null | undefined
+    >();
   });
 
   test('custom actions: a GET takes its rules as the query, a POST as the JSON body', () => {

@@ -249,7 +249,7 @@ describe('blendx generate --check (P7.5)', () => {
         expect(err).toBe(`${WARNING}3 generated files are out of date; run \`blendx generate\`\n`);
         expect(code).toBe(1);
         expect(out).toContain('\n-  .post("/order_notes", ...run(order_notes, "store"))\n');
-        expect(out).toContain('\n-    "store": "POST /order_notes",\n');
+        expect(out).toContain('\n-      "store": "POST /order_notes",\n');
         expect(out).toContain('--- src/generated/openapi.json\n');
       },
     );

@@ -5,6 +5,6 @@
 import { createBlendxClient } from '@blendx/react';
 import { hc } from 'blendx/client';
 import type { AppType } from '../../server.ts';
-import { endpoints } from '../../src/generated/client.gen.ts';
+import { tables } from '../../src/generated/client.gen.ts';
 
-export const api = createBlendxClient(hc<AppType>('/api'), endpoints);
+export const api = createBlendxClient(hc<AppType>('/api'), tables);

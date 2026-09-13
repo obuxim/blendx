@@ -6,12 +6,12 @@
 import { describe, expectTypeOf, test } from 'bun:test';
 import { QueryClient, useMutation, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { hc, type InferRequestType, type InferResponseType } from 'blendx/client';
-import { endpoints } from '../../../conformance/fixtures/shop/src/generated/client.gen.ts';
+import { tables } from '../../../conformance/fixtures/shop/src/generated/client.gen.ts';
 import type { AppType } from '../../../conformance/fixtures/shop/src/generated/routes.gen.ts';
 import { createBlendxClient } from '../../src/index.ts';
 
 const client = hc<AppType>('http://localhost');
-const api = createBlendxClient(client, endpoints);
+const api = createBlendxClient(client, tables);
 
 type Client = typeof client;
 type Index = Client['orders']['$get'];
@@ -46,14 +46,23 @@ async function fetchedTypesOnly() {
 
 describe('@blendx/react types', () => {
   test('a query takes hc input, optional when hc takes none', () => {
+    // orders declares includes, so hc's show takes `query: { include?: string }`; the adapter
+    // lets a part with nothing required be left out, as it does for index's query (N.8).
     expectTypeOf(api.orders.show.queryOptions).parameters.toEqualTypeOf<
-      [input: InferRequestType<Show>]
+      [input: { param: { id: string }; query?: { include?: string } }]
+    >();
+    expectTypeOf<InferRequestType<Show>['query']>().toEqualTypeOf<{ include?: string }>();
+    expectTypeOf<InferRequestType<Show>>().toHaveProperty('query');
+    expectTypeOf(api.users.show.queryOptions).parameters.toEqualTypeOf<
+      [input: InferRequestType<Client['users'][':id']['$get']>]
     >();
     expectTypeOf(api.orders.index.queryOptions).parameters.toEqualTypeOf<
-      [input?: InferRequestType<Index>]
+      [input?: { query?: InferRequestType<Index>['query'] }]
     >();
     // @ts-expect-error show needs the id
     api.orders.show.queryOptions();
+    // @ts-expect-error users has no includes, so its show takes no query
+    api.users.show.queryOptions({ param: { id: '1' }, query: { include: 'orders' } });
   });
 
   test('the query key carries the data type', () => {

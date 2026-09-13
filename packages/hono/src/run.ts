@@ -51,26 +51,33 @@ type QueryInput = {
   out: { query: Record<string, string> };
 };
 
-type QueryFromRules<Rules> = Rules extends z.ZodType
-  ? { in: { query: z.input<Rules> }; out: { query: z.output<Rules> } }
-  : BlankInput;
+/**
+ * A query typed by the rules; none when they are an object that accepts no keys, as for a
+ * show without includes (D28) or a custom GET action without rules.
+ */
+type QueryFromRules<Rules> =
+  Rules extends z.ZodObject<infer Shape>
+    ? [keyof Shape] extends [never]
+      ? BlankInput
+      : { in: { query: z.input<Rules> }; out: { query: z.output<Rules> } }
+    : Rules extends z.ZodType
+      ? { in: { query: z.input<Rules> }; out: { query: z.output<Rules> } }
+      : BlankInput;
 
 /**
- * What a request sends. index takes its filters and paging as a query; show, destroy,
- * restore and purge take nothing; other GET actions take their rules as a query, DELETE
- * ones nothing, and the rest a JSON body, unless their rules accept nothing.
+ * What a request sends. index takes its filters and paging as a query; other GET actions
+ * take their rules as a query (show's `?include=`, when its blend declares includes), DELETE
+ * ones nothing, and the rest a JSON body; an action whose rules accept nothing takes nothing.
  */
 export type InputOf<A> =
   A extends ActionDefinition<infer Name, infer Rules, unknown, infer Method>
     ? Name extends 'index'
       ? QueryInput
-      : Name extends 'show' | 'destroy' | 'restore' | 'purge'
-        ? BlankInput
-        : Method extends 'get'
-          ? QueryFromRules<Rules>
-          : Method extends 'delete'
-            ? BlankInput
-            : JsonInput<Rules>
+      : Method extends 'get'
+        ? QueryFromRules<Rules>
+        : Method extends 'delete'
+          ? BlankInput
+          : JsonInput<Rules>
     : BlankInput;
 
 type ReplyResponse<R> =
