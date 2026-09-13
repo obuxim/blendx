@@ -6,6 +6,7 @@
 import { and, asc, count, desc, eq, getColumns, isNotNull, isNull, sql } from 'drizzle-orm';
 import type { RegisteredAuth } from './app.ts';
 import type { EffectDefaults, ResolvedEndpoint } from './cascade.ts';
+import { isDateText, isTimestampText } from './datetime.ts';
 import type { EndpointDefinition } from './endpoints.ts';
 import type { Db, Reply } from './hooks.ts';
 import type { Model } from './model.ts';
@@ -129,19 +130,66 @@ function databaseError(error: unknown): DatabaseErrorFields | undefined {
   return undefined;
 }
 
+/** What the engine saw of a request, to trace a date or time error back to its field. */
+interface Seen {
+  input: unknown;
+  writes: unknown;
+  fromQuery: boolean;
+}
+
+/** The date and time values PostgreSQL may have refused: those in none of the accepted forms. */
+function unreadableDateTimes(model: Model, values: unknown): string[] {
+  if (!isObject(values)) return [];
+  const columns = getColumns(model.table);
+  return Object.entries(values)
+    .filter(([key, value]) => {
+      if (typeof value !== 'string') return false;
+      const type = columns[key]?.columnType;
+      if (type === 'PgDateString') return !isDateText(value);
+      if (type === 'PgTimestampString') return !isTimestampText(value);
+      return false;
+    })
+    .map(([key]) => key);
+}
+
+/**
+ * 22007 and 22008: PostgreSQL could not read a date or time, and names no column (D23). The
+ * field is found among the values the engine saw; one it did not see gives no errors.
+ */
+function dateTimeProblem(model: Model, typeBase: string | undefined, seen: Seen): ProblemDetails {
+  const fields = new Set([
+    ...unreadableDateTimes(model, seen.input),
+    ...unreadableDateTimes(model, seen.writes),
+  ]);
+  const detail = 'is not a date or time the database can read';
+  const errors = [...fields].map((field) =>
+    seen.fromQuery ? { parameter: field, detail } : { pointer: jsonPointer([field]), detail },
+  );
+  return problem(422, {
+    typeBase,
+    detail: 'A date or time is not valid.',
+    errors: errors.length > 0 ? errors : undefined,
+  });
+}
+
 /**
  * Constraint violations as problems (D4, D11): 23505 unique is 409; 23503 foreign key is
  * 422, or 409 when a destroy is still referenced; 23502 not null, 22P02 invalid value and
  * 22001 too long are 422. Pointers come from the constraint's columns in the model meta.
- * Other database errors stay errors.
+ * 22007 and 22008, a date or time the database cannot read, are 422 too (D23). Other
+ * database errors stay errors.
  */
 function databaseProblem(
   error: unknown,
   endpoint: EndpointDefinition,
   typeBase: string | undefined,
+  seen: Seen,
 ): ProblemDetails | undefined {
   const pg = databaseError(error);
   if (!pg) return undefined;
+  if (pg.code === '22007' || pg.code === '22008') {
+    return dateTimeProblem(endpoint.model, typeBase, seen);
+  }
   const columns =
     (pg.constraint && endpoint.model.meta.constraints[pg.constraint]?.columns) ||
     (pg.column ? [pg.column] : []);
@@ -198,6 +246,10 @@ export async function execute(
 ): Promise<ExecuteResult> {
   const { typeBase } = deps;
   const { auth, params, query } = request;
+  const fromQuery = endpoint.method === 'get';
+  // Outside the try, so that a date or time error can be traced back to its field (D23).
+  let input: unknown;
+  let writes: unknown;
   try {
     // authenticate: an identity-requiring policy answers 401 before anything else runs
     if (endpoint.requiresAuth && (auth === null || auth === undefined)) {
@@ -205,14 +257,13 @@ export async function execute(
     }
 
     // validate
-    const fromQuery = endpoint.method === 'get';
     const parsed = endpoint.rules.safeParse(fromQuery ? query : (request.body ?? {}));
     if (!parsed.success) {
       throw new HttpProblem(
         validationProblem(parsed.error, { in: fromQuery ? 'query' : 'body', typeBase }),
       );
     }
-    const input = parsed.data;
+    input = parsed.data;
 
     // load, authorize, calculate, save. A mutation runs them in one transaction with its
     // member row locked FOR UPDATE, so calculate's read-modify-write cannot race.
@@ -248,6 +299,7 @@ export async function execute(
         input,
         record,
       });
+      writes = result;
 
       const saved = mutates
         ? await endpoint.save({
@@ -276,7 +328,9 @@ export async function execute(
     return { status: reply.status, body: reply.body, headers: { ...reply.headers } };
   } catch (error) {
     const details =
-      error instanceof HttpProblem ? error.problem : databaseProblem(error, endpoint, typeBase);
+      error instanceof HttpProblem
+        ? error.problem
+        : databaseProblem(error, endpoint, typeBase, { input, writes, fromQuery });
     if (!details) throw error;
     return {
       status: details.status,

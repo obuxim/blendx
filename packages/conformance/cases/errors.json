@@ -102,6 +102,33 @@
           }
         }
       ]
+    },
+    {
+      "id": "ERR-422-DATETIME",
+      "title": "a date or time that cannot be read is a 422 that names the field, not a 500",
+      "steps": [
+        {
+          "request": {
+            "method": "POST",
+            "path": "/orders",
+            "headers": { "x-user-id": "1" },
+            "body": { "user_id": 1, "total": "5.00", "placed_on": "2026-02-30" }
+          },
+          "expect": {
+            "status": 422,
+            "headers": { "content-type": "application/problem+json" },
+            "body": { "status": 422, "errors": [{ "pointer": "/placed_on" }] }
+          }
+        },
+        {
+          "request": { "method": "GET", "path": "/orders?created_at=abc" },
+          "expect": {
+            "status": 422,
+            "headers": { "content-type": "application/problem+json" },
+            "body": { "status": 422, "errors": [{ "parameter": "created_at" }] }
+          }
+        }
+      ]
     }
   ]
 }

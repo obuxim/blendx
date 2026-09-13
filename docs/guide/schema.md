@@ -39,7 +39,7 @@ These are the generated columns: a request cannot set them (it gets a 422), and 
 
 Timestamps are not ISO 8601: they come back with a space and, for `timestamp`, no offset, exactly as PostgreSQL writes them.
 
-Dates and timestamps are not checked by default: PostgreSQL reads the string, so it accepts words such as `yesterday` and refuses `2026-02-30` with an error blendx does not yet map (a 500). Where a date matters, write the rule yourself, as the tutorial does with `spent_on: z.iso.date()` ([Known issues](known-issues.md#invalid-dates-answer-500)).
+Dates and timestamps are not checked by default: PostgreSQL reads the string, so it accepts words such as `yesterday`, and refuses `2026-02-30` with a 422. Where a date matters, write the rule yourself, as the tutorial does with `spent_on: z.iso.date()` ([Known issues](known-issues.md#dates-and-timestamps-accept-any-form-postgresql-reads)).
 
 The full list of type spellings, and the settings each column takes, is in [`packages/spec/dbml.md`](../../packages/spec/dbml.md). The input rules have ids and tests: [`packages/spec/derivation-rules.md`](../../packages/spec/derivation-rules.md).
 

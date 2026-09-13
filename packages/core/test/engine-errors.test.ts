@@ -68,6 +68,50 @@ const orders = blend(shop.orders, {
   ],
 });
 
+const dated = blend(shop.orders, {
+  policy: allow.public,
+  actions: (a) => [
+    a.index(),
+    a.member('misdate', { calculate: () => ({ placed_on: '2026-02-30' }) }),
+    a.member('backdate', {
+      save: ({ runDefault, writes }) => runDefault({ ...writes, placed_on: 'abc' }),
+    }),
+  ],
+});
+
+describe('dates and times PostgreSQL cannot read (D23)', () => {
+  test('22008: a hook writing an impossible date answers 422, pointing at the column', async () => {
+    const reply = await execute(
+      endpoint(dated, 'misdate'),
+      request({ params: { id: '1' } }),
+      database,
+    );
+    expect(reply.status).toBe(422);
+    expect(reply.headers['content-type']).toBe(PROBLEM_CONTENT_TYPE);
+    expect(reply.body).toMatchObject({ status: 422, errors: [{ pointer: '/placed_on' }] });
+  });
+
+  test('22007: an unreadable date in an index filter answers 422, naming the parameter', async () => {
+    const reply = await execute(
+      endpoint(dated, 'index'),
+      request({ query: { created_at: 'abc' } }),
+      database,
+    );
+    expect(reply.status).toBe(422);
+    expect(reply.body).toMatchObject({ status: 422, errors: [{ parameter: 'created_at' }] });
+  });
+
+  test('a date or time error in a value blendx did not see answers 422 without errors', async () => {
+    const reply = await execute(
+      endpoint(dated, 'backdate'),
+      request({ params: { id: '1' } }),
+      database,
+    );
+    expect(reply.status).toBe(422);
+    expect(reply.body).not.toHaveProperty('errors');
+  });
+});
+
 describe('constraint violations', () => {
   test('23505: a duplicate unique value answers 409, pointing at the column', async () => {
     const duplicate = await execute(
