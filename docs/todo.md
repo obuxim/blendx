@@ -89,7 +89,7 @@ One item ≈ one focused session. Work top to bottom (see "Todo loop" in `CLAUDE
 - [x] P10.3 YAML emitter (yaml Document API, `# from:` comments, `format: 1`, deterministic). Done: golden `review/addition_results.yaml`.
 - [x] P10.4 `blendx review` + `--check` (diff, exit codes). Done: drift test.
 - [x] P10.5 Examples runner (validate → calculate → deep-equal), usable from bun test and inside `--check`. Done: pass case + readable failure.
-- [ ] P10.6 Fix-request workflow test (edit YAML → check fails → change blend → passes) + doc. Done: test + doc.
+- [x] P10.6 Fix-request workflow test (edit YAML → check fails → change blend → passes) + doc. Done: test + doc.
 
 ## P11 Conformance
 - [ ] P11.1 Case format + matchers ($any, $int, $iso8601, $absent) in `packages/spec/conformance.md`. Done: doc + types.

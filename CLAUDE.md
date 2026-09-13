@@ -52,6 +52,13 @@ Status: the framework is under construction. Work is driven by `docs/todo.md` (s
 - App code imports only from `blendx` and uses its re-exported `z`.
 - No YAML input. YAML is only the generated review output.
 
+## Review fix requests
+
+When `blendx review --check` fails, a human has asked for a change (`packages/spec/review-format.md`):
+- A diff in `review/<resource>.yaml`: the `-` lines are what the reviewer wants, the `+` lines what the code does. Change the blend (policy, rule, hook, calculate) until the check passes. Never edit the YAML back.
+- A failing example in `review/<resource>.examples.yaml`: the rules or calculate must change to produce it.
+- Then run `blendx generate`, and `blendx review` if your change moved lines the reviewer did not edit.
+
 ## Framework development rules
 
 - `packages/core` and `packages/dbml` stay portable: never import `bun`, `bun:*`, `hono` or Node-only APIs. Enforced by `tsconfig.portable.json` (no runtime globals) and Biome.

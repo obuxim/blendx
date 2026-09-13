@@ -10,5 +10,5 @@ Documents, added as the matching todo items land:
 | `cascade.md` | schema → app → resource → action composition, `prev` vs `runDefault` | P12.1 |
 | `derivation-rules.md` | Every schema → default rule, each with a test id | P4.2 |
 | `errors.md` | RFC 9457 Problem Details shapes and status mapping | P12.1 |
-| `review-format.md` | `review/*.yaml` and `*.examples.yaml` format | P12.1 |
+| `review-format.md` | The fix-request workflow (P10.6); the `review/*.yaml` and `*.examples.yaml` format (P12.1) | P10.6, P12.1 |
 | `conformance.md` | Conformance case format and matchers | P11.1 |
