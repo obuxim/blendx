@@ -152,11 +152,11 @@ function tableIR(
 
   const indexes: IndexIR[] = [];
   for (const index of table.indexes) {
-    if (index.pk) continue;
     if (index.columns.some((c) => c.kind !== 'column')) {
       report(`expression indexes are not supported (table ${table.name})`, index.loc);
       continue;
     }
+    if (index.pk) continue;
     indexes.push({
       ...(index.name ? { name: index.name } : {}),
       columns: index.columns.map((c) => c.value),

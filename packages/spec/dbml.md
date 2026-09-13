@@ -35,7 +35,7 @@ A column is `name type [settings]`.
 
 ## Indexes
 
-Inside `indexes { }`, one per line: a column, or columns in parentheses, then optional settings: `pk` (a composite primary key), `unique`, `name: '...'`, `note` and `type`, which is ignored. An index on an expression in backticks is refused.
+Inside `indexes { }`, one per line: a column, or columns in parentheses, then optional settings: `pk` (a composite primary key), `unique`, `name: '...'`, `note` and `type`, which is ignored. An index on an expression in backticks is refused, as a primary key too.
 
 ## Enums
 
@@ -77,6 +77,7 @@ Tests:
 - [kitchen-sink fixture: types, defaults, keys, indexes, refs, enums](../dbml/test/parse.test.ts)
 - [a syntax error names what was expected, where](../dbml/test/parser.test.ts)
 - [every name must resolve, and be defined once](../dbml/test/parser.test.ts)
+- [an index on an expression is refused, as a primary key too](../dbml/test/parser.test.ts)
 - [another schema, many-to-many refs, ambiguous one-to-one refs and repeated refs are refused](../dbml/test/parser.test.ts)
 - [reports every unsupported column at once, each with its location](../dbml/test/types.test.ts)
 - [a table without a primary key is rejected](../dbml/test/validate.test.ts)

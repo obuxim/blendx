@@ -113,6 +113,9 @@ One item ≈ one focused session. Work top to bottom (see "Todo loop" in `CLAUDE
 ## P13 Own our dependencies' gaps (don't wait on upstream)
 - [x] P13.1 Upgrade to Drizzle 1.0.0-rc.4 now, exactly pinned (D20 replaces D19's wait): `drizzle-orm/zod` instead of drizzle-zod, the type renames, migration folders converted with `drizzle-kit up`, `blendx migrate` on the 1.0 layout. Done: `bun run check`, plus the pg, bun-sql and Node rows of the matrix, pass.
 - [x] P13.2 Our own DBML parser for the subset blendx accepts, replacing @dbml/core and the oven-sh/bun#42512 workaround (D21). Done: the DBML tests and goldens pass on it, @dbml/core and `loadDbmlCore()` are gone.
+- [x] P13.3 An index on an expression marked `pk`, `` (`lower(id)`) [pk] ``, is refused with the same located error as any other expression index. Today it gives `primaryKey: ['lower(id)']`. (Found by the P13.2 review; the bug predates P13.2.) Done: the parser test refuses both kinds of expression index, each at its line.
+- [ ] P13.4 Composite refs that are the same relation written differently, `a.(x, y) > b.(p, q)` and `b.(q, p) < a.(y, x)`, are reported as defined twice. (P13.2 review.)
+- [ ] P13.5 A `'''` string takes the escapes upstream DBML gives it, so it can end in a quote. Today the first `'''` closes the string, and `'''it is ''a''''` is reported as unterminated. (P13.2 review.)
 
 ## Inbox
 Discovered work goes here. Triage it into a phase before starting it.
@@ -121,9 +124,6 @@ Discovered work goes here. Triage it into a phase before starting it.
 - [x] P9.1: add `format: date-time` / `date` to string-mode timestamp and date columns in OpenAPI output. Decided in the D8 P9.1 note: `format: date` on date columns only; Postgres timestamps are not RFC 3339, so they stay plain strings.
 - [x] P12.5: the `blendx` facade depends on `@blendx/cli` for its bin (D9 note), so production installs also get the CLI's dependencies (drizzle-kit, typescript6 once review lands). Decide before publishing whether to make them optional or lazy. Decided in D18: split; now P12.5a.
 - [x] Upgrade to Drizzle 1.0.0 once it is on npm `latest`, following the D19 checklist, with the new pins recorded (D5). Now P13.1, without waiting.
-- [ ] DBML parser (P13.2 review): a `'''` string that ends in a quote, `'''it is ''a''''`, is reported as unterminated, because the tokenizer closes the string at the first `'''`. Decide how to write a quote before the closing `'''` (a backslash escape, as in `'...'` strings, or the last run of quotes closes it), then test and document it in `packages/spec/dbml.md`.
-- [ ] DBML parser (P13.2 review): composite refs whose columns are listed in a different order, `a.(x,y) > b.(p,q)` and `a.(y,x) > b.(q,p)`, are the same relation, but aren't reported as "defined twice".
-- [ ] DBML parser (P13.2 review): an index on an expression marked `pk`, `` (`lower(id)`) [pk] ``, is accepted, and gives `primaryKey: ['lower(id)']`. Refuse it with a located error. This behaviour predates P13.2.
 
 ## Next: React adapter (not in current scope; don't start until asked)
 - [ ] N.1 `@blendx/react`: `createBlendxClient<AppType>()` → TanStack Query hooks per resource/action over `hc`.

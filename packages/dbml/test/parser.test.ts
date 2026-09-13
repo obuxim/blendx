@@ -277,6 +277,23 @@ describe('errors', () => {
     ]);
   });
 
+  test('an index on an expression is refused, as a primary key too', async () => {
+    const source = [
+      'Table t {',
+      '  id int',
+      '  name text',
+      '  indexes {',
+      '    (`lower(name)`) [unique]',
+      '    (`lower(id)`) [pk]',
+      '  }',
+      '}',
+    ].join('\n');
+    expect(await problems(source)).toEqual([
+      { message: 'expression indexes are not supported (table t)', line: 5, column: 5 },
+      { message: 'expression indexes are not supported (table t)', line: 6, column: 5 },
+    ]);
+  });
+
   test('another schema, many-to-many refs, ambiguous one-to-one refs and repeated refs are refused', async () => {
     expect(await problems('Table auth.users {\n  id int [pk]\n}')).toEqual([
       {
