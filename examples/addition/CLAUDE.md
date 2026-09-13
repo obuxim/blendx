@@ -16,6 +16,8 @@ This app is built with blendx. **The only code anyone writes is business logic: 
 
 ## Commands
 
+The app depends on `blendx` (what it imports and serves with) and, as a dev dependency, on `@blendx/cli` (the `blendx` command): `bun add blendx`, then `bun add -d @blendx/cli`.
+
 - `bunx blendx generate`: after changing `schema.dbml`, a blend or `src/app.ts`. `--check` fails if anything is out of date.
 - `bunx blendx migrate generate --name <what_changed>`: after changing `schema.dbml`, writes the next migration. `bunx blendx migrate up` applies it.
 - `bunx blendx review`: rewrites `review/*.yaml`. `--check` fails on drift and runs the examples.
@@ -83,7 +85,7 @@ More patterns (scoping a listing to the requester, reshaping a reply, an extra a
 - `calculate({ prev, input, record })` is pure and synchronous: no database, no request, no I/O. It returns only columns of its table.
 - Put `rules` before `calculate` in the object: `calculate`'s input type comes from `rules`.
 - A reply blendx cannot derive (a collection action's result, or what `respond` builds) declares `reply: z.object(...)`, or `reply: { status, body }` when `respond` returns another status.
-- Import only from `blendx` (and `blendx/examples` in tests), and use its `z`.
+- Import only from `blendx` (and `@blendx/cli/examples` in tests), and use its `z`.
 
 ## Review fix requests
 

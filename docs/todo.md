@@ -106,7 +106,8 @@ One item ≈ one focused session. Work top to bottom (see "Todo loop" in `CLAUDE
 - [x] P12.2 Final CLAUDE.md + app-author CLAUDE.md template in examples/addition. Done: dry-run "add a table + a custom action" using only the docs.
 - [x] P12.3 One-page blend cookbook (10 patterns). Done: doc.
 - [x] P12.4 `bun build --compile` CLI. Decided against for v1 (D17): the CLI ships only as the `blendx` package's bin, `bunx blendx`.
-- [ ] P12.5 README + publish prep. Done: README.
+- [x] P12.5a Split the runtime from the CLI (D18): `blendx` drops its bin and its dependency on `@blendx/cli`, which owns the `blendx` bin and `@blendx/cli/examples`. Done: `bunx blendx` works from the repo and from the example, and `bun run check` passes.
+- [ ] P12.5b README. Done: README.
 - [ ] P12.6 Drizzle 1.0 GA migration spike (drizzle-orm/zod, kit folder format). Done: ADR go/no-go.
 
 ## Inbox
@@ -114,7 +115,7 @@ Discovered work goes here. Triage it into a phase before starting it.
 - [ ] Remove the postMessage workaround in `packages/dbml/src/dbml-core.ts` once `packages/dbml/test/bun-42512.test.ts` fails (Bun fixed oven-sh/bun#42512).
 - [x] P4.1: decide whether to drop drizzle-zod's ±2^47 bounds on `doublePrecision` columns (real doubles like 1e20 are rejected today). Decided in D13: dropped.
 - [x] P9.1: add `format: date-time` / `date` to string-mode timestamp and date columns in OpenAPI output. Decided in the D8 P9.1 note: `format: date` on date columns only; Postgres timestamps are not RFC 3339, so they stay plain strings.
-- [ ] P12.5: the `blendx` facade depends on `@blendx/cli` for its bin (D9 note), so production installs also get the CLI's dependencies (drizzle-kit, typescript6 once review lands). Decide before publishing whether to make them optional or lazy.
+- [x] P12.5: the `blendx` facade depends on `@blendx/cli` for its bin (D9 note), so production installs also get the CLI's dependencies (drizzle-kit, typescript6 once review lands). Decide before publishing whether to make them optional or lazy. Decided in D18: split; now P12.5a.
 
 ## Next: React adapter (not in current scope; don't start until asked)
 - [ ] N.1 `@blendx/react`: `createBlendxClient<AppType>()` → TanStack Query hooks per resource/action over `hc`.

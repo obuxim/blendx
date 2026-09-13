@@ -48,7 +48,7 @@ store:
     rejects: [/b]
 ```
 
-Examples run without a database, the way the engine runs the action: the resolved rules validate, calculate runs, and the result is compared as JSON. `blendx review --check` runs them, and an app's tests call `checkExamples(appRoot)` from `blendx/examples`. Each failure is one line naming the file, the action, the example and what came out against what was expected.
+Examples run without a database, the way the engine runs the action: the resolved rules validate, calculate runs, and the result is compared as JSON. `blendx review --check` runs them, and an app's tests call `checkExamples(appRoot)` from `@blendx/cli/examples`. Each failure is one line naming the file, the action, the example and what came out against what was expected.
 
 Tests:
 - [examples that hold: writes, returns, rejects, and plain accepted input](../core/test/examples.test.ts)

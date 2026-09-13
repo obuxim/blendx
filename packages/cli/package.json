@@ -3,7 +3,10 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "blendx CLI: generate, review, migrate. The blendx package exposes it as its bin.",
+  "description": "The blendx command (generate, review, migrate) and the review examples runner. Apps add it as a dev dependency.",
+  "bin": {
+    "blendx": "./src/bin.ts"
+  },
   "exports": {
     ".": "./src/index.ts",
     "./examples": "./src/examples.ts"

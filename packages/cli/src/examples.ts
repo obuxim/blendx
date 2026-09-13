@@ -1,6 +1,6 @@
 /**
  * Runs review/<resource>.examples.yaml for every blend (P10.5): inside `blendx review --check`,
- * and from an app's own tests through `blendx/examples`. This module does not load the
+ * and from an app's own tests through `@blendx/cli/examples`. This module does not load the
  * TypeScript compiler, so importing it stays cheap.
  */
 import { existsSync } from 'node:fs';

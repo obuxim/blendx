@@ -3,18 +3,13 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "blendx facade: the only package app code imports, and the blendx CLI.",
-  "bin": {
-    "blendx": "./src/bin.ts"
-  },
+  "description": "blendx: the only package an app imports at runtime. The blendx command is @blendx/cli, a dev dependency.",
   "exports": {
     ".": "./src/index.ts",
     "./client": "./src/client.ts",
-    "./examples": "./src/examples.ts",
     "./drizzle": "./src/drizzle.ts"
   },
   "dependencies": {
-    "@blendx/cli": "workspace:*",
     "@blendx/core": "workspace:*",
     "@blendx/hono": "workspace:*",
     "drizzle-orm": "0.45.2",

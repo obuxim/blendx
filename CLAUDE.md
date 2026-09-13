@@ -16,7 +16,7 @@ Status: the framework is under construction. Work is driven by `docs/todo.md` (s
 
 ## Layout
 
-`packages/blendx` (facade: the only import for app code), `spec` (Markdown only), `core` + `dbml` (portable), `hono` (adapter), `cli`, `conformance` (cases, the shop fixture and the harness); `examples/addition` (end-to-end proof).
+`packages/blendx` (facade: the only runtime import for app code), `spec` (Markdown only), `core` + `dbml` (portable), `hono` (adapter), `cli` (the `blendx` command; apps add it as a dev dependency, D18), `conformance` (cases, the shop fixture and the harness); `examples/addition` (end-to-end proof).
 
 Working on an app built with blendx rather than on the framework? Its own `CLAUDE.md` is the guide: `examples/addition/CLAUDE.md` is the template, with the recipes for adding a table and a custom action. `docs/cookbook.md` has ten blend patterns, each linked to the test that pins it.
 
