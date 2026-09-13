@@ -56,7 +56,8 @@ export const saves = (endpoint: Pick<EndpointDefinition, 'on' | 'action'>) =>
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
-function writableColumns(model: Model): Set<string> {
+/** Columns a write may set: every column except generated ones. */
+export function writableColumns(model: Model): Set<string> {
   const generated = new Set(model.meta.generated);
   return new Set(Object.keys(getTableColumns(model.table)).filter((name) => !generated.has(name)));
 }

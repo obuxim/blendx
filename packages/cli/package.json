@@ -8,10 +8,10 @@
     ".": "./src/index.ts"
   },
   "devDependencies": {
-    "@typescript/typescript6": "6.0.2",
     "hono": "4.13.7"
   },
   "dependencies": {
+    "@typescript/typescript6": "6.0.2",
     "@blendx/core": "workspace:*",
     "@blendx/dbml": "workspace:*",
     "blendx": "workspace:*",

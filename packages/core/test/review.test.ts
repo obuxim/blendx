@@ -155,3 +155,22 @@ describe('reviewResource with hooks, hidden columns and custom actions', () => {
     expect(peek?.stages.load.default).toBe('the row by id, not soft-deleted, locked for update');
   });
 });
+
+describe('what calculate writes', () => {
+  test('without a hook: the input keys that are writable columns, hidden ones too', () => {
+    const users = blend(shop.users, {
+      policy: allow.public,
+      hidden: ['password'],
+      actions: (a) => [a.store(), a.show()],
+    });
+    const [store, show] = reviewResource(users, defineApp({})).actions;
+    expect(store?.calculate).toEqual({
+      keys: ['display_name', 'email', 'is_active', 'password'],
+    });
+    expect(show?.calculate).toBeUndefined();
+  });
+
+  test('with a hook, the CLI fills it in, so the model leaves it out', () => {
+    expect(action('store')?.calculate).toBeUndefined();
+  });
+});

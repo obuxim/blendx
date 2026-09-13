@@ -10,7 +10,7 @@ import type { Resource } from './blend.ts';
 import { type Level, resolveEndpoint, STAGES, type Stage } from './cascade.ts';
 import { recordSchema } from './derive-rules.ts';
 import { defaultStatus, type EndpointDefinition, toEndpoints } from './endpoints.ts';
-import { defaultEffects, saves } from './engine.ts';
+import { defaultEffects, saves, writableColumns } from './engine.ts';
 import { describeFields, describeSchema, toJsonSchema } from './json-schema.ts';
 
 export interface StageReview {
@@ -26,12 +26,24 @@ export interface ReplyReview {
   readonly body: string | Readonly<Record<string, string>>;
 }
 
+export interface CalculateReview {
+  /** The hook as written. The CLI reads it with the TypeScript 6 compiler API (P10.2). */
+  readonly source?: string;
+  /** The columns it writes, sorted; for a collection action, the keys it returns. */
+  readonly keys: readonly string[];
+}
+
 export interface ActionReview {
   readonly name: string;
   /** 'POST /addition_results' */
   readonly route: string;
   readonly input: Readonly<Record<string, string>>;
   readonly stages: Readonly<Record<Stage, StageReview>>;
+  /**
+   * What calculate writes, for actions that calculate (store, update, custom). Without a
+   * hook, the input's writable columns; with one, it is left for the CLI to fill in.
+   */
+  readonly calculate?: CalculateReview;
   /** The reply, or why it is not described. */
   readonly reply: ReplyReview | string;
 }
@@ -153,6 +165,7 @@ export function reviewResource(resource: Resource, app: App): ResourceReview {
   const record = describeFields(
     toJsonSchema(recordSchema(resource.model, resource.hidden), 'output'),
   );
+  const writable = writableColumns(resource.model);
   const actions = toEndpoints(resource).map((definition) => {
     const endpoint = resolveEndpoint(definition, {
       app,
@@ -168,11 +181,23 @@ export function reviewResource(resource: Resource, app: App): ResourceReview {
         }),
       ]),
     ) as Record<Stage, StageReview>;
+    const input = describeFields(toJsonSchema(endpoint.rules, 'input'));
+    // The default calculate returns the input's writable columns (engine defaultWrites).
+    const calculates = !definition.builtin || ['store', 'update'].includes(definition.action);
+    const calculate =
+      calculates && !definition.hooks.calculate
+        ? {
+            keys: Object.keys(input)
+              .filter((key) => writable.has(key))
+              .sort(),
+          }
+        : undefined;
     return Object.freeze({
       name: definition.action,
       route: `${definition.method.toUpperCase()} ${definition.path}`,
-      input: describeFields(toJsonSchema(endpoint.rules, 'input')),
+      input,
       stages: Object.freeze(stages),
+      ...(calculate ? { calculate: Object.freeze(calculate) } : {}),
       reply: replyOf(definition),
     });
   });
