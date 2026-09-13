@@ -1,6 +1,6 @@
 # schema.dbml
 
-blendx reads `schema.dbml` with its own parser (D21). It accepts the part of DBML below; anything else is an error with its line and column. Validation then adds blendx's own rules, such as a single-column primary key and names that work in generated code.
+blendx reads `schema.dbml` with its own parser (D21). It accepts the part of DBML below; anything else is an error with its line and column. Validation then adds blendx's own rules, such as a primary key on every table and names that work in generated code.
 
 ## Tables
 

@@ -15,7 +15,7 @@ const str = (value: string) => JSON.stringify(value);
 /** The primary key's column, and whether its values are numbers or strings in JSON (D30). */
 function keyOf(resource: Resource): readonly (readonly [string, string])[] {
   const { model } = resource;
-  const column = model.meta.primaryKey;
+  const [column] = model.meta.primaryKey;
   if (!column) throw new Error(`${model.name} has no primary key`);
   // A Drizzle table carries its columns as properties, each with its data type: the JS type
   // first, then the SQL one, as in `number int53` or `string uuid`.

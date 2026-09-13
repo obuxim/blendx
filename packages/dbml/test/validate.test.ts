@@ -15,15 +15,8 @@ describe('validateSchema', () => {
     ]);
   });
 
-  test('composite primary keys are rejected in v1 (kitchen-sink order_items)', async () => {
-    expect(await problemsIn(await fixture('kitchen-sink.dbml'))).toEqual([
-      {
-        message:
-          'table order_items has a composite primary key (order_id, line); blendx v1 needs a single-column primary key',
-        line: 40,
-        column: 1,
-      },
-    ]);
+  test('a composite primary key is accepted (kitchen-sink order_items, D33)', async () => {
+    expect(await problemsIn(await fixture('kitchen-sink.dbml'))).toEqual([]);
   });
 
   test('columns cannot use the query parameter names the index action reserves', async () => {

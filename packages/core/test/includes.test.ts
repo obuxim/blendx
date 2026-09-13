@@ -95,7 +95,7 @@ describe('includes (D28)', () => {
       name: 'things',
       table: things,
       meta: {
-        primaryKey: 'id',
+        primaryKey: ['id'],
         timestamps: { createdAt: null, updatedAt: null },
         softDelete: null,
         generated: [],
@@ -205,7 +205,7 @@ describe('has-many includes (P16.11, D31)', () => {
       name: 'reviews',
       table: reviewsTable,
       meta: {
-        primaryKey: 'id',
+        primaryKey: ['id'],
         timestamps: { createdAt: null, updatedAt: null },
         softDelete: null,
         generated: ['id'],

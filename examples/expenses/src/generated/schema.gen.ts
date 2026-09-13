@@ -41,7 +41,7 @@ export const models = {
     name: "users",
     table: users,
     meta: {
-      primaryKey: "id",
+      primaryKey: ["id"],
       timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
       softDelete: null,
       generated: ["id", "created_at", "updated_at"],
@@ -56,7 +56,7 @@ export const models = {
     name: "expenses",
     table: expenses,
     meta: {
-      primaryKey: "id",
+      primaryKey: ["id"],
       timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
       softDelete: "deleted_at",
       generated: ["id", "created_at", "updated_at", "deleted_at"],

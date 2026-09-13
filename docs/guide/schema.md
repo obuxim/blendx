@@ -12,7 +12,7 @@ Names are kept as written, so use snake_case: `user_id` is `user_id` in the data
 
 | Column | What blendx does with it |
 |---|---|
-| `id int [pk, increment]` | The primary key, filled by the database. `increment` makes it an identity column, never accepted as input. Every table needs a single-column primary key. |
+| `id int [pk, increment]` | The primary key, filled by the database. `increment` makes it an identity column, never accepted as input. Every table needs a primary key; one of several columns is declared in `indexes` as `(order_id, line) [pk]`, and its columns are input, since the client knows them. |
 | `created_at` | Set to `now()` on insert. Never input. |
 | `updated_at` | Set to `now()` on insert and on every update. Never input. |
 | `deleted_at timestamp`, nullable | Soft delete. Destroy sets it instead of deleting the row, index and show skip such rows, and the blend may list `a.restore()` and `a.purge()`, which deletes for good. |
@@ -71,7 +71,7 @@ Table expenses {
 - `ref` (a foreign key): a value that refers to no row answers 422, pointing at the column. Destroying a row that other rows still reference answers 409, unless the reference cascades (`ref: > users.id [delete: cascade]` in a standalone `Ref`, or a `delete:` setting).
 - Every primary key, unique, foreign key and indexed column can filter and sort an index: `GET /expenses?user_id=1&status=draft&sort=-spent_on`. To make a column filterable, index it.
 
-A many-to-many reference (`<>`) is refused: add a join table. Composite primary keys and schemas other than `public` are out of scope for now.
+A many-to-many reference (`<>`) is refused: add a join table. Schemas other than `public` are out of scope for now.
 
 ## Enums
 

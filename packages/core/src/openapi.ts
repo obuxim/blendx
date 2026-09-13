@@ -226,9 +226,8 @@ export function buildOpenApi({ app, resources, info }: OpenApiOptions): OpenApiR
     const record = recordOf(model, resource.hidden);
     schemas[model.name] = record;
     withTargets(resource);
-    const idSchema = (model.meta.primaryKey && propertiesOf(record)[model.meta.primaryKey]) || {
-      type: 'string',
-    };
+    const [keyColumn] = model.meta.primaryKey;
+    const idSchema = (keyColumn && propertiesOf(record)[keyColumn]) || { type: 'string' };
 
     for (const definition of toEndpoints(resource)) {
       const endpoint = resolveEndpoint(definition, {

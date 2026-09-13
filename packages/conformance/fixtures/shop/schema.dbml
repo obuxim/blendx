@@ -46,3 +46,17 @@ Table order_notes {
 }
 
 Ref: order_notes.order_id > orders.id [delete: cascade]
+
+// A composite primary key (D33): a line of an order, addressed by its order and its number.
+Table order_items {
+  order_id bigint [not null]
+  line int [not null]
+  sku varchar(32) [not null]
+  quantity int [not null, default: 1]
+
+  indexes {
+    (order_id, line) [pk]
+  }
+}
+
+Ref: order_items.order_id > orders.id [delete: cascade]

@@ -32,7 +32,7 @@ const reviews = {
   name: 'reviews',
   table: reviewsTable,
   meta: {
-    primaryKey: 'id',
+    primaryKey: ['id'],
     timestamps: { createdAt: null, updatedAt: null },
     softDelete: null,
     generated: ['id'],

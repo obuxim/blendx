@@ -44,10 +44,11 @@ export function resolveIncludes(resource: Resource): Readonly<Record<string, Inc
           const column = by ?? foreignKeysTo(target.model, resource.model.name)[0] ?? '';
           const key =
             foreignKeysOf(target.model).find((fk) => fk.column === column)?.key ??
-            resource.model.meta.primaryKey ??
+            resource.model.meta.primaryKey[0] ??
             '';
           const descending = sort?.startsWith('-') ?? false;
-          const orderBy = sort ? sort.replace(/^-/, '') : (target.model.meta.primaryKey ?? '');
+          // Without a sort, the target's first key column; the engine breaks ties by the rest.
+          const orderBy = sort ? sort.replace(/^-/, '') : (target.model.meta.primaryKey[0] ?? '');
           return [
             name,
             Object.freeze({

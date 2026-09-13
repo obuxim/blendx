@@ -30,6 +30,17 @@ describe('emitDrizzle', () => {
     );
   });
 
+  test('kitchen-sink fixture: a composite primary key is a named table constraint (D33)', async () => {
+    const output = emitDrizzle(await loadSchema(await fixture('kitchen-sink.dbml')));
+    await expectGolden('kitchen-sink.schema.gen.ts', output);
+    expect(output).toContain(
+      'primaryKey({ name: "order_items_pkey", columns: [t.order_id, t.line] })',
+    );
+    expect(output).toContain('order_id: bigint({ mode: "number" }).notNull(),');
+    expect(output).toContain('primaryKey: ["order_id", "line"],');
+    expect(output).toContain('primaryKey: ["id"],');
+  });
+
   test('imports only the builders it uses', async () => {
     const output = emitDrizzle(await loadSchema(await fixture('addition.dbml')));
     expect(output).toContain(
@@ -70,6 +81,23 @@ describe('emitDrizzle', () => {
           kind: 'foreignKey',
           columns: ['user_id'],
           references: { table: 'users', columns: ['id'] },
+        },
+      ],
+    ]);
+  });
+
+  test('a composite primary key is one constraint with every column (D33)', async () => {
+    const { tables } = await loadSchema(await fixture('kitchen-sink.dbml'));
+    const items = tables.find((t) => t.name === 'order_items');
+    if (!items) throw new Error('kitchen-sink fixture changed');
+    expect(tableConstraints(items)).toEqual([
+      ['order_items_pkey', { kind: 'primaryKey', columns: ['order_id', 'line'] }],
+      [
+        'order_items_order_id_fkey',
+        {
+          kind: 'foreignKey',
+          columns: ['order_id'],
+          references: { table: 'orders', columns: ['id'] },
         },
       ],
     ]);

@@ -6,6 +6,7 @@ import { describe, expect, test } from 'bun:test';
 import { defaultRules, recordSchema } from '@blendx/core';
 import type { z } from 'zod';
 import { models as addition } from '../../dbml/test/golden/addition.schema.gen.ts';
+import { models as kitchen } from '../../dbml/test/golden/kitchen-sink.schema.gen.ts';
 import { models as shop } from '../../dbml/test/golden/shop.schema.gen.ts';
 
 const builtin = (name: string) => ({ name, builtin: true });
@@ -121,6 +122,16 @@ describe('store rules', () => {
       { code: 'invalid_type', path: 'result' },
     ]);
   });
+
+  test('DR-STORE-GENERATED: the columns of a composite key are input (D33)', () => {
+    const items = defaultRules(kitchen.order_items, builtin('store'));
+    expect(Object.keys(items.shape)).toEqual(['order_id', 'line', 'sku']);
+    expect(items.parse({ order_id: 1, line: 2, sku: 'A-1' })).toEqual({
+      order_id: 1,
+      line: 2,
+      sku: 'A-1',
+    });
+  });
 });
 
 describe('update rules', () => {
@@ -190,6 +201,16 @@ describe('index rules', () => {
     expect(
       ok(defaultRules(shop.users, builtin('index'), { trashed: true }), { trashed: 'with' }),
     ).toBe(false);
+  });
+
+  test('DR-INDEX-FILTER: every column of a composite key filters and sorts (D33)', () => {
+    const items = defaultRules(kitchen.order_items, builtin('index'));
+    expect(Object.keys(items.shape)).toEqual(['page', 'per_page', 'sort', 'order_id', 'line']);
+    expect(items.parse({ order_id: '1', line: '2', sort: '-line' })).toEqual({
+      order_id: '1',
+      line: '2',
+      sort: '-line',
+    });
   });
 });
 

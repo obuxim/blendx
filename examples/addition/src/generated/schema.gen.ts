@@ -15,7 +15,7 @@ export const models = {
     name: "addition_results",
     table: addition_results,
     meta: {
-      primaryKey: "id",
+      primaryKey: ["id"],
       timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
       softDelete: "deleted_at",
       generated: ["id", "created_at", "updated_at", "deleted_at"],

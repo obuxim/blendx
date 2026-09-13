@@ -14,7 +14,8 @@ export interface ConstraintMeta {
 }
 
 export interface ModelMeta {
-  readonly primaryKey: string | null;
+  /** The key's columns in its declared order: one, or several for a composite key (D33). */
+  readonly primaryKey: readonly string[];
   readonly timestamps: { readonly createdAt: string | null; readonly updatedAt: string | null };
   readonly softDelete: string | null;
   /** Columns never accepted as input: identity keys and framework-filled timestamps. */

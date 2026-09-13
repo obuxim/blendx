@@ -17,6 +17,7 @@ import {
   isNull,
   sql,
 } from 'drizzle-orm';
+import type { PgColumn } from 'drizzle-orm/pg-core';
 import type { RegisteredAuth } from './app.ts';
 import type { EffectDefaults, IncludedTarget, ResolvedEndpoint } from './cascade.ts';
 import { isDateText, isTimestampText } from './datetime.ts';
@@ -138,7 +139,8 @@ async function includedRows(
   const keys = [...new Set(rows.map((row) => row[include.column]))].filter(
     (key) => key !== null && key !== undefined,
   );
-  const key = model.meta.primaryKey;
+  // A belongs-to points at one column, so its target's key is a single column.
+  const [key] = model.meta.primaryKey;
   const columns = getColumns(model.table);
   const primaryKey = key ? columns[key] : undefined;
   if (keys.length === 0 || !key || !primaryKey) return found;
@@ -176,7 +178,11 @@ async function hasManyRows(
   const columns = getColumns(model.table);
   const foreignKey = columns[include.column];
   const orderBy = columns[sort.column];
-  const primaryKey = model.meta.primaryKey ? columns[model.meta.primaryKey] : undefined;
+  // The tiebreak: every key column, in the key's order (D33).
+  const tiebreak = model.meta.primaryKey
+    .map((name) => columns[name])
+    .filter((column) => column !== undefined)
+    .reduce((acc, column) => sql`${acc}, ${column}`, sql``);
   if (keys.length === 0 || !foreignKey || !orderBy) return found;
   const deletedAt = model.meta.softDelete ? columns[model.meta.softDelete] : undefined;
   const byKey = inArray(foreignKey, keys);
@@ -184,9 +190,9 @@ async function hasManyRows(
   const ranked = db
     .select({
       ...columns,
-      rn: sql<number>`row_number() over (partition by ${foreignKey} order by ${direction}${
-        primaryKey ? sql`, ${primaryKey}` : sql``
-      })`.as('rn'),
+      rn: sql<number>`row_number() over (partition by ${foreignKey} order by ${direction}${tiebreak})`.as(
+        'rn',
+      ),
     })
     .from(model.table as never)
     .where(deletedAt ? and(byKey, isNull(deletedAt)) : byKey)
@@ -577,10 +583,21 @@ export function defaultEffects(
   const { createdAt, updatedAt } = model.meta.timestamps;
   const stamps = (keys: (string | null)[]) =>
     Object.fromEntries(keys.filter((key) => key !== null).map((key) => [key, sql`now()`]));
+  /** The key's columns, in its order (D33). */
+  const keyColumns = () => {
+    const key = model.meta.primaryKey.map((name) => columns[name]);
+    if (key.length === 0 || key.some((column) => column === undefined)) {
+      throw new Error(`${model.name} has no primary key`);
+    }
+    return key as PgColumn[];
+  };
   const primaryKey = () => {
-    const column = model.meta.primaryKey ? columns[model.meta.primaryKey] : undefined;
-    if (!column) throw new Error(`${model.name} has no primary key`);
-    return column;
+    const key = keyColumns();
+    // P16.16b serves composite keys: their routes carry one segment per column.
+    if (key.length > 1) {
+      throw new Error(`${model.name} has a composite primary key, which P16.16b serves`);
+    }
+    return key[0] as PgColumn;
   };
 
   /** Live rows by default; `only` for trashed rows; `with` for both. */
@@ -616,12 +633,13 @@ export function defaultEffects(
       return value === undefined || value === null ? sql`false` : eq(column as never, value);
     });
     const where = and(...filters, ...scope, trashScope(query.trashed));
-    const pk = primaryKey();
-    const sort = query.sort ?? model.meta.primaryKey ?? '';
-    const column = columns[sort.replace(/^-/, '')] ?? pk;
+    // The order: the sort column, then every key column not already sorted on, ascending (D33).
+    const key = keyColumns();
+    const sort = query.sort ?? '';
+    const column = columns[sort.replace(/^-/, '')];
     const order = [
-      sort.startsWith('-') ? desc(column) : asc(column),
-      ...(column === pk ? [] : [asc(pk)]),
+      ...(column ? [sort.startsWith('-') ? desc(column) : asc(column)] : []),
+      ...key.filter((keyColumn) => keyColumn !== column).map((keyColumn) => asc(keyColumn)),
     ];
 
     const [data, totals] = await Promise.all([
@@ -651,12 +669,15 @@ export function defaultEffects(
       return rows[0];
     }
 
-    const key = model.meta.primaryKey;
-    const id = isObject(record) && key ? record[key] : undefined;
-    if (id === undefined) {
+    // The loaded row, found again by every column of its key (D33).
+    const key = keyColumns();
+    const values = model.meta.primaryKey.map((name) =>
+      isObject(record) ? record[name] : undefined,
+    );
+    if (values.some((value) => value === undefined)) {
       throw new Error(`${model.name}.${action}: there is no loaded record to save`);
     }
-    const where = eq(primaryKey(), id);
+    const where = and(...key.map((column, index) => eq(column, values[index])));
 
     if ((action === 'destroy' && !deletedAt) || action === 'purge') {
       const rows: unknown[] = await tx.delete(table).where(where).returning();

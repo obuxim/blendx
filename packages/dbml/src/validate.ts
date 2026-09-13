@@ -108,13 +108,9 @@ function validateTable(
     }
   }
 
+  // A composite key, `(order_id, line) [pk]` in the indexes, is served like any other (D33).
   if (table.primaryKey.length === 0) {
     report(`table ${table.name} has no primary key`, table.loc);
-  } else if (table.primaryKey.length > 1) {
-    report(
-      `table ${table.name} has a composite primary key (${table.primaryKey.join(', ')}); blendx v1 needs a single-column primary key`,
-      table.loc,
-    );
   }
 
   for (const fk of table.foreignKeys) {

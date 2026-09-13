@@ -56,7 +56,7 @@ export interface TableIR {
   name: string;
   note?: string;
   columns: ColumnIR[];
-  /** Primary key column names. Composite keys are rejected by validation (P2.4). */
+  /** Primary key column names, in the key's declared order: one, or several for a composite key (D33). */
   primaryKey: string[];
   indexes: IndexIR[];
   foreignKeys: ForeignKeyIR[];

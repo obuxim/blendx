@@ -175,6 +175,12 @@ export function emitDrizzle(schema: SchemaIR, settings: EmitDrizzleOptions = {})
   const extrasOf = (table: TableIR): string[] => {
     const own = (columns: string[]) => columns.map((c) => `t.${c}`).join(', ');
     const extras: string[] = [];
+    // D33: a composite key is a table constraint, named as Postgres names a primary key.
+    if (table.primaryKey.length > 1) {
+      extras.push(
+        `${use('primaryKey')}({ name: ${str(constraintNames.primaryKey(table.name))}, columns: [${own(table.primaryKey)}] })`,
+      );
+    }
     for (const fk of table.foreignKeys) {
       const target = fk.references.table === table.name ? 't' : fk.references.table;
       const foreignColumns = fk.references.columns.map((c) => `${target}.${c}`).join(', ');
@@ -230,7 +236,7 @@ export function emitDrizzle(schema: SchemaIR, settings: EmitDrizzleOptions = {})
       `    name: ${str(table.name)},`,
       `    table: ${table.name},`,
       '    meta: {',
-      `      primaryKey: ${nullable(table.primaryKey[0])},`,
+      `      primaryKey: [${table.primaryKey.map(str).join(', ')}],`,
       `      timestamps: { createdAt: ${nullable(conventions.timestamps.createdAt)}, updatedAt: ${nullable(conventions.timestamps.updatedAt)} },`,
       `      softDelete: ${nullable(conventions.softDelete?.column)},`,
       `      generated: [${conventions.generated.map(str).join(', ')}],`,
