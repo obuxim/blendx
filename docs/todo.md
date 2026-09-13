@@ -124,6 +124,8 @@ Discovered work goes here. Triage it into a phase before starting it.
 - [x] P9.1: add `format: date-time` / `date` to string-mode timestamp and date columns in OpenAPI output. Decided in the D8 P9.1 note: `format: date` on date columns only; Postgres timestamps are not RFC 3339, so they stay plain strings.
 - [x] P12.5: the `blendx` facade depends on `@blendx/cli` for its bin (D9 note), so production installs also get the CLI's dependencies (drizzle-kit, typescript6 once review lands). Decide before publishing whether to make them optional or lazy. Decided in D18: split; now P12.5a.
 - [x] Upgrade to Drizzle 1.0.0 once it is on npm `latest`, following the D19 checklist, with the new pins recorded (D5). Now P13.1, without waiting.
+- [ ] DBML strings: upstream's lexer (`@dbml/parse`, `escapedString`) also takes `\r`, `\0`, `\b`, `\v`, `\f` and `\uHHHH`, and keeps the backslash in `\ `. blendx reads each of them as the bare character (`\r` is `r`), in `'...'` and `'''...'''` strings alike. Match upstream, or refuse the escapes blendx doesn't take.
+- [ ] DBML strings: in a `'''` string blendx applies escapes first, then removes the common indentation, so a `\n` escape starts a line that is dedented too. Check the order upstream uses (its interpreter, not the lexer) and follow it, with a test.
 
 ## Next: React adapter (not in current scope; don't start until asked)
 - [ ] N.1 `@blendx/react`: `createBlendxClient<AppType>()` → TanStack Query hooks per resource/action over `hc`.
