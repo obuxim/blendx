@@ -136,10 +136,10 @@ describe('the DBML blendx accepts', () => {
   test('strings take the escapes upstream DBML takes', async () => {
     const schema = await parseDbml(
       [
-        String.raw`Table a [note: 'r\r 0\0 b\b v\v f\f ué space\ q\" x\y'] {`,
+        String.raw`Table a [note: 'r\r 0\0 b\b v\v f\f u${'\\'}u00e9 space\ q\" x\y'] {`,
         '  id int [pk]',
         '}',
-        String.raw`Table b [note: '''n\n t\t ué'''] {`,
+        String.raw`Table b [note: '''n\n t\t u${'\\'}u00E9'''] {`,
         '  id int [pk]',
         '}',
       ].join('\n'),
