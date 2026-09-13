@@ -123,6 +123,7 @@ One item ≈ one focused session. Work top to bottom (see "Todo loop" in `CLAUDE
 ## P14 A guide for app authors, and a second example
 - [x] P14.1 `examples/expenses`, built from scratch as the guide will tell it: users who sign up for a bearer token, expense claims with an owner policy and an approver role, state rules on member actions, pure pricing in calculate, a `quote` collection action, review examples and end-to-end tests. Done: `bun run check` passes with the example in its typecheck, generate and review checks.
 - [x] P14.2 `docs/guide/`, the app author's guide: getting started (in the monorepo, or in an app of its own through `bun link`), a tutorial that builds `examples/expenses`, and reference pages (schema, blends, hooks, the app and identity, the HTTP API and typed client, review, testing, configuration and deployment, the CLI). README and CLAUDE.md link to it. Done: every command and reply the guide shows was run, and every link resolves.
+- [x] P14.3 `docs/guide/known-issues.md`: the Inbox findings of P14.1 and P14.2 that app authors meet, each with what happens and what to do instead, linked from the guide index, the README and the pages that mention them. An entry leaves the page when its Inbox item is fixed. Done: every link resolves, and each entry matches an Inbox item.
 
 ## Inbox
 Discovered work goes here. Triage it into a phase before starting it.

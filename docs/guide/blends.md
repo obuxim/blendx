@@ -128,7 +128,7 @@ const approvers = allow.when(({ auth }) => auth?.is_approver === true, {
 
 `hidden: ['password']` keeps a column out of every reply, index pages included, and out of the index filters and sorting. It is still a column: store and update accept it as input unless their rules drop it, and hooks see it on the record. `blend()` refuses a name that is not a column.
 
-`hidden` applies to the whole resource. A column that one reply must carry and all others must hide, such as a token returned once at sign-up, cannot be expressed yet; the tutorial explains how [`examples/expenses`](tutorial.md#4-sign-up) deals with that.
+`hidden` applies to the whole resource. A column that one reply must carry and all others must hide, such as a token returned once at sign-up, cannot be expressed yet; the tutorial explains how [`examples/expenses`](tutorial.md#4-sign-up) deals with that ([Known issues](known-issues.md#a-column-cannot-be-shown-once-and-hidden-elsewhere)).
 
 ## Declaring a reply
 

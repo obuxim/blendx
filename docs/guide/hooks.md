@@ -63,7 +63,7 @@ Index and member actions load; store and collection actions don't. A member acti
 - `params`, `query`: the path parameters and the query string. `input`: the validated input.
 - `lock`: true when the action will write. A load that replaces the default should then select the row `FOR UPDATE`, as the default does.
 
-[Cookbook pattern 7](../cookbook.md#7-scope-a-listing-to-the-requester) filters the default page to the requester's rows. It filters one page after loading it, so `meta.total` and the page sizes are off once the rows span pages. Until the default load takes a filter, [`examples/expenses`](tutorial.md#6-who-sees-what) asks for the filter in the query and checks it in authorize.
+[Cookbook pattern 7](../cookbook.md#7-scope-a-listing-to-the-requester) filters the default page to the requester's rows. It filters one page after loading it, so `meta.total` and the page sizes are off once the rows span pages. Until the default load takes a filter, [`examples/expenses`](tutorial.md#6-who-sees-what) asks for the filter in the query and checks it in authorize ([Known issues](known-issues.md#a-listing-cannot-be-scoped-to-the-requester)).
 
 ## authorize
 
@@ -101,7 +101,7 @@ calculate is pure and synchronous: no database, no request, no identity, and not
 
 It returns only writable columns of its table; anything else is a type error, and a generated column that slips through fails the request rather than being dropped. Logic worth naming goes in a plain function in the blend file, as `price()` does in the expenses blend, and every calculate that needs it calls it.
 
-The review lists the columns a calculate writes, from its return type. `{ ...input, total }` names exactly the input's columns; `{ ...prev, total }` names every writable column of the table, because `prev` is typed as any of them.
+The review lists the columns a calculate writes, from its return type. `{ ...input, total }` names exactly the input's columns; `{ ...prev, total }` names every writable column of the table, because `prev` is typed as any of them ([Known issues](known-issues.md#the-review-lists-every-column-for-a-calculate-that-spreads-prev)).
 
 ## save
 

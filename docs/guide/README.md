@@ -22,6 +22,7 @@ You write two things: `schema.dbml`, which describes the tables, and one small b
 | [Testing](testing.md) | testing an app on PGlite or PostgreSQL, the review examples, the typed client |
 | [Configuration and deployment](deployment.md) | `blendx.config.ts`, database drivers, migrations in production, serving on Bun and on Node |
 | [The CLI](cli.md) | `blendx generate`, `blendx review` and `blendx migrate` |
+| [Known issues](known-issues.md) | what does not work yet, and what to do instead |
 
 ## Elsewhere
 
@@ -36,4 +37,4 @@ blendx is designed so that an agent writes little and a person reviews behaviour
 
 ## Status
 
-blendx is at version 0 and not yet on npm, so the API may still change. [Getting started](getting-started.md) shows the two ways to use it today.
+blendx is at version 0 and not yet on npm, so the API may still change. [Getting started](getting-started.md) shows the two ways to use it today, and [Known issues](known-issues.md) lists what does not work yet.

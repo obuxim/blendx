@@ -299,7 +299,7 @@ $ curl -s 'localhost:3000/expenses?user_id=1' -H "authorization: Bearer $ADA"
 {"data":[{"id":1,"user_id":1,"description":"Team lunch","category":"meals","amount":"40.00","tax":"4.00","total":"44.00","status":"draft","spent_on":"2026-09-01","review_note":null,"created_at":"2026-09-13 12:48:15.212","updated_at":"2026-09-13 12:48:15.212","deleted_at":null}],"meta":{"page":1,"per_page":25,"total":1}}
 ```
 
-Asking for the filter is a workaround: the default listing cannot yet be scoped to the requester in a load hook without breaking its pages ([Hooks](hooks.md#load)).
+Asking for the filter is a workaround: the default listing cannot yet be scoped to the requester in a load hook without breaking its pages ([Known issues](known-issues.md#a-listing-cannot-be-scoped-to-the-requester)).
 
 ## 7. Drafts
 

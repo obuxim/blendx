@@ -4,7 +4,7 @@ An API-only TypeScript framework where the only code anyone writes is business l
 
 blendx is the successor to [larablend](https://github.com/obuxim/larablend) (Laravel, 2020). It keeps larablend's idea, derive everything from the schema and write only what differs, and fixes its flaws: input is validated strictly on the server, nothing is exposed unless listed, and you override a single stage instead of a whole action.
 
-**Status:** under construction, version 0. Not yet published to npm. The API may still change.
+**Status:** under construction, version 0. Not yet published to npm. The API may still change. What does not work yet is in [known issues](docs/guide/known-issues.md).
 
 ## A whole app
 

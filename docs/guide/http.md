@@ -148,7 +148,7 @@ if (filed.status === 201) {
 const quoted = await client.expenses.quote.$get({ query: { amount: '10', category: 'office' } });
 ```
 
-- Input is typed by the action's rules: `category: 'food'` is a type error. A custom action that is not a GET takes a JSON body even when its rules accept nothing, so the client passes `json: {}`, as for `submit` above.
+- Input is typed by the action's rules: `category: 'food'` is a type error. A custom action that is not a GET takes a JSON body even when its rules accept nothing, so the client passes `json: {}`, as for `submit` above ([Known issues](known-issues.md#custom-actions-without-a-body-still-need-an-empty-body-in-the-typed-client)).
 - Checking `status` narrows the body: the record for 201, a problem for 422.
 - An action the blend does not list is not on the client at all.
 

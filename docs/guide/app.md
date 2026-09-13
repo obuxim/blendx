@@ -62,7 +62,7 @@ export default defineApp({
 });
 ```
 
-An app-level authorize hook cannot read `auth` yet: in a registered app that is a circular type, which `tsc` refuses (`'auth' is referenced directly or indirectly in its own type annotation`), though it runs. Put a rule about the identity in a policy, or in each resource's `hooks`, where `auth` is typed.
+An app-level authorize hook cannot read `auth` yet: in a registered app that is a circular type, which `tsc` refuses (`'auth' is referenced directly or indirectly in its own type annotation`), though it runs. Put a rule about the identity in a policy, or in each resource's `hooks`, where `auth` is typed ([Known issues](known-issues.md#app-wide-hooks-cannot-read-the-identity)).
 
 ## Paging
 
