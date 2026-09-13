@@ -111,11 +111,20 @@ interface DatabaseErrorFields {
   column?: string;
 }
 
-/** The Postgres error behind a failed query, wherever drizzle or the driver put it. */
+const SQLSTATE = /^[0-9A-Z]{5}$/;
+
+/**
+ * The Postgres error behind a failed query, wherever drizzle or the driver put it. The
+ * SQLSTATE is in `code` for node-postgres and PGlite, and in `errno` for bun-sql, whose
+ * `code` is its own name (D16).
+ */
 function databaseError(error: unknown): DatabaseErrorFields | undefined {
   for (let e: unknown = error; e instanceof Object; e = (e as { cause?: unknown }).cause) {
-    const code = (e as DatabaseErrorFields).code;
-    if (typeof code === 'string' && /^[0-9A-Z]{5}$/.test(code)) return e as DatabaseErrorFields;
+    const { code, errno, constraint, column } = e as DatabaseErrorFields & { errno?: unknown };
+    const state = [code, errno].find(
+      (value): value is string => typeof value === 'string' && SQLSTATE.test(value),
+    );
+    if (state) return { code: state, constraint, column };
   }
   return undefined;
 }

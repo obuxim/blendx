@@ -14,4 +14,10 @@ describe.skipIf(!realPostgres)('conformance on PostgreSQL', () => {
     expect(result.failed).toEqual([]);
     expect(result.passed).toBe((await loadCases()).length);
   }, 120_000);
+
+  test('every case passes on Bun with bun-sql (P11.7)', async () => {
+    const result = await runSuite({ driver: 'bun-sql', url: undefined });
+    expect(result.failed).toEqual([]);
+    expect(result.passed).toBe((await loadCases()).length);
+  }, 120_000);
 });
