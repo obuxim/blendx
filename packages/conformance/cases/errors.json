@@ -1,0 +1,107 @@
+{
+  "format": 1,
+  "fixture": "shop",
+  "cases": [
+    {
+      "id": "ERR-400",
+      "title": "a body that is not JSON is a 400 problem",
+      "steps": [
+        {
+          "request": {
+            "method": "POST",
+            "path": "/orders",
+            "headers": { "x-user-id": "1" },
+            "text": "{\"user_id\":"
+          },
+          "expect": {
+            "status": 400,
+            "headers": { "content-type": "application/problem+json" },
+            "body": { "status": 400, "title": "$any" }
+          }
+        }
+      ]
+    },
+    {
+      "id": "ERR-401",
+      "title": "an action that needs an identity answers 401 without one",
+      "steps": [
+        {
+          "request": {
+            "method": "POST",
+            "path": "/orders",
+            "body": { "user_id": 1, "total": "5.00" }
+          },
+          "expect": {
+            "status": 401,
+            "headers": { "content-type": "application/problem+json" },
+            "body": { "status": 401, "title": "$any" }
+          }
+        }
+      ]
+    },
+    {
+      "id": "ERR-403",
+      "title": "the owner policy refuses another user's order",
+      "steps": [
+        {
+          "request": { "method": "GET", "path": "/orders/1", "headers": { "x-user-id": "2" } },
+          "expect": {
+            "status": 403,
+            "headers": { "content-type": "application/problem+json" },
+            "body": { "status": 403 }
+          }
+        }
+      ]
+    },
+    {
+      "id": "ERR-404",
+      "title": "an unknown id is a 404, before the owner policy is asked",
+      "steps": [
+        {
+          "request": { "method": "GET", "path": "/orders/999", "headers": { "x-user-id": "1" } },
+          "expect": {
+            "status": 404,
+            "headers": { "content-type": "application/problem+json" },
+            "body": { "status": 404 }
+          }
+        }
+      ]
+    },
+    {
+      "id": "ERR-409",
+      "title": "a second user with the same email is a 409",
+      "steps": [
+        {
+          "request": {
+            "method": "POST",
+            "path": "/users",
+            "body": { "email": "ada@example.com", "password": "another" }
+          },
+          "expect": {
+            "status": 409,
+            "headers": { "content-type": "application/problem+json" },
+            "body": { "status": 409 }
+          }
+        }
+      ]
+    },
+    {
+      "id": "ERR-422",
+      "title": "invalid input is a 422 that points at each field",
+      "steps": [
+        {
+          "request": {
+            "method": "POST",
+            "path": "/users",
+            "body": { "email": "carol@example.com" }
+          },
+          "expect": {
+            "status": 422,
+            "headers": { "content-type": "application/problem+json" },
+            "body": { "status": 422, "errors": [{ "pointer": "/password" }] }
+          }
+        }
+      ]
+    }
+  ]
+}

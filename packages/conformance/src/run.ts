@@ -56,12 +56,16 @@ async function runCase(test: ConformanceCase, fetch: Fetch, baseUrl: string): Pr
       encodeURIComponent(String(captured.get(name))),
     );
 
-    const hasBody = request.body !== undefined;
+    const sent =
+      request.text ?? (request.body === undefined ? undefined : JSON.stringify(request.body));
     const response = await fetch(
       new Request(`${baseUrl}${path}`, {
         method: request.method,
-        headers: { ...(hasBody ? { 'content-type': 'application/json' } : {}), ...request.headers },
-        ...(hasBody ? { body: JSON.stringify(request.body) } : {}),
+        headers: {
+          ...(sent === undefined ? {} : { 'content-type': 'application/json' }),
+          ...request.headers,
+        },
+        ...(sent === undefined ? {} : { body: sent }),
       }),
     );
     const text = await response.text();

@@ -95,7 +95,8 @@ One item ≈ one focused session. Work top to bottom (see "Todo loop" in `CLAUDE
 - [x] P11.1 Case format + matchers ($any, $int, $timestamp, $absent; `$timestamp` replaces the planned `$iso8601`, see D15) in `packages/spec/conformance.md`. Done: doc + types.
 - [x] P11.2 `runConformance(cases, fetch, { reset })`. Done: unit tests.
 - [x] P11.3 Shop fixture (users: hidden password, unique email; orders: FK, enum, soft delete, owner policy, `refund` member action, `quote` collection action, filters). Done: `generate --check` passes.
-- [ ] P11.4 One case per derivation rule and per error status. Done: coverage meta-test passes.
+- [x] P11.4a Harness: serve the shop fixture in-process (committed migration, reset = truncate + `seed.sql`), load `cases/*.json`, raw `text` request bodies; one case per error status (400, 401, 403, 404, 409, 422). Done: the suite passes on Bun + PGlite.
+- [ ] P11.4b One case per derivation rule. Done: coverage meta-test (every DR id and every error status has a case) passes.
 - [ ] P11.5 Matrix: Bun + PGlite, Bun + pg, Node + pg. Done: all three pass (locally, and as CI jobs).
 - [ ] P11.6 bun-sql opt-in run, results recorded. Done: ADR entry.
 

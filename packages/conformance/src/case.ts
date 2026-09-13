@@ -8,6 +8,8 @@ export interface CaseRequest {
   path: string;
   headers?: Record<string, string>;
   body?: unknown;
+  /** Sent exactly as written, as application/json, instead of `body`: for malformed JSON. */
+  text?: string;
 }
 
 export interface CaseExpect {

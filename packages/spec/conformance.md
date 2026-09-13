@@ -15,6 +15,8 @@ The conformance suite defines blendx's behaviour over HTTP, independent of any l
 
 The identity is the `x-user-id` request header: a positive integer is that user, anything else is no identity.
 
+Before each case the database is reset: every table is truncated, identities restart, and `seed.sql` runs. The seed is users 1 (Ada) and 2 (Bob), and order 1, paid, of user 1. The cases live in `packages/conformance/cases/*.json`.
+
 ## Case files
 
 A case file is JSON:
@@ -48,7 +50,7 @@ A case file is JSON:
 
 - `id` is unique across the suite: a derivation rule id (`DR-...`), an error status, or another stable name.
 - Each case starts from a reset database, and its steps run in order.
-- `request` has a `method` (`GET`, `POST`, `PATCH`, `DELETE`), a `path`, and optional `headers` and JSON `body`. `{name}` in a path is replaced by a value captured earlier in the same case.
+- `request` has a `method` (`GET`, `POST`, `PATCH`, `DELETE`), a `path`, and optional `headers` and body: a JSON `body`, or `text` sent exactly as written (with `content-type: application/json`), for bodies that are not valid JSON. `{name}` in a path is replaced by a value captured earlier in the same case.
 - `capture` (optional) maps names to JSON pointers (RFC 6901) into the response body: `{ "order": "/id" }` saves the new order's id for later steps.
 - `expect` has the exact `status`, optional `headers` and an optional `body`. Header names match case-insensitively and values exactly, except that the parameters of `content-type` (after `;`) are ignored. Without `body`, the body is not checked.
 
