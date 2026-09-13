@@ -1,0 +1,8 @@
+{
+  "//": "Own project: the tests run against the conformance shop fixture, whose register.gen.ts augments blendx for the whole program that includes it.",
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["bun"]
+  },
+  "include": [".", "../src", "../../conformance/fixtures/shop/src/generated/register.gen.ts"]
+}

@@ -9,6 +9,7 @@
     "packages/core/test/register",
     "packages/cli/test/register",
     "packages/cli/test/fixtures/shop-app",
-    "packages/conformance/fixtures"
+    "packages/conformance/fixtures",
+    "packages/react/test"
   ]
 }

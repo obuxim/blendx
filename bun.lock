@@ -11,6 +11,7 @@
         "@blendx/core": "workspace:*",
         "@blendx/dbml": "workspace:*",
         "@blendx/hono": "workspace:*",
+        "@blendx/react": "workspace:*",
         "@types/bun": "1.4.2",
         "blendx": "workspace:*",
         "typescript": "7.0.2",
@@ -131,6 +132,20 @@
         "pg": "8.23.0",
       },
     },
+    "packages/react": {
+      "name": "@blendx/react",
+      "version": "0.0.0",
+      "dependencies": {
+        "blendx": "workspace:*",
+      },
+      "devDependencies": {
+        "@tanstack/react-query": "5.102.8",
+        "react": "19.3.0",
+      },
+      "peerDependencies": {
+        "@tanstack/react-query": "^5.102.8",
+      },
+    },
     "packages/spec": {
       "name": "@blendx/spec",
       "version": "0.0.0",
@@ -176,6 +191,8 @@
     "@blendx/example-expenses": ["@blendx/example-expenses@workspace:examples/expenses"],
 
     "@blendx/hono": ["@blendx/hono@workspace:packages/hono"],
+
+    "@blendx/react": ["@blendx/react@workspace:packages/react"],
 
     "@blendx/spec": ["@blendx/spec@workspace:packages/spec"],
 
@@ -246,6 +263,10 @@
     "@readme/openapi-parser": ["@readme/openapi-parser@9.0.0", "", { "dependencies": { "@apidevtools/json-schema-ref-parser": "^15.5.1", "@readme/better-ajv-errors": "^2.3.2", "@readme/openapi-schemas": "^4.0.0", "@types/json-schema": "^7.0.15", "ajv": "^8.20.0", "ajv-draft-04": "^1.0.0" }, "peerDependencies": { "openapi-types": ">=7" } }, "sha512-GI86L4fGrvVq7Kzv4Qj4zMyCIeig5KIn65aq/YxcnHPEGSbF8fl8hWD96JL3KWotTp1dirZ6puopcS6ir9whDg=="],
 
     "@readme/openapi-schemas": ["@readme/openapi-schemas@4.0.0", "", { "dependencies": { "@types/json-schema": "^7.0.15" } }, "sha512-hrG//9/+RpOZTrUDirU4OzfMqaxCdY5BMpr3YuLf3Rje9rfNsydQJsH9iCPTie9ZRu9xe+0OUD4fHe0JmGwa2w=="],
+
+    "@tanstack/query-core": ["@tanstack/query-core@5.102.8", "", {}, "sha512-ZNjkJ33CqvPNec/6lZBnHqLc3EVGPZ9ySLhYahU9TcuRFdmwXewuj0c4hwSWcGHqEUwcSrKeZ+oGcvPBqXcQcg=="],
+
+    "@tanstack/react-query": ["@tanstack/react-query@5.102.8", "", { "dependencies": { "@tanstack/query-core": "5.102.8" }, "peerDependencies": { "react": "^18 || ^19" } }, "sha512-TYBea4OuXWD7MhaSHq069TWbFe7rcwWN6kzT7JF0OKi1K6c1gTv2IzD6A6ExJsCMozdkqBWeuIUZmu4KQg0O5A=="],
 
     "@types/bun": ["@types/bun@1.4.2", "", { "dependencies": { "bun-types": "1.4.2" } }, "sha512-GimotNn7+ZV0uVArItBbriZsR1oNf0+WTzPkdcFrzShI7k2norL0uzEaJT8T33dWr7O/c9ZDuAFQrctKCi72oQ=="],
 
@@ -364,6 +385,8 @@
     "postgres-date": ["postgres-date@1.0.7", "", {}, "sha512-suDmjLVQg78nMK2UZ454hAG+OAW+HQPZ6n++TNDUX+L0+uUlLywnoxJKDou51Zm+zTCjrCl0Nq6J9C5hP9vK/Q=="],
 
     "postgres-interval": ["postgres-interval@1.2.0", "", { "dependencies": { "xtend": "^4.0.0" } }, "sha512-9ZhXKM/rw350N1ovuWHbGxnGh/SNJ4cnxHiM0rxE4VN41wsg8P8zWn9hv/buK00RP4WvlOyr/RBDiptyxVbkZQ=="],
+
+    "react": ["react@19.3.0", "", {}, "sha512-E8LUcbtBWt20bbl2YoHfx4ZDBdxVTfOKtCZn9cDSJ4l6/nuoApcpIBcj47t2wZoVX8g2ZHuMHbiShgCR1T5Sog=="],
 
     "require-from-string": ["require-from-string@2.0.2", "", {}, "sha512-Xf0nWe6RseziFMu+Ap9biiUbmplq6S9/p+7w7YXP/JBHhrUDDUhwa+vANyubuqfZWTveU//DYVGsDG7RKL/vEw=="],
 
