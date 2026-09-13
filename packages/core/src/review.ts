@@ -38,7 +38,8 @@ export interface ActionReview {
   /** 'POST /addition_results' */
   readonly route: string;
   readonly input: Readonly<Record<string, string>>;
-  readonly stages: Readonly<Record<ReviewedStage, StageReview>>;
+  /** Every stage, and `after` only where a hook sets it (D26). */
+  readonly stages: Readonly<Record<ReviewedStage, StageReview>> & { readonly after?: StageReview };
   /**
    * What calculate writes, for actions that calculate (store, update, custom). Without a
    * hook, the input's writable columns; with one, it is left for the CLI to fill in.
@@ -61,9 +62,8 @@ export interface ResourceReview {
   readonly actions: readonly ActionReview[];
 }
 
-/** The stages every action lists. after (D26) is listed apart, only where a hook sets it (P16.2). */
+/** The stages every action lists; after (D26) is listed only where a hook sets it. */
 type ReviewedStage = Exclude<Stage, 'after'>;
-const REVIEWED = STAGES.filter((stage): stage is ReviewedStage => stage !== 'after');
 
 const EMPTY = 'nothing (an empty object)';
 const WRITABLE = "the input's writable columns";
@@ -184,15 +184,25 @@ export function reviewResource(resource: Resource, app: App): ResourceReview {
       defaults: defaultEffects(definition, { perPage: app.index.perPage }),
     });
     const defaults = stageDefaults(definition);
+    // after does nothing at the schema level, so it is listed only where a hook sets it (D26):
+    // an app that uses none keeps its review files as they were.
+    const listed = STAGES.filter(
+      (stage) => stage !== 'after' || endpoint.provenance.after.length > 1,
+    );
     const stages = Object.fromEntries(
-      REVIEWED.map((stage) => [
+      listed.map((stage) => [
         stage,
         Object.freeze({
           from: endpoint.provenance[stage],
-          default: stage === 'authorize' ? definition.policy.description : defaults[stage],
+          default:
+            stage === 'authorize'
+              ? definition.policy.description
+              : stage === 'after'
+                ? 'nothing'
+                : defaults[stage],
         }),
       ]),
-    ) as Record<ReviewedStage, StageReview>;
+    ) as ActionReview['stages'];
     const input = describeFields(toJsonSchema(endpoint.rules, 'input'));
     // The default calculate returns the input's writable columns (engine defaultWrites).
     const calculates = !definition.builtin || ['store', 'update'].includes(definition.action);

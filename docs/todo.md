@@ -172,4 +172,4 @@ Started 2026-09-13 on D25: a client calls an action by its table and name, and g
 ## P16 Deferred features (D10)
 Started 2026-09-13. D10 left these out of v1; each is decided before it is built.
 - [x] P16.1 The after stage (D26): an `after` hook on actions that write, at the app, resource and action levels, run in that order once the write has committed and before respond; a failure goes to `onError` and leaves the reply. Done: engine tests (the committed row, the loaded row, the level order, failures, no after on a failed write or a read), type tests, blend() refusing it on reads, and the pipeline and cascade specs.
-- [ ] P16.2 after in the review and the docs: the review lists `after` on actions where a hook sets it, with its levels; the guide's hooks page, a cookbook pattern, and the CLAUDE.md templates. Done: review tests and goldens, and every doc link resolving.
+- [x] P16.2 after in the review and the docs: the review lists `after` on actions where a hook sets it, with its levels; the guide's hooks page, a cookbook pattern, and the CLAUDE.md templates. Done: review tests and goldens, and every doc link resolving.

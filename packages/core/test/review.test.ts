@@ -174,3 +174,29 @@ describe('what calculate writes', () => {
     expect(action('store')?.calculate).toBeUndefined();
   });
 });
+
+describe('after in the review (D26)', () => {
+  test('after is listed only where a hook sets it, with its levels', () => {
+    const orders = blend(shop.orders, {
+      policy: allow.public,
+      actions: (a) => [a.show(), a.update({ after: () => {} }), a.destroy()],
+    });
+    const byName = (review: ReturnType<typeof reviewResource>, name: string) =>
+      review.actions.find((a) => a.name === name);
+
+    const withApp = reviewResource(orders, defineApp({ hooks: { after: () => {} } }));
+    expect(byName(withApp, 'update')?.stages.after).toEqual({
+      from: ['schema', 'app', 'action'],
+      default: 'nothing',
+    });
+    expect(byName(withApp, 'destroy')?.stages.after).toEqual({
+      from: ['schema', 'app'],
+      default: 'nothing',
+    });
+    // show writes nothing, so the app's after never runs for it.
+    expect(byName(withApp, 'show')?.stages).not.toHaveProperty('after');
+
+    const plain = reviewResource(orders, defineApp({}));
+    expect(byName(plain, 'destroy')?.stages).not.toHaveProperty('after');
+  });
+});

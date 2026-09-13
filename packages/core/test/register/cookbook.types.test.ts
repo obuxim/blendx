@@ -9,6 +9,9 @@ import { z } from 'zod';
 import { models as addition } from '../../../dbml/test/golden/addition.schema.gen.ts';
 import { models } from '../../../dbml/test/golden/shop.schema.gen.ts';
 
+/** Pattern 11's mailer: the app's own. The hook never runs here, so it needs no body. */
+declare function notify(userId: number, text: string): Promise<void>;
+
 test('the cookbook, compiled', () => {
   const patterns = [
     // 1. Expose a table read-only, hiding a column
@@ -93,8 +96,20 @@ test('the cookbook, compiled', () => {
       policy: { default: allow.owner('user_id'), index: allow.authenticated },
       actions: (a) => [a.index({ trashed: true }), a.show(), a.destroy(), a.restore()],
     }),
+    // 11. Do something once a write has committed
+    blend(models.orders, {
+      policy: allow.public,
+      actions: (a) => [
+        a.member('refund', {
+          rules: () => z.object({ reason: z.string().min(3) }),
+          calculate: () => ({ status: 'refunded' as const }),
+          after: ({ saved, input }) =>
+            notify(saved.user_id, `Your order was refunded: ${input.reason}`),
+        }),
+      ],
+    }),
   ];
-  // Patterns 4 to 7 share one orders blend: seven blends for ten patterns.
-  expect(patterns).toHaveLength(7);
+  // Patterns 4 to 7 share one orders blend: eight blends for eleven patterns.
+  expect(patterns).toHaveLength(8);
   expect(patterns.every((pattern) => pattern.kind === 'blendx/resource')).toBe(true);
 });

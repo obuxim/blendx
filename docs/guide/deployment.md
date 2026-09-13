@@ -109,7 +109,7 @@ serve({
 | `db` | `database.db` |
 | `routes` | the generated routes |
 | `basePath` | where the routes are mounted, such as `'/api'`; `'/'` by default |
-| `onError` | called with every unexpected error before the 500 is sent; `console.error` by default |
+| `onError` | called with every unexpected error before the 500 is sent, and with what an `after` hook throws, whose reply stands ([Hooks](hooks.md#after)); `console.error` by default |
 
 Since it is a Hono app, you can add routes of your own to it, such as the OpenAPI document ([The HTTP API](http.md#openapi)). An unexpected error never reaches the client: it gets a bare 500 problem, and `onError` gets the error, which is where to log it or send it to an error tracker.
 

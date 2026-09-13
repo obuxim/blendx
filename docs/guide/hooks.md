@@ -14,7 +14,8 @@ Every request to an action runs the same stages, in order:
 | 4 | authorize | `authorize` | the action's policy |
 | 5 | calculate | `calculate` | the input's writable columns |
 | 6 | save | `save` | store inserts; update and member actions update; destroy soft-deletes or deletes; restore clears `deleted_at` |
-| 7 | respond | `respond` | 201 for store, 204 for destroy, 200 otherwise, with the record minus hidden columns |
+| 7 | after | `after` | nothing; only actions that write have it, and it runs once the write has committed |
+| 8 | respond | `respond` | 201 for store, 204 for destroy, 200 otherwise, with the record minus hidden columns |
 
 The first stage that fails ends the request, so failures come in a fixed order: 401, 422, 404, 403, then 409 or 422 from the database ([The HTTP API](http.md#the-order-of-failures)).
 
@@ -23,6 +24,8 @@ The first stage that fails ends the request, so failures come in a fixed order: 
 **Value hooks**, `rules`, `authorize`, `calculate` and `respond`, receive `prev`, the value so far, and return the value to use. Use `prev` to extend it; ignore it to replace it. Never mutate it.
 
 **Effect hooks**, `load` and `save`, receive `runDefault()`. Call it to run the default, doing more before or after it; don't call it to replace the default.
+
+**after** is neither kind. It receives what the action wrote and returns nothing, and every level's after runs ([The cascade](#the-cascade)).
 
 A hook goes in the action's spec. Put `rules` before `calculate` in the object: TypeScript types `calculate`'s input from `rules`, and it reads the object in order.
 
@@ -121,6 +124,21 @@ save: ({ runDefault, writes, auth }) => runDefault({ ...writes, user_id: auth?.i
 
 The writes a save hook passes to `runDefault` are not checked the way calculate's are, so pass only columns you mean to set.
 
+## after
+
+```ts
+after: async ({ saved, record, input, auth, db }) => { ... }
+```
+
+after runs once the action's write has committed, before the reply is sent: send an email, call a webhook, tell another system. Only actions that write have one (store, update, destroy, restore and member actions); on index, show and collection actions it is a type error.
+
+- `saved`: the row as saved, hidden columns included, since none of it goes back to the client.
+- `record`: the row as loaded before the write, so `record` and `saved` show what changed. Store has none.
+- `input`, `auth`: the validated input and the identity.
+- `db`: the database, outside the committed transaction. Writes that must succeed or fail with the action go in `save`.
+
+The reply waits for after, so a test sees its effect when the reply arrives; an effect that must not delay the reply can start its work without awaiting it. What after throws does not change the reply, because the write has already committed: it goes to `createServer`'s `onError` ([Configuration and deployment](deployment.md)), and the other levels' after hooks still run. If the process stops between the commit and the hook, the effect is lost ([cookbook pattern 11](../cookbook.md#11-do-something-once-a-write-has-committed)).
+
 ## respond
 
 ```ts
@@ -133,7 +151,7 @@ respond runs after the transaction has committed: an error there leaves the save
 
 ## The cascade
 
-Four levels can set a stage, and each receives what the level above produced: the schema's default, then the app (`defineApp({ hooks })`), then the resource (`blend(model, { hooks })`), then the action. The most specific level has the last word.
+Four levels can set a stage, and each receives what the level above produced: the schema's default, then the app (`defineApp({ hooks })`), then the resource (`blend(model, { hooks })`), then the action. The most specific level has the last word, except for after: every level's after runs, the app's, then the resource's, then the action's, and none replaces another, so an app-wide audit log keeps running when an action adds its own.
 
 | Stage | App | Resource | Action |
 |---|---|---|---|
@@ -142,6 +160,7 @@ Four levels can set a stage, and each receives what the level above produced: th
 | authorize | yes | yes | yes |
 | calculate | | | yes |
 | save | | | yes |
+| after | yes | yes | yes |
 | respond | yes | yes | yes |
 
 App and resource hooks run for many actions, so each must return the type it receives, and they receive the action's name (`action`) and, at the app level, the `model`. load, calculate and save depend on one table's columns, so only an action sets them.
@@ -164,7 +183,7 @@ App hooks are in [The app](app.md#app-hooks). The review marks every stage that 
 
 ## Transactions
 
-An action that writes (store, update, destroy, restore and member actions) runs load, authorize, calculate and save in one transaction, with its row locked `FOR UPDATE`: a calculate that reads the record and writes it back cannot race another request. An error anywhere rolls back everything the action wrote. respond runs after the commit. Reads (index, show and collection actions) take no lock and no transaction.
+An action that writes (store, update, destroy, restore and member actions) runs load, authorize, calculate and save in one transaction, with its row locked `FOR UPDATE`: a calculate that reads the record and writes it back cannot race another request. An error anywhere rolls back everything the action wrote. after and respond run after the commit, and a write that fails runs no after. Reads (index, show and collection actions) take no lock and no transaction.
 
 ## Stopping with a problem
 
@@ -202,5 +221,6 @@ a.store({
 | limit a listing to the requester | `scope` on index |
 | change what is loaded | `load` |
 | change the status, the headers or the body | `respond`, with `reply` |
+| send an email, call a webhook or tell another system once a write has committed | `after` |
 | apply a rule to every action of a table | resource `hooks` |
 | apply a rule to every table | app `hooks` |

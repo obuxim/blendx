@@ -12,7 +12,8 @@ const HEADER = [
   ' Change the blend until `blendx review --check` passes.',
 ].join('\n');
 
-const STAGES = ['rules', 'load', 'authorize', 'calculate', 'save', 'respond'] as const;
+/** In pipeline order; after (D26) appears only on actions whose review lists it. */
+const STAGES = ['rules', 'load', 'authorize', 'calculate', 'save', 'after', 'respond'] as const;
 const BUILTINS: ReadonlySet<string> = new Set([
   'index',
   'show',
@@ -82,7 +83,12 @@ export function emitReview({
       {
         route: action.route,
         ...(Object.keys(action.input).length > 0 ? { input: action.input } : {}),
-        stages: Object.fromEntries(STAGES.map((stage) => [stage, action.stages[stage].default])),
+        stages: Object.fromEntries(
+          STAGES.flatMap((stage) => {
+            const listed = action.stages[stage];
+            return listed ? [[stage, listed.default]] : [];
+          }),
+        ),
         ...(scope === undefined ? {} : { scope }),
         ...(calculate === undefined ? {} : { calculate }),
         ...(action.reveals ? { reveals: [...action.reveals] } : {}),
@@ -112,7 +118,7 @@ export function emitReview({
 
     const stages = pair.value.get('stages');
     for (const stage of STAGES) {
-      const from = action.stages[stage].from;
+      const from = action.stages[stage]?.from ?? [];
       const node = isMap(stages) ? stages.get(stage, true) : undefined;
       if (from.length > 1 && isScalar(node)) node.comment = ` from: ${from.join(', ')}`;
     }

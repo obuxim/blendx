@@ -1,6 +1,6 @@
 # Blend cookbook
 
-Ten patterns that cover most of what a blend ever says. Each shows only what differs from the defaults; everything left out is derived from the schema. Every pattern links to the test that pins its behaviour.
+Eleven patterns that cover most of what a blend ever says. Each shows only what differs from the defaults; everything left out is derived from the schema. Every pattern links to the test that pins its behaviour.
 
 The examples use the `shop` tables: `users` (with a `password`), and `orders` (with a `user_id` and soft delete). Every snippet also compiles, with a typed identity, in [the cookbook, compiled](../packages/core/test/register/cookbook.types.test.ts).
 
@@ -151,3 +151,20 @@ On a table with a nullable `deleted_at`, destroy sets it instead of deleting, an
 - [destroy soft-deletes: 204, the row stays with deleted_at set, show no longer finds it](../packages/core/test/engine-save.test.ts)
 - [restore clears deleted_at](../packages/core/test/engine-save.test.ts)
 - [?trashed works only where the resource enables it](../packages/core/test/engine-load.test.ts)
+
+## 11. Do something once a write has committed
+
+```ts
+a.member('refund', {
+  rules: () => z.object({ reason: z.string().min(3) }),
+  calculate: () => ({ status: 'refunded' as const }),
+  // Once the refund has committed, tell the customer.
+  after: ({ saved, input }) => notify(saved.user_id, `Your order was refunded: ${input.reason}`),
+}),
+```
+
+`after` runs once the action's write has committed, before the reply, with the row as saved (`saved`), the row as loaded (`record`), the input, the identity and the database. Only actions that write have one. The reply waits for it; what it throws goes to `createServer`'s `onError`, and the reply stands. App and resource `after` hooks run too, each in turn, so an app-wide audit log belongs in `defineApp({ hooks: { after } })`. `notify` stands for the app's own mailer.
+
+- [after runs once the write has committed, with the saved row, the loaded row and the input](../packages/core/test/after.test.ts)
+- [a failing after is reported, the other levels still run, and the reply stands](../packages/core/test/after.test.ts)
+- [app, resource and action after run in that order, none replacing another](../packages/core/test/after.test.ts)
