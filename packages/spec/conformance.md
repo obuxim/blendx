@@ -14,7 +14,8 @@ The conformance suite defines blendx's behaviour over HTTP, independent of any l
 - a scoped index: users list only themselves (`scope`, docs/decisions.md D22);
 - an include: `?include=user` nests an order's user, as its show would reply to the requester (docs/decisions.md D28), `?include=notes` its two newest notes, a bounded has-many (D31), and `?include=notes.author` each note's author through the notes' own include (D32);
 - a custom member action (`POST /orders/:id/refund`) and a custom collection action (`GET /orders/quote`, with a declared reply);
-- a composite primary key: `order_items` is keyed by `(order_id, line)`, so a line is `/order_items/:order_id/:line`, both columns are input on store, and `?include=items` nests an order's lines in the order of that key (docs/decisions.md D33).
+- a composite primary key: `order_items` is keyed by `(order_id, line)`, so a line is `/order_items/:order_id/:line`, both columns are input on store, and `?include=items` nests an order's lines in the order of that key (docs/decisions.md D33);
+- replace: `PUT /orders/:id` and `PUT /order_items/:order_id/:line` take the store body without the key and reset what it leaves out (docs/decisions.md D34).
 
 The identity is the `x-user-id` request header: a positive integer is that user, anything else is no identity.
 

@@ -21,6 +21,7 @@ const kinds = blend(models.orders, {
     a.store(),
     a.show(),
     a.update(),
+    a.replace(),
     a.destroy(),
     a.restore(),
     a.purge(),
@@ -54,6 +55,7 @@ const routes = router()
   .post('/orders/recount', ...run(kinds, 'recount'))
   .get('/orders/:id', ...run(kinds, 'show'))
   .patch('/orders/:id', ...run(kinds, 'update'))
+  .put('/orders/:id', ...run(kinds, 'replace'))
   .delete('/orders/:id', ...run(kinds, 'destroy'))
   .post('/orders/:id/restore', ...run(kinds, 'restore'))
   .delete('/orders/:id/purge', ...run(kinds, 'purge'))
@@ -73,6 +75,7 @@ const tables = {
       recount: 'POST /orders/recount',
       show: 'GET /orders/:id',
       update: 'PATCH /orders/:id',
+      replace: 'PUT /orders/:id',
       destroy: 'DELETE /orders/:id',
       restore: 'POST /orders/:id/restore',
       purge: 'DELETE /orders/:id/purge',
@@ -146,6 +149,7 @@ describe('every kind of action', () => {
       readonly recount: 'mutation';
       readonly show: 'query';
       readonly update: 'mutation';
+      readonly replace: 'mutation';
       readonly destroy: 'mutation';
       readonly restore: 'mutation';
       readonly purge: 'mutation';

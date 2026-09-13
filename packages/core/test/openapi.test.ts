@@ -59,6 +59,26 @@ describe('buildOpenApi', () => {
     ).toEqual(['order_id', 'line', 'sku']);
   });
 
+  test('replace: a put operation with the store body, answering as update does (D34)', () => {
+    const properties = (path: string, method: string) =>
+      Object.keys(
+        at(
+          document,
+          'paths',
+          path,
+          method,
+          'requestBody',
+          'content',
+          'application/json',
+          'schema',
+          'properties',
+        ),
+      );
+    expect(properties('/orders/{id}', 'put')).toEqual(properties('/orders', 'post'));
+    expect(at(document, 'paths', '/orders/{id}', 'put', 'requestBody').required).toBe(true);
+    expect(statuses('/orders/{id}', 'put')).toEqual(statuses('/orders/{id}', 'patch'));
+  });
+
   test('each table has a public record component without its hidden columns', () => {
     const record = at(document, 'components', 'schemas', 'users', 'properties');
     expect(Object.keys(record)).toContain('email');

@@ -97,6 +97,32 @@ describe('reviewResource', () => {
     expect(action('purge')?.reply).toEqual({ status: 204, body: 'none' });
   });
 
+  test('replace: the store body without the key, and the columns it resets (D34)', () => {
+    const orders = blend(shop.orders, {
+      policy: allow.public,
+      hidden: ['meta'],
+      actions: (a) => [a.replace()],
+    });
+    const [replace] = reviewResource(orders, defineApp({})).actions;
+    expect(replace?.route).toBe('PUT /orders/:id');
+    expect(Object.keys(replace?.input ?? {})).toEqual([
+      ...['user_id', 'status', 'total', 'quantity', 'tags', 'meta', 'public_id', 'placed_on'],
+    ]);
+    expect(replace?.resets).toEqual({
+      to_default: ['status', 'quantity', 'public_id'],
+      to_null: ['tags', 'placed_on'],
+    });
+    expect(replace?.stages.rules.default).toBe(
+      'the insert columns without the key, hidden ones optional',
+    );
+    expect(replace?.stages.save.default).toBe(
+      'replace the row, touching updated_at: the writes, and each visible column the body leaves out back to its default',
+    );
+    expect(replace?.calculate).toEqual({
+      keys: ['meta', 'placed_on', 'public_id', 'quantity', 'status', 'tags', 'total', 'user_id'],
+    });
+  });
+
   test('index: its query as input, one line per parameter', () => {
     expect(action('index')?.input).toEqual({
       page: 'string, matching ^[1-9][0-9]*$, optional',

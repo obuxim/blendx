@@ -13,7 +13,7 @@ Every request to an action runs the same stages, in order:
 | 3 | load | `load` | the row by id; a page for index; nothing for store and collection actions |
 | 4 | authorize | `authorize` | the action's policy |
 | 5 | calculate | `calculate` | the input's writable columns |
-| 6 | save | `save` | store inserts; update and member actions update; destroy soft-deletes or deletes; restore clears `deleted_at`; purge deletes for good |
+| 6 | save | `save` | store inserts; update and member actions update; replace updates and resets what the body left out; destroy soft-deletes or deletes; restore clears `deleted_at`; purge deletes for good |
 | 7 | later | `later` | nothing; only actions that write have it: the write leaves an outbox entry, and a worker runs the hook, at least once |
 | 8 | after | `after` | nothing; only actions that write have it, and it runs once the write has committed |
 | 9 | respond | `respond` | 201 for store, 204 for destroy and purge, 200 otherwise, with the record minus hidden columns |
@@ -45,7 +45,7 @@ a.store({
 rules: ({ prev }) => schema
 ```
 
-`prev` is the action's default rules: for store, a strict zod object of the insert columns; for update, the same with every field optional; for index, the query; for show, destroy, restore and custom actions, an empty object. Return the zod schema to validate with.
+`prev` is the action's default rules: for store, a strict zod object of the insert columns; for update, the same with every field optional; for replace, the store rules without the key columns, hidden ones optional; for index, the query; for show, destroy, restore and custom actions, an empty object. Return the zod schema to validate with.
 
 - Replace: `rules: () => z.object({ a: z.number(), b: z.number() })`.
 - Narrow: `prev.pick({ email: true, name: true })` accepts only those columns, keeping their derived rules.
@@ -131,7 +131,7 @@ The writes a save hook passes to `runDefault` are not checked the way calculate'
 after: async ({ saved, record, input, auth, db }) => { ... }
 ```
 
-after runs once the action's write has committed, before the reply is sent: send an email, call a webhook, tell another system. Only actions that write have one (store, update, destroy, restore, purge and member actions); on index, show and collection actions it is a type error.
+after runs once the action's write has committed, before the reply is sent: send an email, call a webhook, tell another system. Only actions that write have one (store, update, replace, destroy, restore, purge and member actions); on index, show and collection actions it is a type error.
 
 - `saved`: the row as saved, hidden columns included, since none of it goes back to the client.
 - `record`: the row as loaded before the write, so `record` and `saved` show what changed. Store has none.
@@ -201,7 +201,7 @@ App hooks are in [The app](app.md#app-hooks). The review marks every stage that 
 
 ## Transactions
 
-An action that writes (store, update, destroy, restore, purge and member actions) runs load, authorize, calculate and save in one transaction, with its row locked `FOR UPDATE`: a calculate that reads the record and writes it back cannot race another request. An error anywhere rolls back everything the action wrote. The later hooks' outbox entries are written in that transaction, and after and respond run after the commit: a write that fails leaves no entry and runs no after. Reads (index, show and collection actions) take no lock and no transaction.
+An action that writes (store, update, replace, destroy, restore, purge and member actions) runs load, authorize, calculate and save in one transaction, with its row locked `FOR UPDATE`: a calculate that reads the record and writes it back cannot race another request. An error anywhere rolls back everything the action wrote. The later hooks' outbox entries are written in that transaction, and after and respond run after the commit: a write that fails leaves no entry and runs no after. Reads (index, show and collection actions) take no lock and no transaction.
 
 ## Stopping with a problem
 

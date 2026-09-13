@@ -16,7 +16,7 @@ import {
   resolveIncludes,
   toEndpoints,
 } from './endpoints.ts';
-import { defaultEffects, saves, writableColumns } from './engine.ts';
+import { defaultEffects, resetColumns, saves, writableColumns } from './engine.ts';
 import { describeFields, describeSchema, toJsonSchema } from './json-schema.ts';
 
 export interface StageReview {
@@ -56,6 +56,8 @@ export interface ActionReview {
   readonly calculate?: CalculateReview;
   /** An index with a scope (D22); the CLI adds the scope's source and columns. */
   readonly scoped?: true;
+  /** replace only (D34): the visible columns a body may leave out, and what each goes back to. */
+  readonly resets?: { readonly to_default: readonly string[]; readonly to_null: readonly string[] };
   /** The hidden columns this action's reply carries (D24), when it reveals any. */
   readonly reveals?: readonly string[];
   /** The reply, or why it is not described. */
@@ -127,6 +129,14 @@ function stageDefaults(
         save: update,
         respond: '200 with the saved record',
       };
+    case 'replace':
+      return {
+        rules: 'the insert columns without the key, hidden ones optional',
+        load: row,
+        calculate: `${WRITABLE}, and null for each visible column the body leaves out that has no default`,
+        save: `replace the row${touch}: the writes, and each visible column the body leaves out back to its default`,
+        respond: '200 with the saved record',
+      };
     case 'destroy':
       return {
         rules: EMPTY,
@@ -193,6 +203,12 @@ function replyOf(endpoint: EndpointDefinition): ReplyReview | string {
   return { status, body: `the record${revealed}` };
 }
 
+/** What a replace resets (D34), as the reviewer reads it. */
+function resetsOf(definition: EndpointDefinition): NonNullable<ActionReview['resets']> {
+  const { toDefault, toNull } = resetColumns(definition);
+  return Object.freeze({ to_default: Object.freeze(toDefault), to_null: Object.freeze(toNull) });
+}
+
 /** The review model of one resource, with the app's hooks and settings applied. */
 export function reviewResource(resource: Resource, app: App): ResourceReview {
   const record = describeFields(
@@ -243,6 +259,9 @@ export function reviewResource(resource: Resource, app: App): ResourceReview {
       stages: Object.freeze(stages),
       ...(calculate ? { calculate: Object.freeze(calculate) } : {}),
       ...(definition.hooks.scope ? { scoped: true as const } : {}),
+      ...(definition.builtin && definition.action === 'replace'
+        ? { resets: resetsOf(definition) }
+        : {}),
       ...(definition.revealed ? { reveals: Object.freeze([...definition.revealed]) } : {}),
       reply: replyOf(definition),
     });

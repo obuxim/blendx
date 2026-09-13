@@ -25,6 +25,7 @@ export const orders = blend(models.orders, {
     a.store(),
     a.show(),
     a.update(),
+    a.replace(),
     a.destroy(),
     a.restore(),
     a.purge(),

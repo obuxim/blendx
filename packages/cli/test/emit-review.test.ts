@@ -95,6 +95,18 @@ describe('emitReview', () => {
     expect(actions.count.calculate).toEqual({ returns: [] });
   });
 
+  test('replace lists the columns it resets, one line per kind (D34)', () => {
+    const orders = blend(shop.orders, { policy: allow.public, actions: (a) => [a.replace()] });
+    const text = emitReview({
+      review: reviewResource(orders, defineApp({})),
+      source: 'blends/orders.ts',
+    });
+    expect(text).toContain(
+      '    resets:\n      to_default: [status, quantity, public_id]\n      to_null: [tags, meta, placed_on]\n',
+    );
+    expect(parse(text).actions.replace.route).toBe('PUT /orders/:id');
+  });
+
   test('an action that reveals hidden columns lists them, and its reply says so (D24)', () => {
     const users = blend(shop.users, {
       policy: allow.public,

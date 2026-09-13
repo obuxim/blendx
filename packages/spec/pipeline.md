@@ -9,7 +9,7 @@ Every endpoint runs the same stages in the same order. A resource changes a stag
 | 3 | load | the parsed input and the path's key segments (`:id`, or one per column of a composite key, docs/decisions.md D33) | the record, a page, or nothing | a row by primary key, never a soft-deleted one (restore loads only those, purge loads both); for index, a filtered, sorted page, within the action's `scope` (docs/decisions.md D22), ordered by the sort column and then every key column |
 | 4 | authorize | the policy's decision, the identity, the record and the input | allowed or not | the resource's policy for the action |
 | 5 | calculate | the default writes, the input and the record | the writes; for a collection action, the reply body | the input's writable columns |
-| 6 | save | the writes and the record | the saved row | store inserts, update and custom member actions update, destroy soft-deletes or deletes, restore clears `deleted_at`, purge deletes for good (docs/decisions.md D29) |
+| 6 | save | the writes and the record | the saved row | store inserts, update and custom member actions update, replace updates and sends the visible columns the body left out back to their defaults (docs/decisions.md D34), destroy soft-deletes or deletes, restore clears `deleted_at`, purge deletes for good (docs/decisions.md D29) |
 | 7 | later | the saved row, the row as loaded, the input and the identity | nothing | nothing. Only actions that save have it: the engine writes an outbox entry for each level's hook in the transaction, and a worker runs the hook later, at least once (docs/decisions.md D27) |
 | 8 | after | the saved row, the row as loaded, the input, the identity and the database | nothing | nothing. Only actions that save have it, and it runs once the write has committed (docs/decisions.md D26) |
 | 9 | respond | the default reply, the public record and calculate's result | the reply | 201 for store, 204 for destroy and purge, 200 otherwise; the page envelope for index; hidden columns removed |
@@ -27,6 +27,8 @@ Tests:
 - [update saves the row the segments name and no other](../core/test/engine-composite.test.ts)
 - [store inserts, fills defaults and sets both timestamps](../core/test/engine-save.test.ts)
 - [update writes the input and touches updated_at](../core/test/engine-save.test.ts)
+- [DR-REPLACE-RESET: a column the body leaves out goes to its default, or to null without one](../core/test/engine-replace.test.ts)
+- [a hidden column is left as it is, unless the body carries it](../core/test/engine-replace.test.ts)
 - [destroy soft-deletes: 204, the row stays with deleted_at set, show no longer finds it](../core/test/engine-save.test.ts)
 - [destroy deletes the row on a table without deleted_at](../core/test/engine-save.test.ts)
 - [purge deletes a soft-deleted row for good: 204, and restore no longer finds it](../core/test/engine-save.test.ts)
@@ -110,7 +112,7 @@ Tests:
 
 ## Transactions
 
-An action that saves (store, update, destroy, restore, purge and custom member actions) runs load, authorize, calculate and save in one transaction. A member row is loaded `FOR UPDATE`, so calculate's read, change and write cannot race another request. A failure anywhere rolls back what the action wrote. The later hooks' outbox entries are written in that transaction too, so they exist only if the write commits. after and respond run after the commit, so a failing respond leaves the saved row, and a write that fails runs no after. Reads (index, show and collection actions) take no lock.
+An action that saves (store, update, replace, destroy, restore, purge and custom member actions) runs load, authorize, calculate and save in one transaction. A member row is loaded `FOR UPDATE`, so calculate's read, change and write cannot race another request. A failure anywhere rolls back what the action wrote. The later hooks' outbox entries are written in that transaction too, so they exist only if the write commits. after and respond run after the commit, so a failing respond leaves the saved row, and a write that fails runs no after. Reads (index, show and collection actions) take no lock.
 
 Tests:
 - [a failing save rolls back what the action had already written](../core/test/engine-transaction.test.ts)

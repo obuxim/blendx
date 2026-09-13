@@ -728,6 +728,25 @@ describe('optimistic updates (N.10, D30)', () => {
     expect(client.getQueryData(list.queryKey)?.meta.total).toBe(meta.total);
   });
 
+  test('replace: the body is merged before the reply, and the reply brings the columns it reset (D34)', async () => {
+    const client = freshClient();
+    const { api, release } = gatedApi();
+    const show = api.orders.show.queryOptions({ param: { id: '1' } });
+    await client.fetchQuery(show);
+    const replace = new MutationObserver(
+      client,
+      api.orders.replace.mutationOptions({ optimistic: true }),
+    );
+    const done = replace.mutate({
+      param: { id: '1' },
+      json: { user_id: 1, total: '19.00', quantity: 4 },
+    });
+    while (client.getQueryData(show.queryKey)?.quantity !== 4) await Bun.sleep(1);
+    expect(replace.getCurrentResult().status).toBe('pending');
+    release();
+    expect(await done).toMatchObject({ quantity: 4, status: 'pending', tags: null, meta: null });
+  });
+
   test("the app's own onMutate and onSuccess, spread over the options, keep it", async () => {
     const client = freshClient();
     const { api, release } = gatedApi();

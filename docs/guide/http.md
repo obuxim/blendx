@@ -16,6 +16,7 @@ What a client of a blendx app sees. The replies below come from [`examples/expen
 | store | `POST /<table>` | 201, the record |
 | show | `GET /<table>/:id` | 200, the record |
 | update | `PATCH /<table>/:id` | 200, the record |
+| replace | `PUT /<table>/:id` | 200, the record |
 | destroy | `DELETE /<table>/:id` | 204, no body |
 | restore | `POST /<table>/:id/restore` | 200, the record |
 | purge | `DELETE /<table>/:id/purge` | 204, no body |
@@ -23,6 +24,8 @@ What a client of a blendx app sees. The replies below come from [`examples/expen
 | collection action | `POST /<table>/<name>` | 200, what it calculated |
 
 Custom actions can use another method ([Blends](blends.md#custom-actions)). Only the actions a blend lists have routes; any other request is a 404.
+
+PATCH changes what it is sent and keeps the rest. PUT replaces the record: its body is the store body without the key columns, so a required column must be sent and the rest may be left out, and a column left out goes back to its schema default, or to null when it has none. A hidden column is left as it is unless the body carries it, and is optional even where store requires it. A PUT to a row that does not exist is 404; store creates rows.
 
 A table whose primary key spans several columns, `(order_id, line) [pk]` under `indexes` in the schema ([The schema](schema.md#conventions)), has one path segment per key column instead of `:id`, named by the column and in the key's order: `GET /order_items/:order_id/:line`, `DELETE /order_items/:order_id/:line`, and a member action below them, `POST /order_items/:order_id/:line/relabel`. A single-column key is always `:id`, whatever the column is called. OpenAPI lists one path parameter per segment, and the typed client takes `param: { order_id, line }`. The key columns are input on store, `{ "order_id": 1, "line": 3, "sku": "C-3" }`, since the client knows them, and a second row with the same key answers 409.
 

@@ -172,8 +172,19 @@ test('the cookbook, compiled', () => {
       policy: allow.authenticated,
       actions: (a) => [a.index(), a.store(), a.show(), a.update(), a.destroy()],
     }),
+    // 17. Replace a record with PUT
+    blend(models.orders, {
+      policy: allow.owner('user_id'),
+      actions: (a) => [
+        a.show(),
+        a.update(),
+        a.replace({
+          calculate: ({ prev, record }) => ({ ...prev, public_id: record.public_id }),
+        }),
+      ],
+    }),
   ];
-  // Patterns 4 to 7 share one orders blend: thirteen blends for sixteen patterns.
-  expect(patterns).toHaveLength(13);
+  // Patterns 4 to 7 share one orders blend: fourteen blends for seventeen patterns.
+  expect(patterns).toHaveLength(14);
   expect(patterns.every((pattern) => pattern.kind === 'blendx/resource')).toBe(true);
 });

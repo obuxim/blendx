@@ -125,9 +125,10 @@ describe('@blendx/react types', () => {
     api.orders.refund.mutationOptions({ invalidates: ['payments'] });
   });
 
-  test('optimistic: true on update, destroy and purge; a function of the row on other member actions (D30)', () => {
+  test('optimistic: true on update, replace, destroy and purge; a function of the row on other member actions (D30, D34)', () => {
     type Row = InferResponseType<Show, 200>;
     api.orders.update.mutationOptions({ optimistic: true });
+    api.orders.replace.mutationOptions({ optimistic: true });
     api.orders.destroy.mutationOptions({ optimistic: true });
     api.orders.purge.mutationOptions({ optimistic: true });
     api.orders.refund.mutationOptions({

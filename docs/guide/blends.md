@@ -40,6 +40,7 @@ The `actions` callback receives a builder, `a`, and returns the list of actions 
 | `a.store()` | `POST /<table>` | validates the body and inserts a row | 201, the record |
 | `a.show()` | `GET /<table>/:id` | loads the row | 200, the record |
 | `a.update()` | `PATCH /<table>/:id` | validates a partial body and updates the row | 200, the record |
+| `a.replace()` | `PUT /<table>/:id` | validates the store body without the key and replaces the row: a visible column left out goes back to its default, or to null | 200, the record |
 | `a.destroy()` | `DELETE /<table>/:id` | soft-deletes the row, or deletes it when the table has no `deleted_at` | 204, no body |
 | `a.restore()` | `POST /<table>/:id/restore` | clears `deleted_at` on a soft-deleted row | 200, the record |
 | `a.purge()` | `DELETE /<table>/:id/purge` | deletes the row for good, soft-deleted or not | 204, no body |
@@ -47,6 +48,7 @@ The `actions` callback receives a builder, `a`, and returns the list of actions 
 | `a.collection(name, spec)` | `POST /<table>/<name>` | loads and saves nothing | 200, what `calculate` returns |
 
 - `a.restore()` and `a.purge()` exist only on a table with a nullable `deleted_at` timestamp. On any other table they are a type error: destroy already deletes for good there. Purge has a policy of its own, like every action, so a blend can leave destroy to a row's owner and purge to an administrator ([cookbook pattern 10](../cookbook.md#10-soft-delete-restore-and-trashed-rows)).
+- `a.replace()` is PUT next to update's PATCH: what the body leaves out is reset, not kept. Hidden columns are not part of what a client sees, so a replace leaves them alone unless the body carries them, and its rules make them optional even where store requires them. The review lists the columns a replace resets ([cookbook pattern 17](../cookbook.md#17-replace-a-record-with-put)).
 - Each action is listed once. Every call takes an optional spec: the hooks where the action differs from the defaults ([Hooks](hooks.md)), and the options below.
 - A collection action's route, such as `GET /expenses/quote`, is matched before `GET /expenses/:id`.
 - On a table whose primary key spans several columns, `:id` is one segment per key column: `GET /order_items/:order_id/:line`, and `a.member('relabel')` is `POST /order_items/:order_id/:line/relabel` ([The HTTP API](http.md#routes)). The key columns are ordinary input on store, since the client knows them ([cookbook pattern 16](../cookbook.md#16-a-table-keyed-by-several-columns)).

@@ -197,8 +197,8 @@ export interface MutationSettings<Table extends string, Optimistic = never> {
   /** Other tables whose queries it changes: the ones its hooks write. Its own table always is. */
   invalidates?: readonly Table[];
   /**
-   * Change the cached rows before the request is sent (D30): `true` on update (merge the
-   * body in), destroy and purge (remove the row); a function of the cached row and the input
+   * Change the cached rows before the request is sent (D30): `true` on update and replace
+   * (merge the body in), destroy and purge (remove the row); a function of the cached row and the input
    * on any other member action. A failure invalidates the table's queries.
    */
   optimistic?: Optimistic;
@@ -219,12 +219,13 @@ type RowOf<Client, E extends Tables, T extends keyof E> = E[T]['actions'] extend
     : Record<string, unknown>;
 
 /**
- * What `optimistic` takes on an action (D30): `true` on update, destroy and purge; on store,
+ * What `optimistic` takes on an action (D30): `true` on update, replace, destroy and purge; on store,
  * `true` or a function of the input giving what the new row holds besides it; a function of
  * the cached row and the input on any other member action; nothing on a collection action.
  */
 type OptimisticOf<Client, E extends Tables, T extends keyof E, A, Route, F> = A extends
   | 'update'
+  | 'replace'
   | 'destroy'
   | 'purge'
   ? true
@@ -442,7 +443,8 @@ const keyOfNewRow = (key: Tables[string]['key'], json: Record<string, unknown>):
 
 function changeOf(action: string, input: unknown, optimistic: true | RowFunction): RowChange {
   if (typeof optimistic === 'function') return (row) => optimistic(row, input);
-  if (action === 'update') {
+  // update and replace (D34) merge the body in; the refetch brings what a replace reset.
+  if (action === 'update' || action === 'replace') {
     const json = isRow(input) && isRow(input.json) ? input.json : {};
     return (row) => ({ ...row, ...json });
   }

@@ -103,6 +103,14 @@ export function emitReview({
         ),
         ...(scope === undefined ? {} : { scope }),
         ...(calculate === undefined ? {} : { calculate }),
+        ...(action.resets
+          ? {
+              resets: {
+                to_default: [...action.resets.to_default],
+                to_null: [...action.resets.to_null],
+              },
+            }
+          : {}),
         ...(action.reveals ? { reveals: [...action.reveals] } : {}),
         reply: action.reply,
       },
@@ -152,6 +160,12 @@ export function emitReview({
 
     const reveals = pair.value.get('reveals');
     if (isSeq(reveals)) reveals.flow = true;
+
+    // D34: what a replace resets, one line per kind.
+    const resets = pair.value.get('resets');
+    if (isMap(resets)) {
+      for (const item of resets.items) if (isSeq(item.value)) item.value.flow = true;
+    }
   }
 
   return doc.toString({ lineWidth: 0, flowCollectionPadding: false });

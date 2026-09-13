@@ -245,7 +245,7 @@ export function buildOpenApi({ app, resources, info }: OpenApiOptions): OpenApiR
         app,
         defaults: defaultEffects(definition, { perPage: app.index.perPage }),
       });
-      const body = definition.method === 'post' || definition.method === 'patch';
+      const body = ['post', 'put', 'patch'].includes(definition.method);
       const input = toJsonSchema(endpoint.rules, 'input');
       const fields = propertiesOf(input);
       const required = new Set((input.required ?? []) as string[]);

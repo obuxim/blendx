@@ -134,7 +134,7 @@ A mutation waits for its reply, and the page shows the change once the refetch a
 
 ### What each action changes
 
-- **update** takes `optimistic: true` and merges its `json` into every cached copy of the row: the show queries for that id, and the row inside every index page, plain and infinite. From the tests:
+- **update** and **replace** take `optimistic: true` and merge their `json` into every cached copy of the row: the show queries for that id, and the row inside every index page, plain and infinite. The columns a replace resets arrive with the reply. From the tests:
 
   ```ts
   api.orders.update.mutationOptions({ optimistic: true }),

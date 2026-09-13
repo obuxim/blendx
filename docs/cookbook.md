@@ -261,3 +261,24 @@ export default blend(models.order_items, {
 - [a composite key gives one path segment per column, in the key order](../packages/core/test/engine-composite.test.ts)
 - [store takes the key columns as input](../packages/core/test/engine-composite.test.ts)
 - [update saves the row the segments name and no other](../packages/core/test/engine-composite.test.ts)
+
+## 17. Replace a record with PUT
+
+```ts
+export default blend(models.orders, {
+  policy: allow.owner('user_id'),
+  actions: (a) => [
+    a.show(),
+    a.update(),
+    a.replace({
+      calculate: ({ prev, record }) => ({ ...prev, public_id: record.public_id }),
+    }),
+  ],
+});
+```
+
+`PUT /orders/1` replaces the order where `PATCH /orders/1` changes what it is sent. The body is the store body without the key, so `user_id` and `total` are required and the rest may be left out, and a writable column the body leaves out goes back to its schema default (`status` to `pending`, `quantity` to `1`) or to null (`tags`, `meta`). Hidden columns are not part of what a client sees: a replace leaves them alone unless the body carries them, and its rules make them optional even where store requires them. `calculate` receives the nulls in `prev`, and a column it sets is not reset. The review lists the columns a replace resets, so a reviewer sees that a defaulted column such as the generated `public_id` would get a fresh value; this blend keeps the row's own from `record`.
+
+- [DR-REPLACE-RESET: a column the body leaves out goes to its default, or to null without one](../packages/core/test/engine-replace.test.ts)
+- [a hidden column is left as it is, unless the body carries it](../packages/core/test/engine-replace.test.ts)
+- [calculate sees the nulls in prev, and what it sets is not reset](../packages/core/test/engine-replace.test.ts)
