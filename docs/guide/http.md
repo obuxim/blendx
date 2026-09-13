@@ -25,7 +25,7 @@ Custom actions can use another method ([Blends](blends.md#custom-actions)). Only
 
 ## Records
 
-A record holds the row's columns as the database returns them, minus the blend's hidden columns, under their names in the schema:
+A record holds the row's columns as the database returns them, minus the blend's hidden columns (unless the action reveals them), under their names in the schema:
 
 ```json
 {

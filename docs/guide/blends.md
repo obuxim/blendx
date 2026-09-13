@@ -27,7 +27,7 @@ The spec has four keys:
 |---|---|
 | `policy` | Required. Who may run each action ([Policies](#policies)). |
 | `actions` | Required. The actions to expose ([Actions](#actions)). |
-| `hidden` | Columns never sent in a reply ([Hidden columns](#hidden-columns)). |
+| `hidden` | Columns left out of replies, unless an action reveals them ([Hidden columns](#hidden-columns)). |
 | `hooks` | Hooks that run for every action of this table ([Hooks](hooks.md#the-cascade)). |
 
 ## Actions
@@ -143,7 +143,14 @@ const approvers = allow.when(({ auth }) => auth?.is_approver === true, {
 
 `hidden: ['password']` keeps a column out of every reply, index pages included, and out of the index filters and sorting. It is still a column: store and update accept it as input unless their rules drop it, and hooks see it on the record. `blend()` refuses a name that is not a column.
 
-`hidden` applies to the whole resource. A column that one reply must carry and all others must hide, such as a token returned once at sign-up, cannot be expressed yet; the tutorial explains how [`examples/expenses`](tutorial.md#4-sign-up) deals with that ([Known issues](known-issues.md#a-column-cannot-be-shown-once-and-hidden-elsewhere)).
+A column that one reply must carry and every other reply must hide, such as a token returned once at sign-up, is revealed by that action. From [`examples/expenses`](../../examples/expenses/blends/users.ts):
+
+```ts
+hidden: ['api_token'],
+actions: (a) => [a.store({ rules: ..., reveal: ['api_token'] }), a.show()],
+```
+
+`reveal` is for actions that reply with one record: store, show, update, restore and member actions. It names only hidden columns, and index, destroy and collection actions take none, so no page ever carries the column. The action's reply type and its OpenAPI schema include what it reveals, and the review lists it under the action as `reveals` (docs/decisions.md D24).
 
 ## Declaring a reply
 
@@ -163,6 +170,8 @@ The declaration is type-checked against what the action sends: the keys must mat
 - a hidden column that is not a column;
 - a custom action that reuses a built-in name, has a name that is not lowercase letters, digits and `_`, or has an invalid path;
 - `restore`, or `trashed` on index, on a table without soft delete;
-- a `reply` that is neither a zod schema nor `{ status, body }`.
+- a `reply` that is neither a zod schema nor `{ status, body }`;
+- a `scope` that is not a function;
+- a `reveal` that names a column that is not hidden, or sits on an action that does not reply with one record (index, destroy, a collection action).
 
 Mistakes in types, such as a `calculate` that returns a column the table does not have, are caught earlier, by `tsc`.

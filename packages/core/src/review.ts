@@ -46,6 +46,8 @@ export interface ActionReview {
   readonly calculate?: CalculateReview;
   /** An index with a scope (D22); the CLI adds the scope's source and columns. */
   readonly scoped?: true;
+  /** The hidden columns this action's reply carries (D24), when it reveals any. */
+  readonly reveals?: readonly string[];
   /** The reply, or why it is not described. */
   readonly reply: ReplyReview | string;
 }
@@ -159,7 +161,9 @@ function replyOf(endpoint: EndpointDefinition): ReplyReview | string {
   }
   if (endpoint.builtin && endpoint.action === 'index') return { status, body: 'a page of records' };
   if (endpoint.builtin && endpoint.action === 'destroy') return { status, body: 'none' };
-  return { status, body: 'the record' };
+  // D24: a reply that reveals hidden columns says which.
+  const revealed = endpoint.revealed ? `, with ${endpoint.revealed.join(', ')}` : '';
+  return { status, body: `the record${revealed}` };
 }
 
 /** The review model of one resource, with the app's hooks and settings applied. */
@@ -201,6 +205,7 @@ export function reviewResource(resource: Resource, app: App): ResourceReview {
       stages: Object.freeze(stages),
       ...(calculate ? { calculate: Object.freeze(calculate) } : {}),
       ...(definition.hooks.scope ? { scoped: true as const } : {}),
+      ...(definition.revealed ? { reveals: Object.freeze([...definition.revealed]) } : {}),
       reply: replyOf(definition),
     });
   });

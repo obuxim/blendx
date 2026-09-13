@@ -95,6 +95,48 @@ describe('P3.4 hook signatures', () => {
     );
   });
 
+  test('reveal: an action replies with the hidden columns it reveals, and only it (D24)', () => {
+    const typeOnly = () =>
+      blend(users, {
+        policy: allow.public,
+        hidden: ['password'],
+        actions: (a) => [
+          a.store({ reveal: ['password'] }),
+          a.show(),
+          a.member('rotate', {
+            reveal: ['password'],
+            calculate: () => ({ password: 'new' }),
+            respond: ({ prev, record }) => {
+              expectTypeOf(record.password).toEqualTypeOf<string>();
+              return prev;
+            },
+          }),
+        ],
+      });
+    type Revealing = ReturnType<typeof typeOnly>;
+    expectTypeOf<
+      'password' extends keyof ReplyOf<Revealing, 'store'>['body'] ? true : false
+    >().toEqualTypeOf<true>();
+    expectTypeOf<
+      'password' extends keyof ReplyOf<Revealing, 'show'>['body'] ? true : false
+    >().toEqualTypeOf<false>();
+    const notHidden = () =>
+      blend(users, {
+        policy: allow.public,
+        hidden: ['password'],
+        // @ts-expect-error only hidden columns are revealed
+        actions: (a) => [a.store({ reveal: ['email'] })],
+      });
+    const onIndex = () =>
+      blend(users, {
+        policy: allow.public,
+        hidden: ['password'],
+        // @ts-expect-error index reveals nothing: a page would reveal the column for many rows
+        actions: (a) => [a.index({ reveal: ['password'] })],
+      });
+    expect([typeOnly, notHidden, onIndex].every((check) => typeof check === 'function')).toBe(true);
+  });
+
   test('authorize sees the policy decision, identity, record and validated input', () => {
     const typeOnly = () =>
       blend(orders, {

@@ -128,12 +128,15 @@ import { models } from '../src/generated/schema.gen.ts';
 export default blend(models.users, {
   // Anyone may sign up. After that, a user sees only their own record.
   policy: { store: allow.public, show: allow.owner('id') },
+  // The bearer token. Sign-up's reply reveals it, once; no other reply carries it.
+  hidden: ['api_token'],
   actions: (a) => [
     a.store({
       // Only the email and the name come from the request: is_approver and api_token keep
-      // their schema defaults. The 201 reply carries the new api_token, the bearer token.
+      // their schema defaults.
       rules: ({ prev }) =>
         prev.pick({ email: true, name: true }).extend({ email: z.email().max(255) }),
+      reveal: ['api_token'],
     }),
     a.show(),
   ],
@@ -143,7 +146,7 @@ export default blend(models.users, {
 - Two actions, and nothing else: there is no way to list, change or delete users through the API.
 - `store` is public; `show` is for the user themselves (`users.id` equal to the identity's `id`).
 - The default store rules would accept `is_approver` and `api_token`, since both are ordinary columns with defaults. `pick` keeps only `email` and `name`, so anyone who sends `is_approver: true` gets a 422 instead of a promotion. `extend` tightens `email` from "a string of at most 255 characters" to an email address.
-- The reply to sign-up is the record, `api_token` included: that is how a user gets their token. `hidden` would keep the token out of every reply of the resource, sign-up's too, so instead no action shows a user to anyone else.
+- `api_token` is hidden, so no reply carries it except the one that reveals it: sign-up's. That is how a user gets their token, once; `GET /users/:id` shows a user their record without it ([Blends](blends.md#hidden-columns)).
 
 Generate the files, write the first migration and apply it:
 
@@ -517,7 +520,7 @@ bun test
 |---|---|
 | `schema.dbml` | 46 |
 | `src/app.ts` | 23 |
-| `blends/users.ts` | 16 |
+| `blends/users.ts` | 19 |
 | `blends/expenses.ts` | 89 |
 
 About 175 lines, plus a script and the tests. From them, blendx generated about 1,700 lines of routes, types, OpenAPI and review files, and serves these routes, each validated, authorized, transactional and documented:

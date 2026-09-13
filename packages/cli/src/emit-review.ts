@@ -85,6 +85,7 @@ export function emitReview({
         stages: Object.fromEntries(STAGES.map((stage) => [stage, action.stages[stage].default])),
         ...(scope === undefined ? {} : { scope }),
         ...(calculate === undefined ? {} : { calculate }),
+        ...(action.reveals ? { reveals: [...action.reveals] } : {}),
         reply: action.reply,
       },
     ] as const;
@@ -129,6 +130,9 @@ export function emitReview({
         if (isSeq(keys)) keys.flow = true;
       }
     }
+
+    const reveals = pair.value.get('reveals');
+    if (isSeq(reveals)) reveals.flow = true;
   }
 
   return doc.toString({ lineWidth: 0, flowCollectionPadding: false });

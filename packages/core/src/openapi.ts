@@ -115,7 +115,13 @@ function replies(endpoint: EndpointDefinition, warnings: string[]): JsonObject {
       ...(schema ? withBody('application/json', schema) : {}),
     },
   });
-  const record = ref(endpoint.resource);
+  // D24: a reply that reveals hidden columns is the record and those, not the component.
+  const record = endpoint.revealed
+    ? markDates(
+        toJsonSchema(recordSchema(endpoint.model, endpoint.hidden), 'output'),
+        endpoint.model,
+      )
+    : ref(endpoint.resource);
 
   if (endpoint.reply) {
     const status = endpoint.reply.status ?? defaultStatus(endpoint);

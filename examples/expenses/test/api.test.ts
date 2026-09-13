@@ -102,10 +102,11 @@ describe(`expenses example on ${realPostgres ? 'PostgreSQL' : 'PGlite'}`, () => 
     expect(pointers(again)).toEqual(['/email']);
   });
 
-  test('a user sees only their own record', async () => {
+  test('a user sees only their own record, and never the token again (reveal, D24)', async () => {
     const own = await send('GET', `/users/${users.ada.id}`, { token: users.ada.token });
     expect(own.status).toBe(200);
-    expect(own.body.api_token).toBe(users.ada.token);
+    expect(own.body).toMatchObject({ id: users.ada.id, email: 'ada@example.com' });
+    expect(own.body).not.toHaveProperty('api_token');
     const other = await send('GET', `/users/${users.bob.id}`, { token: users.ada.token });
     expect(other.status).toBe(403);
   });

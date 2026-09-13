@@ -80,6 +80,23 @@ describe('emitReview', () => {
     );
   });
 
+  test('an action that reveals hidden columns lists them, and its reply says so (D24)', () => {
+    const users = blend(shop.users, {
+      policy: allow.public,
+      hidden: ['password'],
+      actions: (a) => [a.store({ reveal: ['password'] }), a.show()],
+    });
+    const text = emitReview({
+      review: reviewResource(users, defineApp({})),
+      source: 'blends/users.ts',
+    });
+    expect(text).toContain('reveals: [password]');
+    const { actions } = parse(text);
+    expect(actions.store.reveals).toEqual(['password']);
+    expect(actions.store.reply).toEqual({ status: 201, body: 'the record, with password' });
+    expect(actions.show.reveals).toBeUndefined();
+  });
+
   test('hidden columns, resource hooks, and a default calculate', () => {
     const users = blend(shop.users, {
       policy: allow.when(({ auth }) => auth !== null, { description: 'signed-in users' }),

@@ -4,12 +4,12 @@
 format: 1
 resource: users
 source: blends/users.ts
+hidden: [api_token]
 record:
   id: integer
   email: string, at most 255 characters
   name: string, at most 80 characters
   is_approver: boolean
-  api_token: string (uuid)
   created_at: string
   updated_at: string
 actions:
@@ -27,9 +27,10 @@ actions:
       respond: 201 with the saved record
     calculate:
       writes: [email, name]
+    reveals: [api_token]
     reply:
       status: 201
-      body: the record
+      body: the record, with api_token
 
   show:
     route: GET /users/:id

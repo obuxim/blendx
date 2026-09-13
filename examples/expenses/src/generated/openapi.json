@@ -1018,7 +1018,46 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/users"
+                  "additionalProperties": false,
+                  "properties": {
+                    "api_token": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "type": "string"
+                    },
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "maxLength": 255,
+                      "type": "string"
+                    },
+                    "id": {
+                      "maximum": 2147483647,
+                      "minimum": -2147483648,
+                      "type": "integer"
+                    },
+                    "is_approver": {
+                      "type": "boolean"
+                    },
+                    "name": {
+                      "maxLength": 80,
+                      "type": "string"
+                    },
+                    "updated_at": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "email",
+                    "name",
+                    "is_approver",
+                    "api_token",
+                    "created_at",
+                    "updated_at"
+                  ],
+                  "type": "object"
                 }
               }
             },
@@ -1280,11 +1319,6 @@
       "users": {
         "additionalProperties": false,
         "properties": {
-          "api_token": {
-            "format": "uuid",
-            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
-            "type": "string"
-          },
           "created_at": {
             "type": "string"
           },
@@ -1313,7 +1347,6 @@
           "email",
           "name",
           "is_approver",
-          "api_token",
           "created_at",
           "updated_at"
         ],

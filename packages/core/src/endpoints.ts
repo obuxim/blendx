@@ -26,7 +26,10 @@ export interface EndpointDefinition {
   readonly builtin: boolean;
   readonly model: Model;
   readonly policy: Policy;
+  /** Columns this action's replies leave out: the hidden ones, minus any it reveals (D24). */
   readonly hidden: readonly string[];
+  /** The hidden columns this action's reply carries (D24), when it reveals any. */
+  readonly revealed?: readonly string[];
   /** index only: accepts ?trashed=with|only. */
   readonly trashed: boolean;
   /** The action's own hooks. */
@@ -66,6 +69,7 @@ export function toEndpoints(resource: Resource): EndpointDefinition[] {
   return [...resource.actions].sort(byRank).map((action) => {
     const policy = policies[action.name];
     if (!policy) throw new Error(`${model.name}.${action.name} has no policy`);
+    const revealed = action.options?.reveal?.length ? action.options.reveal : undefined;
     return Object.freeze({
       id: `${model.name}.${action.name}`,
       resource: model.name,
@@ -76,7 +80,9 @@ export function toEndpoints(resource: Resource): EndpointDefinition[] {
       builtin: action.builtin,
       model,
       policy,
-      hidden,
+      // D24: a reply leaves out the hidden columns, minus those the action reveals.
+      hidden: revealed ? hidden.filter((column) => !revealed.includes(column)) : hidden,
+      ...(revealed ? { revealed } : {}),
       trashed: action.options?.trashed === true,
       hooks: action.hooks,
       resourceHooks: resource.hooks as ResourceHooks,

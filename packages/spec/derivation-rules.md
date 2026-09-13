@@ -57,4 +57,4 @@ Query values arrive as strings and are parsed.
 
 | Id | Rule |
 |---|---|
-| DR-RECORD-PUBLIC | A reply holds a row's columns as the database returns them, minus the resource's hidden columns, with doubles unbounded. OpenAPI describes it as the table's component. |
+| DR-RECORD-PUBLIC | A reply holds a row's columns as the database returns them, minus the resource's hidden columns except those the action reveals (docs/decisions.md D24), with doubles unbounded. OpenAPI describes it as the table's component. |

@@ -63,8 +63,11 @@ export interface ActionDefinition<
   readonly path: string;
   readonly builtin: boolean;
   readonly hooks: ActionHooks;
-  /** Action options: `trashed` lets index accept ?trashed=with|only. */
-  readonly options: { readonly trashed?: boolean };
+  /**
+   * Action options: `trashed` lets index accept ?trashed=with|only; `reveal` names the
+   * hidden columns the action's reply carries (D24).
+   */
+  readonly options: { readonly trashed?: boolean; readonly reveal?: readonly string[] };
   /** The reply schema for OpenAPI, when the action declares one (D14). */
   readonly reply?: ReplyDeclaration;
   /** Type only: the resolved rules schema, for route and RPC types. */
@@ -87,6 +90,17 @@ export type { IndexPage } from './hooks.ts';
  * falls back to the constraint rather than a generic default (D12), hence the conditional.
  */
 type MethodOf<Method> = HttpMethod extends Method ? 'post' : Method;
+
+/** `reveal` on an action that replies with one record: hidden columns its reply carries (D24). */
+type RevealOption<V> = { reveal?: V };
+
+/**
+ * The hidden columns an action's reply still leaves out: every one, unless it reveals some.
+ * When `reveal` is omitted TS falls back to V's constraint (D12), hence the conditional.
+ */
+type StillHidden<Hidden extends string, V> = readonly Hidden[] extends V
+  ? Hidden
+  : Exclude<Hidden, V extends readonly (infer Revealed)[] ? Revealed : never>;
 
 /** A row reply of this resource: the public record, at a status. */
 type RowReply<M extends Model, Hidden extends string, Status extends number> = Reply<
@@ -117,34 +131,57 @@ export type ActionBuilder<M extends Model, Hidden extends string = never> = {
     PageReply<M, Hidden>,
     ActionDefinition<'index', IndexRules, ResolvedReply<R, PageReply<M, Hidden>>, 'get'>
   >;
-  show<const R extends Reply, const X extends ReplySchema>(
-    spec?: RecordSpec<M, 'show', R, RowReply<M, Hidden, 200>, Hidden> & ReplyOption<X>,
+  show<const R extends Reply, const X extends ReplySchema, const V extends readonly Hidden[]>(
+    spec?: RecordSpec<
+      M,
+      'show',
+      R,
+      RowReply<M, StillHidden<Hidden, V>, 200>,
+      StillHidden<Hidden, V>
+    > &
+      ReplyOption<X> &
+      RevealOption<V>,
   ): Checked<
     X,
-    RowReply<M, Hidden, 200>,
-    ActionDefinition<'show', EmptyRules, ResolvedReply<R, RowReply<M, Hidden, 200>>, 'get'>
+    RowReply<M, StillHidden<Hidden, V>, 200>,
+    ActionDefinition<
+      'show',
+      EmptyRules,
+      ResolvedReply<R, RowReply<M, StillHidden<Hidden, V>, 200>>,
+      'get'
+    >
   >;
-  store<S extends z.ZodType, const R extends Reply, const X extends ReplySchema>(
-    spec?: StoreSpec<M, S, R, Hidden> & ReplyOption<X>,
+  store<
+    S extends z.ZodType,
+    const R extends Reply,
+    const X extends ReplySchema,
+    const V extends readonly Hidden[],
+  >(
+    spec?: StoreSpec<M, S, R, StillHidden<Hidden, V>> & ReplyOption<X> & RevealOption<V>,
   ): Checked<
     X,
-    RowReply<M, Hidden, 201>,
+    RowReply<M, StillHidden<Hidden, V>, 201>,
     ActionDefinition<
       'store',
       ResolvedRules<S, DefaultRules<M, 'store'>>,
-      ResolvedReply<R, RowReply<M, Hidden, 201>>,
+      ResolvedReply<R, RowReply<M, StillHidden<Hidden, V>, 201>>,
       'post'
     >
   >;
-  update<S extends z.ZodType, const R extends Reply, const X extends ReplySchema>(
-    spec?: UpdateSpec<M, S, R, Hidden> & ReplyOption<X>,
+  update<
+    S extends z.ZodType,
+    const R extends Reply,
+    const X extends ReplySchema,
+    const V extends readonly Hidden[],
+  >(
+    spec?: UpdateSpec<M, S, R, StillHidden<Hidden, V>> & ReplyOption<X> & RevealOption<V>,
   ): Checked<
     X,
-    RowReply<M, Hidden, 200>,
+    RowReply<M, StillHidden<Hidden, V>, 200>,
     ActionDefinition<
       'update',
       ResolvedRules<S, DefaultRules<M, 'update'>>,
-      ResolvedReply<R, RowReply<M, Hidden, 200>>,
+      ResolvedReply<R, RowReply<M, StillHidden<Hidden, V>, 200>>,
       'patch'
     >
   >;
@@ -162,16 +199,20 @@ export type ActionBuilder<M extends Model, Hidden extends string = never> = {
     const R extends Reply,
     const Method extends HttpMethod,
     const X extends ReplySchema,
+    const V extends readonly Hidden[],
   >(
     name: N,
-    spec?: MemberSpec<M, N, S, R, Hidden> & { method?: Method } & ReplyOption<X>,
+    spec?: MemberSpec<M, N, S, R, StillHidden<Hidden, V>> & {
+      method?: Method;
+    } & ReplyOption<X> &
+      RevealOption<V>,
   ): Checked<
     X,
-    RowReply<M, Hidden, 200>,
+    RowReply<M, StillHidden<Hidden, V>, 200>,
     ActionDefinition<
       N,
       ResolvedRules<S, EmptyRules>,
-      ResolvedReply<R, RowReply<M, Hidden, 200>>,
+      ResolvedReply<R, RowReply<M, StillHidden<Hidden, V>, 200>>,
       MethodOf<Method>
     >
   >;
@@ -201,12 +242,29 @@ export type ActionBuilder<M extends Model, Hidden extends string = never> = {
   >;
 } & (SoftDeletes<M> extends true
   ? {
-      restore<const R extends Reply, const X extends ReplySchema>(
-        spec?: RecordSpec<M, 'restore', R, RowReply<M, Hidden, 200>, Hidden> & ReplyOption<X>,
+      restore<
+        const R extends Reply,
+        const X extends ReplySchema,
+        const V extends readonly Hidden[],
+      >(
+        spec?: RecordSpec<
+          M,
+          'restore',
+          R,
+          RowReply<M, StillHidden<Hidden, V>, 200>,
+          StillHidden<Hidden, V>
+        > &
+          ReplyOption<X> &
+          RevealOption<V>,
       ): Checked<
         X,
-        RowReply<M, Hidden, 200>,
-        ActionDefinition<'restore', EmptyRules, ResolvedReply<R, RowReply<M, Hidden, 200>>, 'post'>
+        RowReply<M, StillHidden<Hidden, V>, 200>,
+        ActionDefinition<
+          'restore',
+          EmptyRules,
+          ResolvedReply<R, RowReply<M, StillHidden<Hidden, V>, 200>>,
+          'post'
+        >
       >;
     }
   : unknown);
@@ -235,7 +293,7 @@ export interface ResourceSpec<
   H extends readonly Column<M>[],
 > {
   policy: PolicySpec<M>;
-  /** Columns never returned in responses (e.g. password). */
+  /** Columns never returned in responses (e.g. password), unless an action reveals them. */
   hidden?: H;
   /** Hooks that run for every action of this resource. */
   hooks?: ResourceHooks<M>;
@@ -281,6 +339,7 @@ type AnySpec = { [K in (typeof HOOK_NAMES)[number]]?: ActionHooks[K] } & {
   method?: HttpMethod;
   path?: string;
   trashed?: boolean;
+  reveal?: readonly string[];
   reply?: unknown;
 };
 
@@ -319,7 +378,10 @@ function define(
     path,
     builtin,
     hooks: Object.freeze(hooks) as ActionHooks,
-    options: Object.freeze(spec.trashed ? { trashed: true } : {}),
+    options: Object.freeze({
+      ...(spec.trashed ? { trashed: true } : {}),
+      ...(spec.reveal ? { reveal: Object.freeze([...spec.reveal]) } : {}),
+    }),
     ...(reply ? { reply } : {}),
   });
 }
@@ -392,6 +454,10 @@ const isPolicy = (value: unknown): value is Policy =>
   typeof (value as Policy).check === 'function' &&
   typeof (value as Policy).kind === 'string';
 
+/** Replies with one record: store, and member actions other than destroy (D24). */
+const repliesWithOneRecord = (action: ActionDefinition) =>
+  action.on === 'member' ? action.name !== 'destroy' : action.name === 'store';
+
 /**
  * Declares a resource: the model, its policy, hidden columns and exposed actions.
  * M is inferred from `model` only: a generic policy like `allow.public` would otherwise
@@ -430,6 +496,20 @@ export function blend<
   const columns = new Set(Object.keys(getColumns(model.table)));
   for (const column of hidden) {
     if (!columns.has(column)) fail(`hidden column "${column}" is not a column of ${model.name}`);
+  }
+
+  // D24: an action reveals hidden columns, and only in a reply that holds one record.
+  for (const action of actions) {
+    const reveal = action.options.reveal ?? [];
+    if (reveal.length === 0) continue;
+    if (!repliesWithOneRecord(action)) {
+      fail(`action "${action.name}" cannot reveal: it does not reply with one record`);
+    }
+    for (const column of reveal) {
+      if (!(hidden as readonly string[]).includes(column)) {
+        fail(`action "${action.name}" reveals "${column}", which is not hidden`);
+      }
+    }
   }
 
   return Object.freeze({

@@ -14,7 +14,7 @@ export default blend(models.users, {
 });
 ```
 
-Only listed actions get routes. A hidden column never leaves the server, and it cannot be filtered or sorted on either.
+Only listed actions get routes. A hidden column leaves the server only in the reply of an action that reveals it (`a.store({ reveal: ['password'] })`, never on index), and it cannot be filtered or sorted on.
 
 - [hidden columns never leave, row by row](../packages/core/test/engine-load.test.ts)
 - [store answers 201 with the saved row and no hidden columns](../packages/core/test/engine-respond.test.ts)

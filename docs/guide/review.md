@@ -54,6 +54,7 @@ How to read it:
 - `# from: schema, action` marks a stage that a hook changed: here the action's own rules, authorize and calculate replaced or extended the schema's defaults. A stage without the comment does exactly what its line says.
 - The authorize line is the policy's description (`an approver`, `owner (user_id = auth.id)`). An authorize hook on top of it shows as `# from: schema, action`; its condition is in the blend.
 - `calculate` shows the hook exactly as written, and the columns it `writes` (for a collection action, the keys it `returns`).
+- `reveals` lists the hidden columns an action's reply carries, and its reply then reads `the record, with api_token`. It is where to check that a secret leaves the server only where it should.
 - `reply` is the status and the body.
 
 ## Examples

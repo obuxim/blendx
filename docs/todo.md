@@ -134,7 +134,7 @@ Found while building `examples/expenses` and writing `docs/guide` (P14). Each it
 - [x] P15.5 The review describes a string with a format by the format alone, without zod's pattern. Done: a json-schema test; the review goldens and the example review files updated.
 - [x] P15.6 An action whose rules are the empty object takes no body in its route type, as OpenAPI already gives it no request body. Done: an RPC type test; the expenses client test calls `submit` without `json: {}`.
 - [x] P15.7 index takes a declared `scope` (D22): column equalities the default load adds to its filters, failing closed on a missing value, with its source in the review. Done: tests that pages and totals count only the rows in scope, a spec entry and a conformance case, cookbook pattern 7 rewritten, and `examples/expenses` lists a claimant's own claims without `?user_id=`.
-- [ ] P15.8 One action's reply may carry a hidden column, such as a token returned once at sign-up. Decide the shape first (D24; proposed during triage: a `reveal` list on the action). Done: D24; type tests; the engine, OpenAPI and the review show which replies carry the column; `examples/expenses` hides `api_token` except in the sign-up reply.
+- [x] P15.8 One action's reply may carry a hidden column, such as a token returned once at sign-up. Decide the shape first (D24; proposed during triage: a `reveal` list on the action). Done: D24; type tests; the engine, OpenAPI and the review show which replies carry the column; `examples/expenses` hides `api_token` except in the sign-up reply.
 
 ## Inbox
 Discovered work goes here. Triage it into a phase before starting it.
