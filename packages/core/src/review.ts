@@ -226,7 +226,8 @@ export function reviewResource(resource: Resource, app: App): ResourceReview {
     ) as ActionReview['stages'];
     const input = describeFields(toJsonSchema(endpoint.rules, 'input'));
     // The default calculate returns the input's writable columns (engine defaultWrites).
-    const calculates = !definition.builtin || ['store', 'update'].includes(definition.action);
+    const calculates =
+      !definition.builtin || ['store', 'update', 'replace'].includes(definition.action);
     const calculate =
       calculates && !definition.hooks.calculate
         ? {

@@ -18,6 +18,7 @@ import type {
   LoadContext,
   MemberSpec,
   RecordSpec,
+  ReplaceSpec,
   Reply,
   ReplyCheck,
   ReplyDeclaration,
@@ -43,8 +44,16 @@ import type { Policy } from './policy.ts';
 import { foreignKeysTo, relationsOf } from './relations.ts';
 import type { DefaultRules, EmptyRules, IncludeRules, IndexRules, ResolvedRules } from './rules.ts';
 
-export type BuiltinAction = 'index' | 'show' | 'store' | 'update' | 'destroy' | 'restore' | 'purge';
-export type HttpMethod = 'get' | 'post' | 'patch' | 'delete';
+export type BuiltinAction =
+  | 'index'
+  | 'show'
+  | 'store'
+  | 'update'
+  | 'replace'
+  | 'destroy'
+  | 'restore'
+  | 'purge';
+export type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete';
 
 /** Hooks as stored at runtime. The engine calls them with the contexts in hooks.ts. */
 export interface ActionHooks {
@@ -242,6 +251,27 @@ export type ActionBuilder<
       ResolvedRules<S, DefaultRules<M, 'update'>>,
       ResolvedReply<R, RowReply<M, StillHidden<Hidden, V>, 200>>,
       'patch'
+    >
+  >;
+  /**
+   * Replaces the record: `PUT /:id`, the store rules without the key columns; a visible
+   * column the body leaves out goes back to its default, or to null (D34).
+   */
+  replace<
+    S extends z.ZodType,
+    const R extends Reply,
+    const X extends ReplySchema,
+    const V extends readonly Hidden[],
+  >(
+    spec?: ReplaceSpec<M, S, R, StillHidden<Hidden, V>> & ReplyOption<X> & RevealOption<V>,
+  ): Checked<
+    X,
+    RowReply<M, StillHidden<Hidden, V>, 200>,
+    ActionDefinition<
+      'replace',
+      ResolvedRules<S, DefaultRules<M, 'replace'>>,
+      ResolvedReply<R, RowReply<M, StillHidden<Hidden, V>, 200>>,
+      'put'
     >
   >;
   destroy<const R extends Reply, const X extends ReplySchema>(
@@ -463,6 +493,7 @@ const BUILTIN: ReadonlySet<string> = new Set<BuiltinAction>([
   'show',
   'store',
   'update',
+  'replace',
   'destroy',
   'restore',
   'purge',
@@ -596,6 +627,7 @@ function builderFor(model: Model) {
     show: (spec?: AnySpec) => make('show', 'member', 'get', record, true, spec),
     store: (spec?: AnySpec) => make('store', 'collection', 'post', '', true, spec),
     update: (spec?: AnySpec) => make('update', 'member', 'patch', record, true, spec),
+    replace: (spec?: AnySpec) => make('replace', 'member', 'put', record, true, spec),
     destroy: (spec?: AnySpec) => make('destroy', 'member', 'delete', record, true, spec),
     restore: (spec?: AnySpec) => {
       if (model.meta.softDelete === null) {

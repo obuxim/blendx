@@ -29,6 +29,8 @@ export default blend(models.orders, {
     }),
     a.show(),
     a.update(),
+    // PUT: the store body without the key; a column left out is reset (D34).
+    a.replace(),
     a.destroy(),
     a.restore(),
     a.purge(),

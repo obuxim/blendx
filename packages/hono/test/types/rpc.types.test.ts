@@ -25,6 +25,7 @@ const additions = blend(addition.addition_results, {
     }),
     a.show(),
     a.update(),
+    a.replace(),
     a.destroy(),
     a.restore(),
     a.purge(),
@@ -71,6 +72,7 @@ const routes = new Hono<BlendxEnv>()
   .get('/addition_results/quote', ...run(additions, 'quote'))
   .get('/addition_results/:id', ...run(additions, 'show'))
   .patch('/addition_results/:id', ...run(additions, 'update'))
+  .put('/addition_results/:id', ...run(additions, 'replace'))
   .delete('/addition_results/:id', ...run(additions, 'destroy'))
   .post('/addition_results/:id/restore', ...run(additions, 'restore'))
   .delete('/addition_results/:id/purge', ...run(additions, 'purge'))
@@ -118,6 +120,14 @@ describe('P6.3 RPC types over run()', () => {
       member.$patch({ param: { id: '1' }, json: { result: 'ten' } });
     };
     expect(typeOnly).toBeFunction();
+  });
+
+  test('replace: PUT with the id param and the store body without the key (D34)', () => {
+    type Put = InferRequestType<Member['$put']>;
+    expectTypeOf<Put['param']>().toEqualTypeOf<{ id: string }>();
+    expectTypeOf<keyof Put['json']>().toEqualTypeOf<'result'>();
+    expectTypeOf<Put['json']['result']>().toEqualTypeOf<number | null | undefined>();
+    expectTypeOf<InferResponseType<Member['$put'], 200>>().toEqualTypeOf<PublicRow<Addition>>();
   });
 
   test('show, destroy, restore and purge take only the id; destroy and purge answer 204', () => {

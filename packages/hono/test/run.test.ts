@@ -24,6 +24,7 @@ const additions = blend(addition.addition_results, {
     }),
     a.show(),
     a.update(),
+    a.replace(),
     a.destroy(),
     a.restore(),
     a.purge(),
@@ -35,6 +36,7 @@ const routes = new Hono<BlendxEnv>()
   .post('/addition_results', ...run(additions, 'store'))
   .get('/addition_results/:id', ...run(additions, 'show'))
   .patch('/addition_results/:id', ...run(additions, 'update'))
+  .put('/addition_results/:id', ...run(additions, 'replace'))
   .delete('/addition_results/:id', ...run(additions, 'destroy'))
   .post('/addition_results/:id/restore', ...run(additions, 'restore'))
   .delete('/addition_results/:id/purge', ...run(additions, 'purge'));
@@ -76,6 +78,15 @@ describe('run(): the addition example over hand-written routes', () => {
     const updated = await send('PATCH', '/addition_results/1', { result: 10 });
     expect(updated.status).toBe(200);
     expect(await updated.json()).toMatchObject({ id: 1, result: 10 });
+  });
+
+  test('PUT /:id replaces the row: a column left out is reset (D34)', async () => {
+    const replaced = await send('PUT', '/addition_results/1', { result: 12 });
+    expect(replaced.status).toBe(200);
+    expect(await replaced.json()).toMatchObject({ id: 1, result: 12 });
+    const reset = await send('PUT', '/addition_results/1', {});
+    expect(reset.status).toBe(200);
+    expect(await reset.json()).toMatchObject({ id: 1, result: null });
   });
 
   test('DELETE /:id answers 204 with no body; show no longer finds the row', async () => {

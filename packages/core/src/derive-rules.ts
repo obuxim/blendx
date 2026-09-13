@@ -180,6 +180,17 @@ export function defaultRules(
   if (action.builtin) {
     if (action.name === 'store') return storeRules(model);
     if (action.name === 'update') return storeRules(model).partial(); // DR-UPDATE-PARTIAL
+    // DR-REPLACE-BODY (D34): the store rules without the key columns, which the path names, and
+    // with the hidden columns optional: the client never saw them, so it need not send them.
+    if (action.name === 'replace') {
+      const rules = storeRules(model);
+      const present = (names: readonly string[]) =>
+        Object.fromEntries(names.filter((name) => name in rules.shape).map((name) => [name, true]));
+      return rules
+        .omit(present(model.meta.primaryKey) as never)
+        .partial(present(options.hidden ?? []) as never)
+        .strict();
+    }
     if (action.name === 'index') return indexRules(model, options);
     // DR-INCLUDE: show takes ?include= when the blend declares includes (D28).
     if (action.name === 'show' && options.includes?.length) {

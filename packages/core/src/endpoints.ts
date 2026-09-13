@@ -114,7 +114,16 @@ export interface EndpointDefinition {
   readonly includes: Readonly<Record<string, IncludeDefinition>>;
 }
 
-const BUILTIN_ORDER = ['index', 'store', 'show', 'update', 'destroy', 'restore', 'purge'];
+const BUILTIN_ORDER = [
+  'index',
+  'store',
+  'show',
+  'update',
+  'replace',
+  'destroy',
+  'restore',
+  'purge',
+];
 
 /** The status of the default reply: 201 for store, 204 for destroy and purge, 200 otherwise. */
 export function defaultStatus(endpoint: Pick<EndpointDefinition, 'action' | 'builtin'>): number {

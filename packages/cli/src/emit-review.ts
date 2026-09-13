@@ -28,6 +28,7 @@ const BUILTINS: ReadonlySet<string> = new Set([
   'show',
   'store',
   'update',
+  'replace',
   'destroy',
   'restore',
   'purge',

@@ -573,6 +573,192 @@
       ]
     },
     {
+      "id": "DR-REPLACE-BODY",
+      "title": "replace takes the store rules without the key columns: required columns stay required, unknown keys and key columns are rejected (D34)",
+      "steps": [
+        {
+          "request": {
+            "method": "PUT",
+            "path": "/orders/1",
+            "headers": {
+              "x-user-id": "1"
+            },
+            "body": {
+              "quantity": 1
+            }
+          },
+          "expect": {
+            "status": 422,
+            "headers": {
+              "content-type": "application/problem+json"
+            },
+            "body": {
+              "errors": [
+                {
+                  "pointer": "/user_id"
+                },
+                {
+                  "pointer": "/total"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "request": {
+            "method": "PUT",
+            "path": "/orders/1",
+            "headers": {
+              "x-user-id": "1"
+            },
+            "body": {
+              "user_id": 1,
+              "total": "19.00",
+              "coupon": "x"
+            }
+          },
+          "expect": {
+            "status": 422,
+            "headers": {
+              "content-type": "application/problem+json"
+            },
+            "body": {
+              "errors": [
+                {
+                  "pointer": "/coupon"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "request": {
+            "method": "PUT",
+            "path": "/order_items/1/2",
+            "headers": {
+              "x-user-id": "1"
+            },
+            "body": {
+              "order_id": 1,
+              "sku": "B-2"
+            }
+          },
+          "expect": {
+            "status": 422,
+            "headers": {
+              "content-type": "application/problem+json"
+            },
+            "body": {
+              "errors": [
+                {
+                  "pointer": "/order_id"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "request": {
+            "method": "PUT",
+            "path": "/orders/999",
+            "headers": {
+              "x-user-id": "1"
+            },
+            "body": {
+              "user_id": 1,
+              "total": "1.00"
+            }
+          },
+          "expect": {
+            "status": 404,
+            "headers": {
+              "content-type": "application/problem+json"
+            },
+            "body": {
+              "status": 404
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "DR-REPLACE-RESET",
+      "title": "replace resets a writable column the body leaves out, to its default or to null (D34)",
+      "steps": [
+        {
+          "request": {
+            "method": "PUT",
+            "path": "/orders/1",
+            "headers": {
+              "x-user-id": "1"
+            },
+            "body": {
+              "user_id": 1,
+              "total": "19.00",
+              "tags": ["gift"]
+            }
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "id": 1,
+              "user_id": 1,
+              "total": "19.00",
+              "quantity": 1,
+              "status": "pending",
+              "tags": ["gift"],
+              "meta": null,
+              "placed_on": null,
+              "weight": null,
+              "public_id": "$any",
+              "deleted_at": null
+            }
+          }
+        },
+        {
+          "request": {
+            "method": "PUT",
+            "path": "/orders/1",
+            "headers": {
+              "x-user-id": "1"
+            },
+            "body": {
+              "user_id": 1,
+              "total": "19.00"
+            }
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "id": 1,
+              "tags": null
+            }
+          }
+        },
+        {
+          "request": {
+            "method": "PUT",
+            "path": "/order_items/1/1",
+            "headers": {
+              "x-user-id": "1"
+            },
+            "body": {
+              "sku": "A-1"
+            }
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "order_id": 1,
+              "line": 1,
+              "sku": "A-1",
+              "quantity": 1
+            }
+          }
+        }
+      ]
+    },
+    {
       "id": "DR-INDEX-PAGE",
       "title": "page is a positive integer",
       "steps": [

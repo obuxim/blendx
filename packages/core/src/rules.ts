@@ -30,6 +30,12 @@ export type UpdateRules<M extends Model> = z.ZodObject<
   z.core.$strict
 >;
 
+/** replace: the store rules without the key columns, which the path names (D34). */
+export type ReplaceRules<M extends Model> = z.ZodObject<
+  Omit<StoreShape<M>, M['meta']['primaryKey'][number]>,
+  z.core.$strict
+>;
+
 /** show, destroy, restore, purge and custom actions start from an empty object. */
 export type EmptyRules = z.ZodObject<Record<never, never>, z.core.$strict>;
 
@@ -58,9 +64,11 @@ export type DefaultRules<M extends Model, Action extends string> = Action extend
   ? StoreRules<M>
   : Action extends 'update'
     ? UpdateRules<M>
-    : Action extends 'index'
-      ? IndexRules
-      : EmptyRules;
+    : Action extends 'replace'
+      ? ReplaceRules<M>
+      : Action extends 'index'
+        ? IndexRules
+        : EmptyRules;
 
 /**
  * When `rules` is omitted, TS falls back to the type parameter's constraint instead of

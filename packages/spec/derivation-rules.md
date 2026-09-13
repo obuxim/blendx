@@ -32,6 +32,15 @@ Every rule has an id. The test named with that id is the source of truth (`packa
 |---|---|
 | DR-UPDATE-PARTIAL | Every store rule becomes optional. Unknown keys are still rejected. |
 
+## replace
+
+`PUT /<table>/:id` replaces the public representation of a row (docs/decisions.md D34).
+
+| Id | Rule |
+|---|---|
+| DR-REPLACE-BODY | `replace` takes the store rules without the key columns, which the path names: a NOT NULL column without a default is required, the rest may be left out, and unknown keys are rejected. A hidden column is optional even when store requires it: the client never saw it. |
+| DR-REPLACE-RESET | A writable, visible column the body leaves out is reset: to its schema default when it has one, else to null. Key columns and hidden columns are left as they are, and a column `calculate` sets is not reset. |
+
 ## index
 
 Query values arrive as strings and are parsed.

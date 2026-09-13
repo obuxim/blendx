@@ -56,11 +56,13 @@ export {
 export {
   type DefaultEffectOptions,
   defaultEffects,
+  defaultPrev,
   type ExecuteDeps,
   type ExecuteRequest,
   type ExecuteResult,
   execute,
   HttpProblem,
+  resetColumns,
 } from './engine.ts';
 export { type ExampleRun, runExamples } from './examples.ts';
 export type {

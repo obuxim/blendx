@@ -240,6 +240,26 @@ export type UpdateSpec<M extends Model, S extends z.ZodType, R, Hidden extends s
   SaveHook<M, Row<M>> &
   CommitHooks<M, Row<M>, Input<M, 'update', S>>;
 
+/** replace (D34): update's hooks, over the store rules without the key columns. */
+export type ReplaceSpec<
+  M extends Model,
+  S extends z.ZodType,
+  R,
+  Hidden extends string,
+> = ValueHooks<
+  M,
+  'replace',
+  S,
+  Row<M>,
+  Writes<M>,
+  RecordReply<M, Hidden, 200>,
+  PublicRow<M, Extract<Hidden, keyof Row<M>>>,
+  R
+> &
+  LoadHook<Row<M>> &
+  SaveHook<M, Row<M>> &
+  CommitHooks<M, Row<M>, Input<M, 'replace', S>>;
+
 /** show, destroy, restore and purge take no input, so they have no rules or calculate. */
 export type RecordSpec<
   M extends Model,

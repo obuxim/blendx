@@ -87,6 +87,45 @@ export function defaultWrites(model: Model, input: unknown): Record<string, unkn
   return Object.fromEntries(Object.entries(input).filter(([key]) => writable.has(key)));
 }
 
+/**
+ * What replace resets (D34): the writable columns the body may leave out, hidden and key
+ * columns aside. One with a schema default goes back to it when the row is saved; a nullable
+ * one without a default becomes null, which calculate already sees in prev.
+ */
+export function resetColumns(endpoint: Pick<EndpointDefinition, 'model' | 'hidden'>): {
+  toNull: string[];
+  toDefault: string[];
+} {
+  const { model, hidden } = endpoint;
+  const columns = getColumns(model.table) as Record<
+    string,
+    { hasDefault?: boolean; notNull?: boolean } | undefined
+  >;
+  const skip = new Set([...hidden, ...model.meta.primaryKey]);
+  const toNull: string[] = [];
+  const toDefault: string[] = [];
+  for (const name of writableColumns(model)) {
+    const column = columns[name];
+    if (!column || skip.has(name)) continue;
+    if (column.hasDefault) toDefault.push(name);
+    else if (!column.notNull) toNull.push(name);
+  }
+  return { toNull, toDefault };
+}
+
+/** calculate's default prev: the input's writable columns, and for replace the nulls it resets (D34). */
+export function defaultPrev(
+  endpoint: Pick<EndpointDefinition, 'model' | 'hidden' | 'action' | 'builtin'>,
+  input: unknown,
+): Record<string, unknown> {
+  const writes = defaultWrites(endpoint.model, input);
+  if (!endpoint.builtin || endpoint.action !== 'replace') return writes;
+  for (const column of resetColumns(endpoint).toNull) {
+    if (!(column in writes)) writes[column] = null;
+  }
+  return writes;
+}
+
 /** calculate may only return writable columns of its model. A mistake is a 500, not a silent drop. */
 export function assertWritable(
   model: Model,
@@ -496,7 +535,7 @@ export async function execute(
       }
 
       const result = endpoint.calculate({
-        prev: defaultWrites(endpoint.model, input),
+        prev: defaultPrev(endpoint, input),
         input,
         record,
       });
@@ -686,12 +725,21 @@ export function defaultEffects(
     }
 
     const softDelete = model.meta.softDelete;
+    // D34: replace sends a defaulted column the writes leave out back to its default.
+    const defaults = () =>
+      Object.fromEntries(
+        resetColumns(endpoint)
+          .toDefault.filter((column) => !(column in writes))
+          .map((column) => [column, sql`default`]),
+      );
     const changes: Record<string, unknown> =
       action === 'destroy' && softDelete
         ? { [softDelete]: sql`now()` }
         : action === 'restore' && softDelete
           ? { [softDelete]: null }
-          : writes;
+          : action === 'replace'
+            ? { ...writes, ...defaults() }
+            : writes;
     if (Object.keys(changes).length === 0) return record;
 
     const rows: unknown[] = await tx

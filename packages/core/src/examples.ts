@@ -9,7 +9,7 @@ import type { App } from './app.ts';
 import type { Resource } from './blend.ts';
 import { type ResolvedEndpoint, resolveEndpoint } from './cascade.ts';
 import { toEndpoints } from './endpoints.ts';
-import { assertWritable, defaultEffects, defaultWrites } from './engine.ts';
+import { assertWritable, defaultEffects, defaultPrev } from './engine.ts';
 import { validationProblem } from './problems.ts';
 
 export interface ExampleRun {
@@ -42,9 +42,9 @@ function stable(value: unknown): string {
   return sorted ?? 'nothing';
 }
 
-/** Whether calculate runs for the action: store, update and custom actions. */
+/** Whether calculate runs for the action: store, update, replace and custom actions. */
 const calculates = (endpoint: ResolvedEndpoint) =>
-  !endpoint.builtin || endpoint.action === 'store' || endpoint.action === 'update';
+  !endpoint.builtin || ['store', 'update', 'replace'].includes(endpoint.action);
 
 /** The reason an example fails, or undefined when it holds. */
 function check(endpoint: ResolvedEndpoint, example: Record<string, unknown>): string | undefined {
@@ -92,7 +92,7 @@ function check(endpoint: ResolvedEndpoint, example: Record<string, unknown>): st
   let result: unknown;
   try {
     result = endpoint.calculate({
-      prev: defaultWrites(endpoint.model, parsed.data),
+      prev: defaultPrev(endpoint, parsed.data),
       input: parsed.data,
       record: example.record,
     });

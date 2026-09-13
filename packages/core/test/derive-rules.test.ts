@@ -3,7 +3,7 @@
  * packages/spec/derivation-rules.md.
  */
 import { describe, expect, test } from 'bun:test';
-import { defaultRules, recordSchema } from '@blendx/core';
+import { defaultRules, recordSchema, resetColumns } from '@blendx/core';
 import type { z } from 'zod';
 import { models as addition } from '../../dbml/test/golden/addition.schema.gen.ts';
 import { models as kitchen } from '../../dbml/test/golden/kitchen-sink.schema.gen.ts';
@@ -141,6 +141,46 @@ describe('update rules', () => {
     expect(ok(update, { quantity: 2 })).toBe(true);
     expect(issues(update, { id: 1 })).toEqual(unknownKeys);
     expect(issues(update, { quantity: 'x' })).toEqual([{ code: 'invalid_type', path: 'quantity' }]);
+  });
+});
+
+describe('replace rules (D34)', () => {
+  test('DR-REPLACE-BODY: the store rules without the key columns; required columns stay required', () => {
+    const replace = defaultRules(shop.orders, builtin('replace'));
+    expect(Object.keys(replace.shape)).toEqual(Object.keys(store.shape));
+    expect(ok(replace, validOrder)).toBe(true);
+    expect(issues(replace, { quantity: 2 }).map((issue) => issue.path)).toEqual([
+      'user_id',
+      'total',
+    ]);
+    expect(issues(replace, { ...validOrder, coupon: 'x' })).toEqual(unknownKeys);
+    // A composite key's columns are input on store, and left out here: the path names them.
+    const items = defaultRules(kitchen.order_items, builtin('replace'));
+    expect(Object.keys(items.shape)).toEqual(['sku']);
+    expect(issues(items, { order_id: 1, sku: 'A' })).toEqual(unknownKeys);
+    // A hidden column is optional, required or not: the client never saw it.
+    const users = defaultRules(shop.users, builtin('replace'), { hidden: ['password'] });
+    expect(ok(users, { email: 'ada@example.com' })).toBe(true);
+    expect(ok(users, { email: 'ada@example.com', password: 'x' })).toBe(true);
+    expect(ok(defaultRules(shop.users, builtin('replace')), { email: 'ada@example.com' })).toBe(
+      false,
+    );
+  });
+
+  test('DR-REPLACE-RESET: the columns a body may leave out, to their default or to null, hidden and key columns aside', () => {
+    expect(resetColumns({ model: shop.orders, hidden: [] })).toEqual({
+      toNull: ['tags', 'meta', 'placed_on'],
+      toDefault: ['status', 'quantity', 'public_id'],
+    });
+    expect(resetColumns({ model: shop.orders, hidden: ['meta', 'quantity'] })).toEqual({
+      toNull: ['tags', 'placed_on'],
+      toDefault: ['status', 'public_id'],
+    });
+    // sku is required, and the key columns are the path's: nothing to reset.
+    expect(resetColumns({ model: kitchen.order_items, hidden: [] })).toEqual({
+      toNull: [],
+      toDefault: [],
+    });
   });
 });
 
