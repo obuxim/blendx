@@ -9,11 +9,38 @@ This page sets up a project, exposes one table and serves it. The [tutorial](tut
 
 ## Install blendx
 
-blendx is not on npm yet. Until it is, there are two ways to use it.
+blendx is published on npm as `blendx`, the package an app imports and serves with, and `@blendx/cli`, the `blendx` command, needed only while developing. In a folder of your own:
 
-### In a folder of your own, linked to a clone
+```sh
+bun init -y
+bun add blendx @electric-sql/pglite
+bun add -d @blendx/cli typescript @types/bun
+```
 
-Clone blendx, and register its two packages with Bun once:
+Your `package.json` then depends on exact versions, which is how blendx pins everything ([Decisions](../decisions.md), D5):
+
+```json
+{
+  "name": "notes",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@electric-sql/pglite": "0.5.8",
+    "blendx": "0.1.0"
+  },
+  "devDependencies": {
+    "@blendx/cli": "0.1.0",
+    "@types/bun": "1.4.2",
+    "typescript": "7.0.2"
+  }
+}
+```
+
+The two blendx packages share one version and are released together, so keep them equal when you upgrade. A React page adds `@blendx/react` ([The React client](react.md)).
+
+### From a clone, to work on blendx itself
+
+To run an app against blendx's sources, clone the repository and register its two packages with Bun once:
 
 ```sh
 git clone https://github.com/obuxim/blendx.git
@@ -42,7 +69,7 @@ In your app's `package.json`, depend on the linked packages:
 }
 ```
 
-Then run `bun install`. The app uses blendx straight from the clone, so `git pull` and `bun install` in the clone update it. `blendx` is what the app imports and serves with; `@blendx/cli` is the `blendx` command, needed only while developing. Once blendx is published, these become `bun add blendx` and `bun add -d @blendx/cli`.
+Then run `bun install`. The app uses blendx straight from the clone, so `git pull` and `bun install` in the clone update it.
 
 ### Inside the blendx repository
 

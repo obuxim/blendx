@@ -49,6 +49,20 @@ jobs:
       # The conformance suite on Node with pg (Bun with pg runs in bun test above).
       - run: bun run conformance:node
 
+  pack:
+    # The packing test (D35): the six tarballs installed into a fresh app, run on Bun and Node.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: bun install --frozen-lockfile
+      - run: bun run pack:test
+
   e2e-web:
     # examples/addition/web in Chromium, through Playwright (Node) against Vite and the API (Bun).
     runs-on: ubuntu-latest
