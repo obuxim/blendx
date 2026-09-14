@@ -28,7 +28,7 @@ Six packages, always together and at one version: `blendx`, `@blendx/core`, `@bl
    git push origin v0.2.0
    ```
 
-The `release` workflow then runs `bun run check`, fails unless the tag names the version of every package (`bun run version --check v0.2.0`), packs the six, and publishes them in dependency order (dbml, core, hono, blendx, cli, react) with `npm publish --provenance --access public`. Publishing uses npm's trusted publishing: the workflow proves its identity to npm with a GitHub OIDC token, so no npm token is stored in the repository, and every version carries provenance linking it to the commit and the workflow run.
+The `release` workflow then runs `bun run check`, fails unless the tag names the version of every package (`bun run version --check v0.2.0`), packs the six, and publishes them in dependency order (dbml, core, hono, blendx, cli, react) with `npm publish --provenance --access public`. A package already on npm at that version is skipped, so rerunning the workflow after a partial failure publishes only what is missing, and a tag for a version that was published by hand runs green. Publishing uses npm's trusted publishing: the workflow proves its identity to npm with a GitHub OIDC token, so no npm token is stored in the repository, and every version carries provenance linking it to the commit and the workflow run.
 
 To rehearse without publishing, run the workflow by hand from the Actions tab with `dry_run` on: it does everything but the publish itself, and `npm publish --dry-run` still validates every tarball.
 
@@ -47,3 +47,5 @@ To rehearse without publishing, run the workflow by hand from the Actions tab wi
 
 - Then, on npmjs.com, open each of the six packages, Settings, Trusted publishing, and add a GitHub Actions publisher: repository `obuxim/blendx`, workflow `release.yml`. Every later release goes through the workflow.
 - Keep the version in `docs/guide/getting-started.md` in step with the latest release.
+
+This was done for 0.1.0 on 2026-09-14: the six were published by hand from this machine, the trusted publisher was added to each, and the `v0.1.0` tag was pushed afterwards, so the first workflow run published nothing and only proved the setup.

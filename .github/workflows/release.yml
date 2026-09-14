@@ -34,11 +34,20 @@ jobs:
       - if: github.ref_type == 'tag'
         run: bun run version --check "$GITHUB_REF_NAME"
       - run: bun run pack tarballs
+      # A package already on npm at this version is skipped, so a rerun after a partial failure
+      # publishes only what is missing, and a tag for a version published by hand runs green.
+      # DRY_RUN is 'true' or empty: a boolean expression would give the string "false", which
+      # ${DRY_RUN:+--dry-run} treats as set.
       - name: Publish in dependency order
         env:
-          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && 'true' || '' }}
         run: |
           version=$(bun -e 'console.log(JSON.parse(await Bun.file("packages/blendx/package.json").text()).version)')
           for name in blendx-dbml blendx-core blendx-hono blendx blendx-cli blendx-react; do
+            case "$name" in blendx) package=blendx ;; *) package="@blendx/${name#blendx-}" ;; esac
+            if [ -z "$DRY_RUN" ] && npm view "$package@$version" version >/dev/null 2>&1; then
+              echo "$package@$version is already on npm, skipping"
+              continue
+            fi
             npm publish "./tarballs/$name-$version.tgz" --provenance --access public ${DRY_RUN:+--dry-run}
           done
