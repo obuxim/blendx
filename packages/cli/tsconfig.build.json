@@ -1,0 +1,21 @@
+{
+  "//": "The publish build (docs/decisions.md D35): dist/ with declarations, .ts imports rewritten to .js. Sibling packages resolve to their built declarations, so build in dependency order (scripts/build.ts).",
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "rewriteRelativeImportExtensions": true,
+    "rootDir": "src",
+    "outDir": "dist",
+    "types": ["bun"],
+    "paths": {
+      "@blendx/core": ["../core/dist/index.d.ts"],
+      "@blendx/dbml": ["../dbml/dist/index.d.ts"],
+      "@blendx/hono": ["../hono/dist/index.d.ts"],
+      "blendx": ["../blendx/dist/index.d.ts"],
+      "blendx/client": ["../blendx/dist/client.d.ts"],
+      "blendx/drizzle": ["../blendx/dist/drizzle.d.ts"]
+    }
+  },
+  "include": ["src"]
+}

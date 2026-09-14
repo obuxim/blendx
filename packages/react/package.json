@@ -1,6 +1,6 @@
 {
   "name": "@blendx/react",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "description": "TanStack Query options for every action of a blendx app, reached by table and action name (D25).",

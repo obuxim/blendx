@@ -2,11 +2,11 @@
  * The blendx CLI shell. It parses argv with util.parseArgs, prints help, runs a command and
  * maps the outcome to an exit code: 0 ok, 1 failed, 2 usage error.
  */
+import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
 import { type ParseArgsConfig, parseArgs } from 'node:util';
 import { BlendxConfigError, BlendxDefinitionError } from '@blendx/core';
 import { DbmlError } from '@blendx/dbml';
-import pkg from '../package.json' with { type: 'json' };
 import {
   CliError,
   type Command,
@@ -25,6 +25,9 @@ export {
   type CommandOption,
   type Io,
 } from './command.ts';
+
+/** The package's own manifest, one folder up from src/ and from the built dist/ alike (D35). */
+const pkg = createRequire(import.meta.url)('../package.json') as { version: string };
 
 /** The commands `blendx` ships. */
 export const COMMANDS: readonly Command[] = [generate, review, migrate];

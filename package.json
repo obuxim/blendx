@@ -8,7 +8,9 @@
     "examples/*/web"
   ],
   "scripts": {
-    "check": "bun run lint && bun run typecheck && bun run generated && bun test",
+    "check": "bun run lint && bun run typecheck && bun run build && bun run generated && bun test",
+    "build": "bun scripts/build.ts",
+    "pack": "bun scripts/pack.ts",
     "generated": "blendx generate --check --cwd examples/addition && blendx review --check --cwd examples/addition && blendx generate --check --cwd examples/expenses && blendx review --check --cwd examples/expenses && blendx generate --check --cwd packages/conformance/fixtures/shop",
     "lint": "biome check .",
     "fix": "biome check --write .",
