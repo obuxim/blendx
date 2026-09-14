@@ -7,13 +7,14 @@ Status: the framework is under construction. Work is driven by `docs/todo.md` (s
 ## Commands
 
 - `bun install`
-- `bun run check`: Biome, then `tsc --noEmit` (root, `tsconfig.portable.json`, and each project that augments `Register` and so needs a program of its own: `packages/core/test/register`, `packages/cli/test/register`, `packages/cli/test/fixtures/shop-app`, `examples/addition`, `examples/expenses`, `packages/react/test`, `examples/addition/web`), then `blendx generate --check` on the examples, then `bun test`. Must pass before ticking any todo item.
+- `bun run check`: Biome, then `tsc --noEmit` (root, `tsconfig.portable.json`, and each project that augments `Register` and so needs a program of its own: `packages/core/test/register`, `packages/cli/test/register`, `packages/cli/test/fixtures/shop-app`, `examples/addition`, `examples/expenses`, `packages/react/test`, `examples/addition/web`), then the publish build (`bun run build`), then `blendx generate --check` on the examples, then `bun test`. Must pass before ticking any todo item.
 - `bun run fix`: Biome autofix and format.
 - `bun test <path>`: run a subset. Tests use in-process PGlite. `BLENDX_TEST_DB=pg DATABASE_URL=postgres://postgres@localhost:5432/blendx_test bun test` also runs the real-PostgreSQL tests (`*.pg.test.ts`); they reset that database's public schema, so use a scratch database.
 - `DATABASE_URL=... bun run smoke:node`: the Node smoke test (Node 24, @hono/node-server, pg). It resets the same scratch database.
 - `DATABASE_URL=... bun run conformance:node`: the conformance suite on Node with pg. Bun with PGlite runs in `bun test`, and Bun with pg in the `BLENDX_TEST_DB=pg` run. All three reset the scratch database.
 - `bun run e2e:web`: the React example (`examples/addition/web`) in Chromium through Playwright, against its API on in-memory PGlite. Not part of `check`. The first time, `bun run --cwd examples/addition/web e2e:install` downloads the browser.
 - `bunx blendx generate [--check]`, `bunx blendx review [--check]`, `bunx blendx migrate generate|up`: the CLI. `--cwd <app>` runs it on another folder, such as `examples/addition`.
+- `bun run build`, `bun run pack <folder>`, `bun run pack:test`, `bun run version <x.y.z>`: the publish build, the six tarballs, the packing test (CI's `pack` job) and the shared version. A release is a `v<version>` tag; `docs/releasing.md` has the steps (D35).
 - `PIPER=<piper> PIPER_VOICE=<en_US-ljspeech-medium.onnx> bun docs/media/walkthrough/build.ts`: rebuilds the narrated walkthrough after an example changes; its steps are in `docs/media/walkthrough/script.ts`. Without `PIPER` it refreshes the captures and keeps the audio of unchanged narration.
 
 ## Layout
@@ -90,4 +91,4 @@ Definition of done: `bun run check` passes. Besides Biome, tsc and the tests (th
 
 ## Roadmap
 
-The API (phases P0 to P15) and the React adapter (phase N: `@blendx/react`, TanStack Query options over `hc<AppType>` with actions called by name; D25) are done. Phase P16 builds what D10 left out of v1, one feature at a time, each decided first: the after stage (D26), later hooks with their outbox (D27), belongs-to includes (D28), force-delete (D29), has-many includes (D31), nested includes (D32), composite primary keys (D33) and PUT (D34) are done; publishing to npm is the remaining candidate. Don't start it until asked; it becomes a todo item first.
+The API (phases P0 to P15) and the React adapter (phase N: `@blendx/react`, TanStack Query options over `hc<AppType>` with actions called by name; D25) are done. Phase P16 builds what D10 left out of v1, one feature at a time, each decided first: the after stage (D26), later hooks with their outbox (D27), belongs-to includes (D28), force-delete (D29), has-many includes (D31), nested includes (D32), composite primary keys (D33), PUT (D34) and publishing to npm (D35, `docs/releasing.md`) are done, so P16 is complete; the first publish is the maintainer's, by hand. New features become a decision and a todo item first; don't start one until asked.

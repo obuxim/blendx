@@ -1,0 +1,44 @@
+name: release
+
+# A release is a tag v<version> (docs/decisions.md D35): the whole check, the tag against every
+# package's version, then the six tarballs published in dependency order through npm's trusted
+# publishing, with provenance and no token. Run by hand with dry_run to rehearse without publishing.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Rehearse: pack and run npm publish --dry-run, publishing nothing"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - run: bun install --frozen-lockfile
+      - run: bun run check
+      - if: github.ref_type == 'tag'
+        run: bun run version --check "$GITHUB_REF_NAME"
+      - run: bun run pack tarballs
+      - name: Publish in dependency order
+        env:
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        run: |
+          version=$(bun -e 'console.log(JSON.parse(await Bun.file("packages/blendx/package.json").text()).version)')
+          for name in blendx-dbml blendx-core blendx-hono blendx blendx-cli blendx-react; do
+            npm publish "tarballs/$name-$version.tgz" --provenance --access public ${DRY_RUN:+--dry-run}
+          done
