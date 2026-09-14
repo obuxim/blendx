@@ -1,3 +1,7 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # blendx
 
 AI-first, API-only TypeScript framework. **The only code anyone writes is business logic; everything else is derived from `schema.dbml`.** That means fewer output tokens, a smaller codebase for every future task to read, and a smaller human review surface. Successor to larablend (Laravel, 2020).
@@ -7,9 +11,10 @@ Status: the framework is under construction. Work is driven by `docs/todo.md` (s
 ## Commands
 
 - `bun install`
-- `bun run check`: Biome, then `tsc --noEmit` (root, `tsconfig.portable.json`, and each project that augments `Register` and so needs a program of its own: `packages/core/test/register`, `packages/cli/test/register`, `packages/cli/test/fixtures/shop-app`, `examples/addition`, `examples/expenses`, `packages/react/test`, `examples/addition/web`), then the publish build (`bun run build`), then `blendx generate --check` on the examples, then `bun test`. Must pass before ticking any todo item.
+- `bun run check`: Biome, then `tsc --noEmit` (root, `tsconfig.portable.json`, and each project that augments `Register` and so needs a program of its own: `packages/core/test/register`, `packages/cli/test/register`, `packages/cli/test/fixtures/shop-app`, `examples/addition`, `examples/expenses`, `packages/conformance/fixtures/shop`, `packages/react/test`, `examples/addition/web`), then the publish build (`bun run build`), then `blendx generate --check` on the examples and the conformance fixture and `blendx review --check` on the examples, then `bun test`. A new project that augments `Register` needs adding to the root `typecheck` script. Must pass before ticking any todo item.
 - `bun run fix`: Biome autofix and format.
 - `bun test <path>`: run a subset. Tests use in-process PGlite. `BLENDX_TEST_DB=pg DATABASE_URL=postgres://postgres@localhost:5432/blendx_test bun test` also runs the real-PostgreSQL tests (`*.pg.test.ts`); they reset that database's public schema, so use a scratch database.
+- `UPDATE_GOLDEN=1 bun test <path>`: rewrites the golden files (`packages/dbml/test/golden`, `packages/cli/test/golden`) after an intended generator change; review their diff. A missing golden is written once locally, never on CI.
 - `DATABASE_URL=... bun run smoke:node`: the Node smoke test (Node 24, @hono/node-server, pg). It resets the same scratch database.
 - `DATABASE_URL=... bun run conformance:node`: the conformance suite on Node with pg. Bun with PGlite runs in `bun test`, and Bun with pg in the `BLENDX_TEST_DB=pg` run. All three reset the scratch database.
 - `bun run e2e:web`: the React example (`examples/addition/web`) in Chromium through Playwright, against its API on in-memory PGlite. Not part of `check`. The first time, `bun run --cwd examples/addition/web e2e:install` downloads the browser.
@@ -20,6 +25,14 @@ Status: the framework is under construction. Work is driven by `docs/todo.md` (s
 ## Layout
 
 `packages/blendx` (facade: the only runtime import for app code), `spec` (Markdown only), `core` + `dbml` (portable), `hono` (adapter), `cli` (the `blendx` command; apps add it as a dev dependency, D18), `conformance` (cases, the shop fixture and the harness), `react` (`@blendx/react`: TanStack Query options for every action, D25); `examples/addition` (end-to-end proof, with `web/`, a React page through `@blendx/react`) and `examples/expenses` (a fuller app: a bearer-token identity, an approver role, state rules and pricing).
+
+How the pieces connect:
+- `dbml` parses `schema.dbml` into the schema IR (`ir.ts`) and emits `schema.gen.ts` (Drizzle tables plus `models`). Nothing past `dbml` sees DBML shapes.
+- `blendx generate` (`cli/src/generate.ts`) runs in two phases: the schema first, then it imports `blends/*.ts` and `src/app.ts` (which import that schema) and emits `routes.gen.ts`, `client.gen.ts`, `outbox.gen.ts`, `register.gen.ts`, `drizzle.config.gen.ts` and `openapi.json`.
+- `core/endpoints.ts` flattens a resource into endpoint definitions. The route emitter, the OpenAPI builder and the review all read that one view.
+- `routes.gen.ts` chains one Hono route per endpoint onto the generic controller `hono/run.ts` and exports `AppType` for `hc`. The engine (`core/engine.ts`) runs the pipeline, and `core/cascade.ts` resolves each stage from schema default → app → resource → action, recording provenance for the review.
+- `register.gen.ts` augments `interface Register` so policies and hooks get the identity type from the app's `auth` (D9). `later` hooks go through the outbox table and `core/worker.ts`.
+- Conformance: JSON cases in `packages/conformance/cases` run against the `fixtures/shop` app on each runtime and driver. `core/test/derivation-rules-doc.test.ts` checks that the spec and the tests name the same rule ids.
 
 Working on an app built with blendx rather than on the framework? Its own `CLAUDE.md` is the guide: `examples/addition/CLAUDE.md` is the template, with the recipes for adding a table and a custom action. `docs/guide/` is the app author's guide (getting started, a tutorial that builds `examples/expenses`, and reference pages), and `docs/cookbook.md` has seventeen blend patterns, each linked to the test that pins it. When behaviour the guide describes changes, update the guide with it.
 

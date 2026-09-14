@@ -98,9 +98,9 @@ Nobody reads or edits generated files. `blendx generate --check` fails when they
 
 Every endpoint runs the same pipeline:
 
-**authenticate → validate → load → authorize → calculate → save → respond**
+**authenticate → validate → load → authorize → calculate → save → after → respond**
 
-Failures take this precedence: 401, then 422, 404, 403 and 409. Mutations run in one transaction, and a member action locks its row. Each stage has a default derived from the schema, and each can be changed by a hook at the app, the resource or the action; the most specific level wins.
+Failures take this precedence: 401, then 422, 404, 403 and 409. Mutations run in one transaction, and a member action locks its row. `after` runs once a write has committed. Each stage has a default derived from the schema, and each can be changed by a hook at the app, the resource or the action; the most specific level wins.
 
 - `rules`, `authorize`, `calculate` and `respond` receive the level above's value as `prev` and return the replacement.
 - `load` and `save` receive `runDefault()`: call it to extend the default, skip it to replace it.
@@ -179,6 +179,7 @@ PostgreSQL only. Drivers: `pg` (the default), `postgres-js`, `bun-sql` and `pgli
 | `@blendx/dbml` | DBML to the generated Drizzle schema |
 | `@blendx/hono` | the Hono adapter |
 | `@blendx/conformance` | request and expected-response cases, and their runner |
+| `@blendx/react` | TanStack Query options for every action, reached by table and action name |
 
 `@blendx/core` and `@blendx/dbml` import neither Bun, Node nor Hono, so another runtime or server can reuse them.
 
@@ -191,7 +192,7 @@ bun install
 bun run check   # Biome, tsc, generated files up to date, bun test
 ```
 
-`docs/todo.md` drives the work, and `CLAUDE.md` holds the rules for contributing, whether you are a person or an agent. The next phase is a React adapter over the typed client.
+`docs/todo.md` drives the work, and `CLAUDE.md` holds the rules for contributing, whether you are a person or an agent. The API, the React adapter and the deferred features of phase P16 are done; a new feature starts as an entry in `docs/decisions.md` and an item in the todo.
 
 ## License
 
