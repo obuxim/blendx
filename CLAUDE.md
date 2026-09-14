@@ -10,6 +10,8 @@ Status: the framework is under construction. Work is driven by `docs/todo.md` (s
 
 ## Commands
 
+Bun 1.4.2 (pinned in CI and `vercel.json`); Node 24 and a scratch PostgreSQL only for the Node and real-PostgreSQL checks.
+
 - `bun install`
 - `bun run check`: Biome, then `tsc --noEmit` (root, `tsconfig.portable.json`, and each project that augments `Register` and so needs a program of its own: `packages/core/test/register`, `packages/cli/test/register`, `packages/cli/test/fixtures/shop-app`, `examples/addition`, `examples/expenses`, `packages/conformance/fixtures/shop`, `packages/react/test`, `examples/addition/web`), then the publish build (`bun run build`), then `blendx generate --check` on the examples and the conformance fixture and `blendx review --check` on the examples, then `bun test`. A new project that augments `Register` needs adding to the root `typecheck` script. Must pass before ticking any todo item.
 - `bun run fix`: Biome autofix and format.
@@ -20,6 +22,7 @@ Status: the framework is under construction. Work is driven by `docs/todo.md` (s
 - `bun run e2e:web`: the React example (`examples/addition/web`) in Chromium through Playwright, against its API on in-memory PGlite. Not part of `check`. The first time, `bun run --cwd examples/addition/web e2e:install` downloads the browser.
 - `bunx blendx generate [--check]`, `bunx blendx review [--check]`, `bunx blendx migrate generate|up`: the CLI. `--cwd <app>` runs it on another folder, such as `examples/addition`.
 - `bun run build`, `bun run pack <folder>`, `bun run pack:test`, `bun run version <x.y.z>`: the publish build, the six tarballs, the packing test (CI's `pack` job) and the shared version. A release is a `v<version>` tag; `docs/releasing.md` has the steps (D35).
+- `bun docs/site/build.ts`: builds the docs site (the guide, the cookbook and the walkthrough) into `site/`, which is not committed. It fails on any link that resolves to nothing, so run it after editing `docs/`. Vercel runs it on every push that touches `docs/`.
 - `PIPER=<piper> PIPER_VOICE=<en_US-ljspeech-medium.onnx> bun docs/media/walkthrough/build.ts`: rebuilds the narrated walkthrough after an example changes; its steps are in `docs/media/walkthrough/script.ts`. Without `PIPER` it refreshes the captures and keeps the audio of unchanged narration.
 
 ## Layout
