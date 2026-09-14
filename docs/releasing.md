@@ -41,7 +41,7 @@ To rehearse without publishing, run the workflow by hand from the Actions tab wi
   bun run check
   bun run pack tarballs
   for name in blendx-dbml blendx-core blendx-hono blendx blendx-cli blendx-react; do
-    npm publish "tarballs/$name-0.1.0.tgz" --access public
+    npm publish "./tarballs/$name-0.1.0.tgz" --access public
   done
   ```
 

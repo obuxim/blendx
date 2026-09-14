@@ -40,5 +40,5 @@ jobs:
         run: |
           version=$(bun -e 'console.log(JSON.parse(await Bun.file("packages/blendx/package.json").text()).version)')
           for name in blendx-dbml blendx-core blendx-hono blendx blendx-cli blendx-react; do
-            npm publish "tarballs/$name-$version.tgz" --provenance --access public ${DRY_RUN:+--dry-run}
+            npm publish "./tarballs/$name-$version.tgz" --provenance --access public ${DRY_RUN:+--dry-run}
           done
