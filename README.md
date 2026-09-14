@@ -4,7 +4,7 @@ An API-only TypeScript framework where the only code anyone writes is business l
 
 blendx is the successor to [larablend](https://github.com/obuxim/larablend) (Laravel, 2020). It keeps larablend's idea, derive everything from the schema and write only what differs, and fixes its flaws: input is validated strictly on the server, nothing is exposed unless listed, and you override a single stage instead of a whole action.
 
-**Status:** under construction, version 0. Not yet published to npm. The API may still change. What does not work yet is in [known issues](docs/guide/known-issues.md).
+**Status:** version 0, on npm from 0.1.0 (`bun add blendx`, then `bun add -d @blendx/cli`; [getting started](docs/guide/getting-started.md)). The API may still change. What does not work yet is in [known issues](docs/guide/known-issues.md).
 
 ## A whole app
 
@@ -150,7 +150,7 @@ if (res.status === 201) {
 
 ## Commands
 
-An app depends on `blendx` and, as a dev dependency, on `@blendx/cli`, which provides the `blendx` command.
+An app depends on `blendx` and, as a dev dependency, on `@blendx/cli`, which provides the `blendx` command: `bun add blendx`, then `bun add -d @blendx/cli`. Both are on npm at one shared version; keep them equal when you upgrade.
 
 - `bunx blendx generate [--check]`: after changing the schema, a blend or `src/app.ts`.
 - `bunx blendx migrate generate --name <what_changed>`, then `bunx blendx migrate up`.

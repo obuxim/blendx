@@ -4,7 +4,11 @@
 
 ## Setting up
 
-The page lives next to the API, as a package of its own in the same repository, because it imports the API's types. [`examples/addition/web`](../../examples/addition/web/package.json) depends on `@blendx/react`, `blendx`, `@tanstack/react-query`, `react` and `react-dom`, and is built with Vite.
+The page lives next to the API, as a package of its own in the same repository, because it imports the API's types. [`examples/addition/web`](../../examples/addition/web/package.json) depends on `@blendx/react`, `blendx`, `@tanstack/react-query`, `react` and `react-dom`, and is built with Vite. `@blendx/react` is on npm at the same version as `blendx`; in the page's folder:
+
+```sh
+bun add @blendx/react blendx @tanstack/react-query react react-dom
+```
 
 One file creates the client. From [`src/api.ts`](../../examples/addition/web/src/api.ts):
 
