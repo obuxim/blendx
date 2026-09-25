@@ -155,7 +155,9 @@ describe('the outbox table (D27)', () => {
   const addLaterHook = async () => {
     const file = join(app, 'blends', 'orders.ts');
     const source = await readFile(file, 'utf8');
-    await writeFile(file, source.replace('a.update(),', 'a.update({ later: () => {} }),'));
+    const edited = source.replace('a.update({', 'a.update({ later: () => {},');
+    if (edited === source) throw new Error('orders.ts: no a.update({ to add the later hook to');
+    await writeFile(file, edited);
   };
 
   test('generate refuses while outbox.gen.ts is out of date', async () => {
