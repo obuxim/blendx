@@ -21,12 +21,12 @@ export interface MigrationResult {
 
 /** A data migration failed and its transaction was rolled back. */
 export class DataMigrationError extends Error {
-  constructor(
-    readonly id: string,
-    options: ErrorOptions,
-  ) {
+  readonly id: string;
+
+  constructor(id: string, options: ErrorOptions) {
     super(`data migration ${id} failed`, options);
     this.name = 'DataMigrationError';
+    this.id = id;
   }
 }
 
