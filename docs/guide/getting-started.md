@@ -26,10 +26,10 @@ Your `package.json` then depends on exact versions, which is how blendx pins eve
   "type": "module",
   "dependencies": {
     "@electric-sql/pglite": "0.5.8",
-    "blendx": "0.1.0"
+    "blendx": "0.2.0"
   },
   "devDependencies": {
-    "@blendx/cli": "0.1.0",
+    "@blendx/cli": "0.2.0",
     "@types/bun": "1.4.2",
     "typescript": "7.0.2"
   }

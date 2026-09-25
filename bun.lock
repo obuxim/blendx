@@ -62,7 +62,7 @@
     },
     "packages/blendx": {
       "name": "blendx",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "dependencies": {
         "@blendx/core": "workspace:*",
         "@blendx/hono": "workspace:*",
@@ -88,7 +88,7 @@
     },
     "packages/cli": {
       "name": "@blendx/cli",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "bin": {
         "blendx": "./src/bin.ts",
       },
@@ -113,7 +113,7 @@
     },
     "packages/core": {
       "name": "@blendx/core",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "dependencies": {
         "drizzle-orm": "1.0.0-rc.4",
         "zod": "4.6.2",
@@ -128,7 +128,7 @@
     },
     "packages/dbml": {
       "name": "@blendx/dbml",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "devDependencies": {
         "@electric-sql/pglite": "0.5.8",
         "drizzle-kit": "1.0.0-rc.4",
@@ -137,7 +137,7 @@
     },
     "packages/hono": {
       "name": "@blendx/hono",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "dependencies": {
         "@blendx/core": "workspace:*",
         "hono": "4.13.7",
@@ -153,7 +153,7 @@
     },
     "packages/react": {
       "name": "@blendx/react",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "dependencies": {
         "blendx": "workspace:*",
       },

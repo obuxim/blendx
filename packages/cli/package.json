@@ -1,6 +1,6 @@
 {
   "name": "@blendx/cli",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "The blendx command (generate, review, migrate) and the review examples runner. Apps add it as a dev dependency.",

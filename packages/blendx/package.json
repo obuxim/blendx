@@ -1,6 +1,6 @@
 {
   "name": "blendx",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "blendx: the only package an app imports at runtime. The blendx command is @blendx/cli, a dev dependency.",
