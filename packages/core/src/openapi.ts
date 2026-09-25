@@ -7,6 +7,11 @@
 import { getColumns } from 'drizzle-orm';
 import { z } from 'zod';
 import type { App } from './app.ts';
+import {
+  type AppActionDefinition,
+  appActionHasJsonBody,
+  appActionProblemStatuses,
+} from './app-action.ts';
 import type { Resource } from './blend.ts';
 import { type ResolvedEndpoint, resolveEndpoint } from './cascade.ts';
 import { recordSchema } from './derive-rules.ts';
@@ -204,6 +209,57 @@ function problems(endpoint: ResolvedEndpoint, app: App, body: boolean): JsonObje
   );
 }
 
+/** The typed OpenAPI operation for an app-owned domain action (D37). */
+function appActionOperation(action: AppActionDefinition): JsonObject {
+  const body = appActionHasJsonBody(action);
+  const multipart = action.multipart !== undefined;
+  const input = toJsonSchema(action.input, 'input');
+  const fields = propertiesOf(input);
+  const required = new Set((input.required ?? []) as string[]);
+  const parameters = [
+    ...[...action.path.matchAll(/:([A-Za-z_][A-Za-z0-9_]*)/g)].map(([, name]) => ({
+      name,
+      in: 'path',
+      required: true,
+      schema: { type: 'string' },
+    })),
+    ...(action.method === 'get'
+      ? Object.entries(fields).map(([name, schema]) => ({
+          name,
+          in: 'query',
+          required: required.has(name),
+          schema,
+        }))
+      : []),
+  ];
+  const success = {
+    [String(action.reply.status)]: {
+      description: DESCRIPTIONS[action.reply.status] ?? `Status ${action.reply.status}`,
+      ...withBody('application/json', toJsonSchema(action.reply.body, 'output')),
+    },
+  };
+  const failures = Object.fromEntries(
+    appActionProblemStatuses(action).map((status) => [
+      String(status),
+      { description: DESCRIPTIONS[status], ...withBody(PROBLEM_CONTENT_TYPE, ref('Problem')) },
+    ]),
+  );
+  return {
+    operationId: action.id,
+    tags: ['app'],
+    ...(parameters.length > 0 ? { parameters } : {}),
+    ...((body || multipart) && Object.keys(fields).length > 0
+      ? {
+          requestBody: {
+            required: true,
+            ...withBody(multipart ? 'multipart/form-data' : 'application/json', input),
+          },
+        }
+      : {}),
+    responses: { ...success, ...failures },
+  };
+}
+
 const byCodeUnit = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
 /** The OpenAPI document for an app's resources, and what it could not describe. */
@@ -273,6 +329,11 @@ export function buildOpenApi({ app, resources, info }: OpenApiOptions): OpenApiR
       const path = definition.path.replace(/:(\w+)/g, '{$1}');
       paths[path] = { ...paths[path], [definition.method]: operation };
     }
+  }
+
+  for (const action of [...app.actions].sort((a, b) => byCodeUnit(a.name, b.name))) {
+    const path = action.path.replace(/:(\w+)/g, '{$1}');
+    paths[path] = { ...paths[path], [action.method]: appActionOperation(action) };
   }
 
   return {

@@ -5,7 +5,7 @@
  */
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
-import { join, relative } from 'node:path';
+import { join, relative, sep } from 'node:path';
 import { type App, runExamples } from '@blendx/core';
 import { parse } from 'yaml';
 import { loadConfig, type ResolvedConfig } from './config.ts';
@@ -28,7 +28,7 @@ export async function runExampleFiles(
   for (const { resource } of blends) {
     const path = join(config.review, `${resource.model.name}.examples.yaml`);
     if (!existsSync(path)) continue;
-    const label = relative(config.root, path);
+    const label = relative(config.root, path).split(sep).join('/');
     let examples: unknown;
     try {
       examples = parse(await readFile(path, 'utf8'));

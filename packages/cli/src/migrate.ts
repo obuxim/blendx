@@ -6,17 +6,64 @@
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync } from 'node:fs';
-import { readFile } from 'node:fs/promises';
-import { dirname, join, relative } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { createDatabase } from 'blendx';
+import { readdir, readFile } from 'node:fs/promises';
+import { dirname, join, relative, sep } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { createDatabase, type DataMigration, DataMigrationError } from 'blendx';
 import { CliError, type Command, type Io } from './command.ts';
 import { loadConfig, type ResolvedConfig } from './config.ts';
 import { emitOutboxFile, emitSchemaFile } from './generate.ts';
 
 const USAGE = 'migrate generate [--name <name>] | blendx migrate up';
 
-const shown = (config: ResolvedConfig, path: string) => relative(config.root, path) || '.';
+const shown = (config: ResolvedConfig, path: string) =>
+  relative(config.root, path).split(sep).join('/') || '.';
+
+const isDataMigration = (value: unknown): value is DataMigration =>
+  typeof value === 'object' &&
+  value !== null &&
+  (value as DataMigration).kind === 'blendx/data-migration' &&
+  typeof (value as DataMigration).id === 'string' &&
+  typeof (value as DataMigration).up === 'function';
+
+/** Imports top-level, versioned data migrations from the configured directory (D38). */
+export async function loadDataMigrations(
+  config: ResolvedConfig,
+): Promise<readonly DataMigration[]> {
+  if (!existsSync(config.dataMigrations)) return [];
+  const names = (await readdir(config.dataMigrations, { withFileTypes: true }))
+    .filter(
+      (entry) =>
+        entry.isFile() &&
+        entry.name.endsWith('.ts') &&
+        !entry.name.endsWith('.d.ts') &&
+        !entry.name.endsWith('.test.ts'),
+    )
+    .map((entry) => entry.name)
+    .sort();
+  const migrations: DataMigration[] = [];
+  for (const name of names) {
+    const file = join(config.dataMigrations, name);
+    let value: unknown;
+    try {
+      value = (await import(pathToFileURL(file).href)).default;
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      throw new CliError(`${shown(config, file)} could not load: ${reason}`);
+    }
+    if (!isDataMigration(value)) {
+      throw new CliError(`${shown(config, file)} must default-export dataMigration(...)`);
+    }
+    const stem = name.slice(0, -'.ts'.length);
+    if (value.id !== stem) {
+      throw new CliError(
+        `${shown(config, file)} declares ${value.id}; name it ${shown(config, join(config.dataMigrations, `${value.id}.ts`))}`,
+      );
+    }
+    migrations.push(value);
+  }
+  return migrations;
+}
 
 /** drizzle-kit's CLI entry, from the version this package depends on. */
 const drizzleKitBin = () =>
@@ -75,14 +122,29 @@ async function applyMigrations(config: ResolvedConfig, io: Io) {
   if (!hasMigrations(config.migrations)) {
     throw new CliError(`no migrations in ${where}; run \`blendx migrate generate\``);
   }
+  const dataMigrations = await loadDataMigrations(config);
   const database = await createDatabase(config);
   try {
-    const applied = await database.migrate(config.migrations);
+    let applied: Awaited<ReturnType<typeof database.migrate>>;
+    try {
+      applied = await database.migrate(config.migrations, dataMigrations);
+    } catch (error) {
+      if (error instanceof DataMigrationError) {
+        const reason = error.cause instanceof Error ? error.cause.message : String(error.cause);
+        throw new CliError(`data migration ${error.id} failed: ${reason}`);
+      }
+      throw error;
+    }
     io.out(
-      applied === 0
+      applied.schema === 0
         ? `${where}: no pending migrations\n`
-        : `applied ${applied} migration${applied === 1 ? '' : 's'} from ${where}\n`,
+        : `applied ${applied.schema} migration${applied.schema === 1 ? '' : 's'} from ${where}\n`,
     );
+    if (applied.data.length === 0) {
+      io.out(`${shown(config, config.dataMigrations)}: no pending data migrations\n`);
+    } else {
+      for (const id of applied.data) io.out(`applied data migration ${id}\n`);
+    }
     return 0;
   } finally {
     await database.close();
@@ -91,7 +153,7 @@ async function applyMigrations(config: ResolvedConfig, io: Io) {
 
 export const migrate: Command = {
   name: 'migrate',
-  summary: 'generate: write the next migration; up: apply the pending ones',
+  summary: 'generate: write the next schema migration; up: apply pending schema and data steps',
   usage: USAGE,
   options: {
     name: { type: 'string', placeholder: 'name', description: 'The new migration name (generate)' },

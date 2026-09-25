@@ -194,6 +194,56 @@ describe('blend() rejects invalid definitions', () => {
     expect(resource.actions[0]).toMatchObject({ on: 'member', builtin: true });
   });
 
+  test('related writes name other models once, and are kept as frozen table names', () => {
+    const resource = blend(orders, {
+      policy: allow.public,
+      actions: (a) => [a.store({ writes: [shop.users] })],
+    });
+    expect(resource.actions[0]?.writes).toEqual(['users']);
+    expect(Object.isFrozen(resource.actions[0]?.writes)).toBe(true);
+
+    expectError(
+      () =>
+        blend(orders, {
+          policy: allow.public,
+          actions: (a) => [a.store({ writes: [] as never })],
+        }),
+      'store writes must name at least one related model',
+    );
+    expectError(
+      () =>
+        blend(orders, {
+          policy: allow.public,
+          actions: (a) => [a.store({ writes: ['users'] as never })],
+        }),
+      'store writes must name models',
+    );
+    expectError(
+      () =>
+        blend(orders, {
+          policy: allow.public,
+          actions: (a) => [a.store({ writes: [orders] })],
+        }),
+      'store writes its own table implicitly; omit orders',
+    );
+    expectError(
+      () =>
+        blend(orders, {
+          policy: allow.public,
+          actions: (a) => [a.store({ writes: [shop.users, shop.users] })],
+        }),
+      'store writes users more than once',
+    );
+    expectError(
+      () =>
+        blend(orders, {
+          policy: allow.public,
+          actions: (a) => [a.collection('quote', { method: 'get', writes: [shop.users] } as never)],
+        }),
+      'quote is GET, so it cannot declare writes',
+    );
+  });
+
   test('a hidden column that does not exist', () => {
     expectError(
       () =>
@@ -255,6 +305,37 @@ describe('blend() types', () => {
           a.store({
             // @ts-expect-error id is generated, calculate may not write it
             calculate: () => ({ id: 1 }),
+          }),
+        ],
+      });
+      blend(shop.orders, {
+        policy: allow.public,
+        actions: (a) => [a.store({ writes: [shop.users] })],
+      });
+      // @ts-expect-error writes must name at least one model
+      blend(shop.orders, { policy: allow.public, actions: (a) => [a.store({ writes: [] })] });
+      blend(shop.orders, {
+        policy: allow.public,
+        actions: (a) => [
+          a.store({
+            // @ts-expect-error writes names models, not table strings
+            writes: ['users'],
+          }),
+        ],
+      });
+      blend(shop.orders, {
+        policy: allow.public,
+        actions: (a) => [
+          // @ts-expect-error GET actions cannot declare writes
+          a.collection('quote', { method: 'get', writes: [shop.users] }),
+        ],
+      });
+      blend(shop.orders, {
+        policy: allow.public,
+        actions: (a) => [
+          a.show({
+            // @ts-expect-error show is a GET action and cannot declare writes
+            writes: [shop.users],
           }),
         ],
       });

@@ -68,22 +68,22 @@ const routes = router()
 const tables = {
   orders: {
     actions: {
-      index: 'GET /orders',
-      store: 'POST /orders',
-      estimate: 'POST /orders/estimate',
-      quote: 'GET /orders/quote',
-      recount: 'POST /orders/recount',
-      show: 'GET /orders/:id',
-      update: 'PATCH /orders/:id',
-      replace: 'PUT /orders/:id',
-      destroy: 'DELETE /orders/:id',
-      restore: 'POST /orders/:id/restore',
-      purge: 'DELETE /orders/:id/purge',
-      cancel: 'POST /orders/:id/cancel',
-      history: 'GET /orders/:id/history',
-      refund: 'POST /orders/:id/refund',
-      reprice: 'PATCH /orders/:id/reprice',
-      void: 'DELETE /orders/:id/void',
+      index: { route: 'GET /orders', writes: [] },
+      store: { route: 'POST /orders', writes: [] },
+      estimate: { route: 'POST /orders/estimate', writes: [] },
+      quote: { route: 'GET /orders/quote', writes: [] },
+      recount: { route: 'POST /orders/recount', writes: [] },
+      show: { route: 'GET /orders/:id', writes: [] },
+      update: { route: 'PATCH /orders/:id', writes: [] },
+      replace: { route: 'PUT /orders/:id', writes: [] },
+      destroy: { route: 'DELETE /orders/:id', writes: [] },
+      restore: { route: 'POST /orders/:id/restore', writes: [] },
+      purge: { route: 'DELETE /orders/:id/purge', writes: [] },
+      cancel: { route: 'POST /orders/:id/cancel', writes: [] },
+      history: { route: 'GET /orders/:id/history', writes: [] },
+      refund: { route: 'POST /orders/:id/refund', writes: [] },
+      reprice: { route: 'PATCH /orders/:id/reprice', writes: [] },
+      void: { route: 'DELETE /orders/:id/void', writes: [] },
     },
     includes: {},
     key: [{ column: 'id', type: 'number' }],
@@ -132,11 +132,15 @@ function useTypesOnly() {
 
 describe('every kind of action', () => {
   test('the map is the one blendx generate writes for this blend', () => {
-    const generated = toEndpoints(kinds).map((endpoint): [string, string] => [
-      endpoint.action,
-      `${endpoint.method.toUpperCase()} ${endpoint.path}`,
-    ]);
-    expect(Object.entries<string>(tables.orders.actions)).toEqual(generated);
+    const generated = toEndpoints(kinds).map(
+      (endpoint): [string, { route: string; writes: readonly string[] }] => [
+        endpoint.action,
+        { route: `${endpoint.method.toUpperCase()} ${endpoint.path}`, writes: endpoint.writes },
+      ],
+    );
+    expect(
+      Object.entries<{ route: string; writes: readonly string[] }>(tables.orders.actions),
+    ).toEqual(generated);
   });
 
   test('a GET action is a query, any other method a mutation', () => {

@@ -37,6 +37,7 @@ export default blend(models.orders, {
     a.member('refund', {
       rules: () => z.object({ reason: z.string().min(3) }),
       calculate: () => ({ status: 'refunded' as const }),
+      writes: [models.users],
     }),
     a.collection('quote', {
       method: 'get',

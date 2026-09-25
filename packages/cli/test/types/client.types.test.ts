@@ -11,9 +11,13 @@ import type { AppType } from '../golden/routes.gen.ts';
 type Tables = typeof tables;
 type Schema = AppType extends Hono<infer _Env, infer S, infer _Base> ? S : never;
 
-/** Every action entry of the map, as `METHOD /path`. */
+/** Every action route of the map, as `METHOD /path`. */
 type Entries = {
-  [T in keyof Tables]: Tables[T]['actions'][keyof Tables[T]['actions']];
+  [T in keyof Tables]: Tables[T]['actions'][keyof Tables[T]['actions']] extends {
+    readonly route: infer Route;
+  }
+    ? Route
+    : never;
 }[keyof Tables];
 
 /** Every route of AppType, as `METHOD /path`; hono keys a path's methods as `$get`. */
@@ -28,11 +32,30 @@ describe('client.gen.ts tables', () => {
     expectTypeOf<Entries>().toEqualTypeOf<Routes>();
   });
 
-  test('entries are literal types', () => {
-    expectTypeOf<Tables['orders']['actions']['quote']>().toEqualTypeOf<'GET /orders/quote'>();
+  test('action descriptors keep literal route and related-write types', () => {
     expectTypeOf<
-      Tables['orders']['actions']['refund']
+      Tables['orders']['actions']['quote']['route']
+    >().toEqualTypeOf<'GET /orders/quote'>();
+    expectTypeOf<
+      Tables['orders']['actions']['refund']['route']
     >().toEqualTypeOf<'POST /orders/:id/refund'>();
+    expectTypeOf<Tables['orders']['actions']['refund']['writes']>().toEqualTypeOf<
+      readonly ['users']
+    >();
+    expectTypeOf<Tables['orders']['actions']['index']['sorts']>().toEqualTypeOf<
+      readonly [
+        'id',
+        'user_id',
+        'status',
+        'public_id',
+        'created_at',
+        '-id',
+        '-user_id',
+        '-status',
+        '-public_id',
+        '-created_at',
+      ]
+    >();
   });
 
   test('includes name the table each relation points to, and are {} without any', () => {

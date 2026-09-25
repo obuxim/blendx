@@ -5,7 +5,7 @@
  */
 import { describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
-import { extractCalculates, extractHooks } from '../src/calculates.ts';
+import { extractCalculates, extractHooks, extractStageHooks } from '../src/calculates.ts';
 
 const file = join(import.meta.dir, 'fixtures', 'calculates', 'orders.ts');
 
@@ -67,5 +67,31 @@ describe('extractCalculates', () => {
 
   test('one program over the blend files stays quick', () => {
     expect(elapsed).toBeLessThan(20_000);
+  });
+});
+
+describe('extractStageHooks', () => {
+  const fixture = join(import.meta.dir, 'fixtures', 'stage-hooks');
+  const app = join(fixture, 'app.ts');
+  const orders = join(fixture, 'orders.ts');
+  const hooks = extractStageHooks(app, [orders], ['authorize', 'save']);
+
+  test('reads direct app, resource and action hooks exactly as written', () => {
+    expect(hooks.app.get('authorize')).toEqual({
+      source: 'authorize({ prev }) {\n      return prev;\n    }',
+    });
+    expect(hooks.resource.get(orders)?.get('authorize')).toEqual({
+      source: '({ prev }) => prev',
+    });
+    expect(hooks.action.get(orders)?.get('update')).toEqual(
+      new Map([
+        ['authorize', { source: '({ prev }) => prev' }],
+        ['save', { source: 'async ({ runDefault }) => runDefault()' }],
+      ]),
+    );
+  });
+
+  test('leaves referenced hooks unread so review can name their source file and fallback', () => {
+    expect(hooks.action.get(orders)?.get('destroy')).toBeUndefined();
   });
 });

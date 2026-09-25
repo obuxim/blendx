@@ -3,11 +3,12 @@
  * every stage with the levels that shaped it and what the schema level does, and its reply.
  */
 import { describe, expect, test } from 'bun:test';
-import { allow, blend, defineApp } from '@blendx/core';
+import { allow, blend, defineApp, multipart } from '@blendx/core';
 import { z } from 'zod';
 import { models as addition } from '../../dbml/test/golden/addition.schema.gen.ts';
 import { models as shop } from '../../dbml/test/golden/shop.schema.gen.ts';
-import { reviewResource } from '../src/review.ts';
+import { reviewAppActions, reviewResource } from '../src/review.ts';
+import { models as membership } from './fixtures/membership.schema.ts';
 
 const additions = blend(addition.addition_results, {
   policy: allow.public,
@@ -134,6 +135,58 @@ describe('reviewResource', () => {
   });
 });
 
+describe('reviewAppActions', () => {
+  test('shows a multipart input format and its bounded body size', () => {
+    const app = defineApp({
+      actions: (a) => [
+        a.action('upload', {
+          method: 'post',
+          path: '/uploads',
+          policy: allow.public,
+          input: multipart(z.object({ file: z.file() }).strict(), { maxBytes: 1024 }),
+          reply: { status: 201, body: z.object({ id: z.number() }) },
+          writes: [shop.users],
+          handler: () => ({ status: 201, body: { id: 1 } }),
+        }),
+      ],
+    });
+    expect(reviewAppActions(app).actions[0]).toMatchObject({
+      input_format: 'multipart/form-data',
+      max_bytes: 1024,
+      errors: [400, 413, 409, 422],
+    });
+  });
+
+  test('shows the typed action declaration and generated error contract (D37)', () => {
+    const app = defineApp({
+      actions: (a) => [
+        a.action('health', {
+          method: 'get',
+          path: '/health',
+          policy: allow.public,
+          input: z.object({ verbose: z.boolean().optional() }),
+          reply: { status: 200, body: z.object({ ok: z.literal(true) }) },
+          handler: () => ({ status: 200, body: { ok: true as const } }),
+        }),
+      ],
+    });
+    expect(reviewAppActions(app)).toEqual({
+      format: 1,
+      actions: [
+        {
+          name: 'health',
+          route: 'GET /health',
+          policy: 'public',
+          input: { verbose: 'boolean, optional' },
+          writes: [],
+          reply: { status: 200, body: { ok: 'exactly true' } },
+          errors: [422],
+        },
+      ],
+    });
+  });
+});
+
 describe('reviewResource with hooks, hidden columns and custom actions', () => {
   const users = blend(shop.users, {
     policy: allow.when(({ auth }) => auth !== null, { description: 'signed-in users' }),
@@ -214,6 +267,49 @@ describe('what calculate writes', () => {
   });
 });
 
+describe('declared related writes', () => {
+  test('the review carries an action’s related tables, but not its own table', () => {
+    const orders = blend(shop.orders, {
+      policy: allow.public,
+      actions: (a) => [a.member('refund', { writes: [shop.users] })],
+    });
+    expect(reviewResource(orders, defineApp({})).actions[0]?.writes).toEqual(['users']);
+  });
+});
+
+describe('member policies in the review (D36)', () => {
+  test('the authorization stage names the root, membership source, and related checks', () => {
+    const tasks = blend(membership.tasks, {
+      policy: allow.member({
+        via: ['project'],
+        through: { model: membership.project_members, member: 'user_id' },
+        related: {
+          section_id: { via: ['project'] },
+          assignee_id: { member: true },
+        },
+      }),
+      actions: (a) => [a.index(), a.store(), a.show(), a.update()],
+    });
+    const expected = {
+      from: ['schema'],
+      default: 'member',
+      membership: {
+        root: 'member_projects',
+        via: ['project'],
+        through: { model: 'member_project_members', member: 'user_id' },
+        auth_key: 'id',
+        related: {
+          section_id: { via: ['project'] },
+          assignee_id: { member: true },
+        },
+      },
+    } as const;
+
+    for (const action of reviewResource(tasks, defineApp({})).actions) {
+      expect(action.stages.authorize).toEqual(expected);
+    }
+  });
+});
 describe('after in the review (D26)', () => {
   test('after is listed only where a hook sets it, with its levels', () => {
     const orders = blend(shop.orders, {

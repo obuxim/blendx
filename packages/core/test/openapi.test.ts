@@ -3,8 +3,10 @@
  * openapi.json will hold it; the other tests pin the rules it follows.
  */
 import { describe, expect, test } from 'bun:test';
-import { allow, blend, defineApp } from '@blendx/core';
+import { allow, blend, defineApp, multipart } from '@blendx/core';
+import { z } from 'zod';
 import { models as kitchen } from '../../dbml/test/golden/kitchen-sink.schema.gen.ts';
+import { models as shop } from '../../dbml/test/golden/shop.schema.gen.ts';
 import { buildOpenApi, type JsonObject, stringifyOpenApi } from '../src/openapi.ts';
 import { info, resources } from './support/shop-openapi.ts';
 
@@ -155,5 +157,74 @@ describe('buildOpenApi', () => {
       info,
     });
     expect(stringifyOpenApi(reversed.document)).toBe(stringifyOpenApi(document));
+  });
+
+  test('a multipart app action describes form input and its request-size problem', () => {
+    const app = defineApp({
+      actions: (a) => [
+        a.action('upload', {
+          method: 'post',
+          path: '/uploads',
+          policy: allow.public,
+          input: multipart(z.object({ file: z.file() }).strict(), { maxBytes: 1024 }),
+          reply: { status: 201, body: z.object({ id: z.number() }) },
+          writes: [shop.users],
+          handler: () => ({ status: 201, body: { id: 1 } }),
+        }),
+      ],
+    });
+    const action = at(
+      buildOpenApi({ app, resources: [], info }).document,
+      'paths',
+      '/uploads',
+      'post',
+    );
+    expect(Object.keys(at(action, 'requestBody', 'content'))).toEqual(['multipart/form-data']);
+    expect(Object.keys(at(action, 'responses'))).toEqual(['201', '400', '409', '413', '422']);
+  });
+
+  test('an app action describes its route, input, reply, problems, and writes declaration (D37)', () => {
+    const app = defineApp({
+      auth: () => ({ id: 1 }),
+      actions: (a) => [
+        a.action('accept_invite', {
+          method: 'post',
+          path: '/invites/:token/accept',
+          policy: allow.authenticated,
+          input: z.object({ note: z.string() }),
+          reply: { status: 200, body: z.object({ accepted: z.literal(true) }) },
+          writes: [shop.users],
+          handler: () => ({ status: 200, body: { accepted: true as const } }),
+        }),
+      ],
+    });
+    const action = at(
+      buildOpenApi({ app, resources: [], info }).document,
+      'paths',
+      '/invites/{token}/accept',
+      'post',
+    );
+    expect(action.operationId).toBe('app.accept_invite');
+    expect(action.tags).toEqual(['app']);
+    expect(action.parameters).toEqual([
+      { name: 'token', in: 'path', required: true, schema: { type: 'string' } },
+    ]);
+    expect(
+      at(action, 'requestBody', 'content', 'application/json', 'schema', 'properties'),
+    ).toEqual({
+      note: { type: 'string' },
+    });
+    expect(
+      at(action, 'responses', '200', 'content', 'application/json', 'schema', 'properties'),
+    ).toEqual({
+      accepted: { type: 'boolean', const: true },
+    });
+    expect(Object.keys(at(action, 'responses')).sort()).toEqual([
+      '200',
+      '400',
+      '401',
+      '409',
+      '422',
+    ]);
   });
 });

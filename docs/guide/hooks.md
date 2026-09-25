@@ -107,6 +107,18 @@ It returns only writable columns of its table; anything else is a type error, an
 
 The review lists the columns a calculate writes, from its return type. `prev` is typed as the writable columns the rules accept, so `({ prev }) => ({ ...prev, total })` writes, and the review lists, exactly those columns and `total`. Spreading `input` instead also passes on fields that are not columns, which calculate may not return.
 
+## Drizzle helpers
+
+Import database builders and query helpers from `blendx/drizzle`. It keeps every app on the same pinned Drizzle copy as blendx, so an app does not need its own `drizzle-orm` dependency.
+
+`blendx/drizzle` exports `outbox`, `sql`, and the full `drizzle-orm/pg-core` schema-builder surface. Its supported query helper surface is:
+
+- Boolean and comparison: `and`, `or`, `not`, `eq`, `ne`, `gt`, `gte`, `lt`, `lte`.
+- Membership and null: `inArray`, `notInArray`, `isNull`, `isNotNull`.
+- Pattern and range: `like`, `ilike`, `notLike`, `notIlike`, `between`, `notBetween`.
+- Subqueries and arrays: `exists`, `notExists`, `arrayContains`, `arrayContained`, `arrayOverlaps`.
+- Ordering: `asc`, `desc`.
+
 ## save
 
 ```ts
@@ -124,6 +136,40 @@ save: ({ runDefault, writes, auth }) => runDefault({ ...writes, user_id: auth?.i
 ```
 
 The writes a save hook passes to `runDefault` are not checked the way calculate's are, so pass only columns you mean to set.
+
+A save hook can query a related table through its transaction. This store action refuses an order for an inactive user:
+
+```ts
+import { eq } from 'blendx/drizzle';
+
+a.store({
+  save: async ({ runDefault, tx, writes }) => {
+    const users = models.users.table;
+    const [user] = await tx
+      .select({ is_active: users.is_active })
+      .from(users)
+      .where(eq(users.id, writes.user_id ?? -1))
+      .limit(1);
+    if (!user?.is_active) throw new Error('Orders need an active user.');
+    return runDefault();
+  },
+}),
+```
+
+When persistence also changes another table, declare it on the action with that table's schema model. The action's own table is always implicit. The declaration makes review list the related write and makes `@blendx/react` refetch that table's queries after a successful mutation:
+
+```ts
+a.member('refund', {
+  writes: [models.users],
+  save: async ({ runDefault, tx }) => {
+    const saved = await runDefault();
+    // write models.users.table through tx
+    return saved;
+  },
+});
+```
+
+`writes` takes one or more other models. It is available on non-GET actions, including one without a local `save` hook; it rejects the action's own model, duplicates, and GET actions.
 
 ## after
 
@@ -197,7 +243,7 @@ export default blend(models.notes, {
 });
 ```
 
-App hooks are in [The app](app.md#app-hooks). The review marks every stage that a level beyond the schema changed: `authorize: authenticated # from: schema, app, resource`.
+App hooks are in [The app](app.md#app-hooks). The review marks every stage that a level beyond the schema changed. A custom `authorize` stage is a block that gives each hook's source file and readable inline source, and says that the policy is only its starting decision. Referenced, imported and spread hooks keep their file and explain that the hook must be inline before review can show it.
 
 ## Transactions
 

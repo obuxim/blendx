@@ -13,6 +13,18 @@ export interface CalculateSource {
   keys: string[];
 }
 
+/** A direct inline hook as written in its app or blend module. */
+export interface HookSource {
+  source: string;
+}
+
+/** Custom authorize/save hooks grouped by cascade level, then blend file and action where needed. */
+export interface StageHookSources {
+  app: ReadonlyMap<string, HookSource>;
+  resource: ReadonlyMap<string, ReadonlyMap<string, HookSource>>;
+  action: ReadonlyMap<string, ReadonlyMap<string, ReadonlyMap<string, HookSource>>>;
+}
+
 const BUILTINS: ReadonlySet<string> = new Set([
   'index',
   'show',
@@ -34,6 +46,10 @@ const OPTIONS: ts.CompilerOptions = {
   module: ts.ModuleKind.ESNext,
   moduleResolution: ts.ModuleResolutionKind.Bundler,
 };
+
+/** One program over the app and blend files: `blendx review` builds it once and reads every hook from it. */
+export const reviewProgram = (files: readonly string[]): ts.Program =>
+  ts.createProgram([...files], OPTIONS);
 
 /** The action a builder call declares, with its spec: `a.store({...})`, `a.member('pay', {...})`. */
 function actionCall(
@@ -63,6 +79,47 @@ function hookOf(spec: ts.Expression | undefined, name: string): ts.Node | undefi
   return undefined;
 }
 
+/** Only functions declared directly in the object can give a reviewer readable behavior. */
+function inlineHookOf(spec: ts.Expression | undefined, name: string): ts.Node | undefined {
+  const hook = hookOf(spec, name);
+  return hook &&
+    (ts.isArrowFunction(hook) || ts.isFunctionExpression(hook) || ts.isMethodDeclaration(hook))
+    ? hook
+    : undefined;
+}
+
+/** An object's `hooks` block, when it is written directly beside the blend or app definition. */
+function hooksOf(spec: ts.Expression | undefined): ts.Expression | undefined {
+  const hooks = hookOf(spec, 'hooks');
+  return hooks && ts.isExpression(hooks) ? hooks : undefined;
+}
+
+/** The object argument of a direct `defineApp({...})` or `blend(model, {...})` call. */
+function callSpec(node: ts.Node, name: string, index: number): ts.Expression | undefined {
+  if (
+    !ts.isCallExpression(node) ||
+    !ts.isIdentifier(node.expression) ||
+    node.expression.text !== name
+  ) {
+    return undefined;
+  }
+  return node.arguments[index];
+}
+
+function directSources(
+  spec: ts.Expression | undefined,
+  names: readonly string[],
+  source: ts.SourceFile,
+): Map<string, HookSource> {
+  const found = new Map<string, HookSource>();
+  const hooks = hooksOf(spec);
+  for (const name of names) {
+    const hook = inlineHookOf(hooks, name);
+    if (hook) found.set(name, { source: hook.getText(source) });
+  }
+  return found;
+}
+
 function keysOf(checker: ts.TypeChecker, fn: ts.Node): string[] {
   const signature = ts.isFunctionLike(fn)
     ? checker.getSignatureFromDeclaration(fn)
@@ -81,8 +138,8 @@ function keysOf(checker: ts.TypeChecker, fn: ts.Node): string[] {
 export function extractHooks(
   files: readonly string[],
   names: readonly string[],
+  program: ts.Program = reviewProgram(files),
 ): Map<string, Map<string, Map<string, CalculateSource>>> {
-  const program = ts.createProgram([...files], OPTIONS);
   const checker = program.getTypeChecker();
   const byFile = new Map<string, Map<string, Map<string, CalculateSource>>>();
   for (const file of files) {
@@ -111,4 +168,58 @@ export function extractCalculates(
 ): Map<string, Map<string, CalculateSource>> {
   const hooks = extractHooks(files, ['calculate']);
   return new Map([...hooks].map(([file, byHook]) => [file, byHook.get('calculate') ?? new Map()]));
+}
+
+/**
+ * Read direct custom pipeline hooks for review. A named, imported, or spread hook is deliberately
+ * absent: the emitter retains its file and explains that the reviewer must read it there.
+ */
+export function extractStageHooks(
+  appFile: string,
+  blendFiles: readonly string[],
+  names: readonly string[],
+  program: ts.Program = reviewProgram([appFile, ...blendFiles]),
+): StageHookSources {
+  const app = program.getSourceFile(appFile);
+  if (!app) throw new Error(`${appFile} is not in the review program`);
+
+  const appHooks = new Map<string, HookSource>();
+  const findApp = (node: ts.Node) => {
+    const spec = callSpec(node, 'defineApp', 0);
+    if (spec) {
+      for (const [name, hook] of directSources(spec, names, app)) appHooks.set(name, hook);
+    }
+    ts.forEachChild(node, findApp);
+  };
+  findApp(app);
+
+  const resource = new Map<string, ReadonlyMap<string, HookSource>>();
+  const action = new Map<string, ReadonlyMap<string, ReadonlyMap<string, HookSource>>>();
+  for (const file of blendFiles) {
+    const source = program.getSourceFile(file);
+    if (!source) throw new Error(`${file} is not in the review program`);
+    const resourceHooks = new Map<string, HookSource>();
+    const actionHooks = new Map<string, ReadonlyMap<string, HookSource>>();
+    const visit = (node: ts.Node) => {
+      const spec = callSpec(node, 'blend', 1);
+      if (spec) {
+        for (const [name, hook] of directSources(spec, names, source))
+          resourceHooks.set(name, hook);
+      }
+      const call = actionCall(node);
+      if (call) {
+        const found = new Map<string, HookSource>();
+        for (const name of names) {
+          const hook = inlineHookOf(call.spec, name);
+          if (hook) found.set(name, { source: hook.getText(source) });
+        }
+        if (found.size > 0) actionHooks.set(call.action, found);
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(source);
+    resource.set(file, resourceHooks);
+    action.set(file, actionHooks);
+  }
+  return { app: appHooks, resource, action };
 }

@@ -378,3 +378,101 @@ OpenAPI needs a schema for the replies blendx can't derive: a collection action'
 ## D13: Double precision columns are unbounded (2026-09-13)
 drizzle-zod bounds `doublePrecision` to plus or minus 2^47, so a real double such as `1e20` was rejected. The default rules replace that bound with `z.number()`, using drizzle-zod's callback refine. The callback keeps drizzle-zod's null and optional handling; a plain schema refine drops it, so a nullable double would reject `null`.
 Rule id DR-DOUBLE-UNBOUNDED. This closes the Inbox item from the D8 note.
+
+## D36: Membership policies scope reads and validate writes (2026-09-25)
+
+`allow.member()` is a relation-aware resource policy. It names a forward, single-column belongs-to path from a guarded resource to a root, and a membership model whose member column is compared with `auth[authKey]` (`id` by default):
+
+```ts
+allow.member({
+  via: ['project'],
+  through: { model: models.project_members, member: 'user_id' },
+  related: {
+    section_id: { via: ['project'] },
+    assignee_id: { member: true },
+  },
+})
+```
+
+The declaration is checked at blend definition time. Every path is unambiguous and ends in the same root; `related` only maps writable single-column foreign keys. Missing identity answers 401. Default index rows and totals, show, and member loads receive the same correlated `EXISTS` predicate over the membership table, so inaccessible rows answer 404 without adding membership collections to auth. A member policy rejects a custom index or member `load` hook because a replacement query could omit that predicate.
+
+For default writes, the engine resolves the final root from calculated writes and retained row values in the mutation transaction, confirms membership, then validates each non-null related ID. An inaccessible root answers 403; an ID outside that root, or an ineligible member identity, answers 422 at its field pointer. Failed validation rolls back. Custom saves remain responsible for SQL they issue directly; each `runDefault()` receives the same validation.
+
+**Why a correlated predicate:** it keeps visibility and pagination totals in the database and does not turn an authentication object into a stale authorization cache. **Why define related IDs explicitly:** a foreign key alone does not state which project boundary it must obey. **Why validate inside the transaction:** the checked relationship and persisted row must be one atomic operation.
+
+**Consequences:** P17.9 supplies read scoping, P17.10 supplies mutation validation, and P17.11 supplies review output, conformance, types, and the guide example.
+
+## D37: App-owned domain actions have one typed declaration (2026-09-25)
+
+An app may declare a domain route with `defineApp({ actions: (a) => [a.action(name, spec)] })`. Names are stable lower-snake-case strings; paths are explicit absolute Hono paths and methods are explicit. The declaration contains an allowed app policy, a strict Zod input schema, one successful reply schema, and a handler. GET receives `db`; every other method receives the transaction it owns. `owner` and `member` policies need a resource record and are rejected here.
+
+A non-GET action declares an ordered, non-empty, duplicate-free `writes` list of generated models. GET declares none. The list has no implicit resource table: it is the review, OpenAPI, and client invalidation contract. Generation rejects route conflicts between app actions and resource endpoints before registration. The generated Hono route preserves input, path parameter, and reply types; OpenAPI, review, and client metadata derive from the same frozen declaration.
+
+GET validates query input; POST, PUT, and PATCH normally validate JSON and DELETE has no body. A writing action runs policy and handler in one transaction. A writing action may instead declare `input: multipart(schema, { maxBytes })`; the adapter accepts bounded `multipart/form-data`, exposes native `File` values to Zod, answers 400 for malformed media, 413 for a body over the bound, and validates fields with the usual 422 contract. Identity still answers 401 before the adapter consumes input.
+
+**Why app-owned:** invitations, bulk assignment, and uploads can affect several tables without a natural resource action. **Why policy and transaction are required:** a handwritten route can otherwise bypass both. **Why writes is explicit:** no resource supplies an implicit invalidation target.
+
+**Consequences:** P17.13 implemented server routes, P17.14 generated review/OpenAPI/client metadata, P17.15 added React options and invalidation, and P17.16 added multipart input and migration guidance.
+
+## D38: Data migrations are versioned transactional application steps (2026-09-25)
+
+Schema migrations change database structure; data migrations change rows to fit that structure. A data step is one default export from an ordered module under `data-migrations/` (configurable with `dataMigrations`, default `./data-migrations`):
+
+```ts
+// data-migrations/20260925_backfill_workspaces.ts
+import { dataMigration } from 'blendx';
+
+export default dataMigration({
+  id: '20260925_backfill_workspaces',
+  async up({ tx }) {
+    // Use generated models and blendx/drizzle through this transaction.
+  },
+});
+```
+
+Its stable lower-snake-case versioned ID equals its filename. The loader accepts one default `dataMigration()` export per module and reads IDs in ascending order. `up({ tx })` receives only the active Drizzle transaction. `defineConfig()` will expose the resolved directory, and `database.migrate()` will evolve to accept the schema folder plus discovered steps.
+
+All pending Drizzle schema migrations run first, then pending data steps in ID order. Blendx owns `blendx.__blendx_data_migrations`, keyed by step ID with an applied timestamp; Drizzle remains the owner of DDL history. A step and its completion entry commit in one transaction. An exception rolls both back, leaves the ID pending, stops later steps, and reports the failing ID. Repeated runs skip ledgered IDs. The ledger and transaction protocol serialize concurrent processes so one step runs once.
+
+Data steps are forward-only immutable history. Editing a completed ID cannot make it run again; a correction is a new higher-versioned step. A step can rely on the tables and columns supplied by its preceding schema migration. There is no `down`: production data transformations need a compensating forward step or a data restore.
+
+**Why versioned modules:** startup scans rerun indefinitely, race between instances, and turn a deploy failure into serving behavior. Explicit code supports batching, generated types, and application rules. **Why schema first:** a backfill needs its target columns. **Why the ledger is transactional:** a partial backfill must never be marked finished. **Why no down:** operational data changes cannot generally be reversed safely by a generic callback.
+
+**Consequences:** P17.18 adds definitions, config path handling, the supported-driver runner and ledger tests. P17.19 makes `blendx migrate up` discover and report steps, adds a fixture backfill, and documents expand -> backfill -> contract deployment.
+
+## D39: Relation sets are explicitly mapped, transaction-owned replacements (2026-09-26)
+
+`replaceRelation()` is a standalone `blendx` helper for a writing handler. It receives the handler's `tx`; it never opens, commits, retries, or authorizes a transaction, and it declares no route or invalidation metadata itself:
+
+```ts
+await replaceRelation({
+  tx,
+  through: models.task_assignees,
+  owner: {
+    model: models.tasks,
+    key: { id: input.task_id },
+    columns: { task_id: 'id' },
+  },
+  targets: {
+    model: models.users,
+    keys: input.assignees, // [{ id: 3 }, { id: 7 }]
+    columns: { user_id: 'id' },
+    pointer: '/assignees',
+  },
+  eligible: {
+    model: models.project_members,
+    owner: { project_id: 'project_id' },
+    target: { user_id: 'id' },
+  },
+});
+```
+
+`owner.key` and every target key are named objects containing exactly their model's primary-key columns, so composite keys work without positional tuples. `owner.columns` and `targets.columns` map join-table columns to those key columns. `eligible.owner` maps eligibility-table columns to fields read from the locked owner row; `eligible.target` maps eligibility-table columns to target key columns. The helper refuses a mapping that names an unknown column, omits part of a key, or maps one source column more than once.
+
+It locks the owner row `FOR UPDATE`, answering 404 if it is absent. Authorization remains the handler's responsibility. Before it deletes anything, the helper validates every target against the explicit eligibility mapping. Duplicate keys, nonexistent keys, and keys outside the owner's root answer 422 at `/assignees/<index>/<key>`; the latter two are deliberately indistinguishable. An empty target list is valid and clears the relation. Once every key is valid, the helper deletes every join row for the owner and inserts exactly the requested set. Any error rolls back with the action transaction.
+
+A handler declares its affected models in the ordinary explicit `writes` list—for the example, `[models.tasks, models.task_assignees]`—so review and React invalidation remain declaration-driven. The helper infers no hidden write metadata.
+
+**Why explicit mappings:** foreign keys alone do not describe a project boundary, and generated column maps make composite keys unambiguous. **Why the caller owns the transaction and authorization:** relation replacement belongs beside the domain action that decides who may make it, while one rollback covers the owner lock, validation, delete, and insert. **Why invalid target reasons are indistinguishable:** an API must not reveal whether another root has a row with that key.
+
+**Consequences:** P17.21 implements validation, locking, and exact replacement. P17.22 uses it from a typed action, declares the affected models, and covers client invalidation and the guide.

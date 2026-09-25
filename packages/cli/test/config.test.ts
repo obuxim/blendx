@@ -17,6 +17,7 @@ describe('loadConfig', () => {
       generated: join(root, 'src/generated'),
       review: join(root, 'review'),
       migrations: join(root, 'drizzle'),
+      dataMigrations: join(root, 'data-migrations'),
       database: { driver: 'pglite', url: 'memory://' },
       openapi: { title: 'Addition API', version: '1.0.0' },
     });

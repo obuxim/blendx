@@ -113,6 +113,7 @@ blendx is default-deny: every exposed action needs a policy, and `blend()` refus
 | `allow.public` | anyone | no |
 | `allow.authenticated` | any request with an identity | yes |
 | `allow.owner(column, authKey = 'id')` | the identity whose `authKey` equals the record's `column` | yes |
+| `allow.member({ via, through, related? })` | identities with a membership row for the resource's root | yes |
 | `allow.when(check, { description, requiresAuth })` | whenever `check` returns true | when `requiresAuth` is true |
 | `deny` | nobody | no |
 
@@ -142,6 +143,35 @@ const approvers = allow.when(({ auth }) => auth?.is_approver === true, {
 ```
 
 `auth` is what your app's `auth` function returns, typed from it ([The app and identity](app.md)). A rule that also depends on the input or on the record's state, such as "only a draft can be submitted", is clearer as an [authorize hook](hooks.md#authorize), which receives the policy's decision as `prev`.
+
+### Membership policy
+
+`allow.member()` keeps a resource inside the project or other root that the caller belongs to. It uses the generated relations and models, so one declaration protects index, show, store, and update:
+
+```ts
+import { allow, blend } from 'blendx';
+import { models } from '../src/generated/schema.gen.ts';
+
+const projectMember = allow.member({
+  via: ['project'],
+  through: { model: models.project_members, member: 'user_id' },
+  related: {
+    section_id: { via: ['project'] },
+    assignee_id: { member: true },
+  },
+});
+
+export default blend(models.tasks, {
+  policy: projectMember,
+  actions: (a) => [a.index(), a.store(), a.show(), a.update()],
+});
+```
+
+`via` follows forward belongs-to relations from `tasks` to `projects`. `through` names the table that proves the identity belongs to that project. A request without an identity receives 401. Default index and show loads add the policy's correlated `EXISTS` predicate; an existing task outside the caller's projects therefore reads as 404.
+
+Before default store or update persists, the same transaction resolves the final project. A caller outside that project receives 403. Each `related` entry then checks submitted IDs: `section_id` must resolve through its `project` relation to the same project, while `assignee_id` must name a member of it. A failing related check returns 422 with that field's JSON pointer, and the transaction rolls back.
+
+A member policy cannot use a custom `load` hook on index or member routes because a replacement query could omit the predicate. Custom authorization, calculation, save hooks, action scope, and `allow.when` remain available. A custom save that runs SQL without `runDefault()` must keep its own writes inside the policy boundary. The [conformance task fixture](../../packages/conformance/fixtures/shop/blends/tasks.ts) exercises this complete pattern.
 
 ## Hidden columns
 

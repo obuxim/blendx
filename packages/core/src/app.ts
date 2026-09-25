@@ -9,6 +9,12 @@
  *   declare module 'blendx' { interface Register { app: typeof app } }
  */
 import type { z } from 'zod';
+import {
+  type AppActionBuilder,
+  type AppActionDefinition,
+  appActions,
+  validateAppActions,
+} from './app-action.ts';
 import type { Db, Reply } from './hooks.ts';
 import type { Model } from './model.ts';
 
@@ -66,7 +72,10 @@ export interface AppHooks<Auth = unknown> {
 }
 
 /** `Auth` is what `auth` resolves to, null included. */
-export interface AppSpec<Auth = unknown> {
+export interface AppSpec<
+  Auth = unknown,
+  Actions extends readonly AppActionDefinition[] = readonly AppActionDefinition[],
+> {
   /** Resolves the identity of a request, or null when there is none. Identity only. */
   auth?: (context: AuthContext) => Auth | Promise<Auth>;
   /**
@@ -74,14 +83,21 @@ export interface AppSpec<Auth = unknown> {
    * not NonNullable, so that the generic App's identity stays `unknown` rather than `{}`.
    */
   hooks?: AppHooks<Exclude<Auth, null | undefined>>;
+  /** Typed application routes that do not belong to a single resource (D37). */
+  actions?: (actions: AppActionBuilder<Exclude<Auth, null | undefined>>) => Actions;
   index?: { perPage?: number; maxPerPage?: number };
   problems?: { typeBase?: string };
 }
 
-export interface App<Auth = unknown> {
+export interface App<
+  Auth = unknown,
+  Actions extends readonly AppActionDefinition[] = readonly AppActionDefinition[],
+> {
   readonly kind: 'blendx/app';
-  readonly spec: AppSpec<Auth>;
+  readonly spec: AppSpec<Auth, Actions>;
   readonly index: { readonly perPage: number; readonly maxPerPage: number };
+  /** Frozen app-owned route declarations, in source order. */
+  readonly actions: Actions;
 }
 
 /** The identity type of the registered app: unknown until register.gen.ts registers one. */
@@ -100,7 +116,10 @@ export class BlendxConfigError extends Error {
 const isPositiveInteger = (n: number) => Number.isInteger(n) && n > 0;
 
 /** `Auth` is inferred from `auth`; an app without one has no identity (null). */
-export function defineApp<Auth = null>(spec: AppSpec<Auth>): App<Auth> {
+export function defineApp<
+  Auth = null,
+  const Actions extends readonly AppActionDefinition[] = readonly AppActionDefinition[],
+>(spec: AppSpec<Auth, Actions>): App<Auth, Actions> {
   const perPage = spec.index?.perPage ?? 25;
   const maxPerPage = spec.index?.maxPerPage ?? 100;
   if (!isPositiveInteger(perPage) || !isPositiveInteger(maxPerPage)) {
@@ -111,9 +130,15 @@ export function defineApp<Auth = null>(spec: AppSpec<Auth>): App<Auth> {
       `index.perPage (${perPage}) is larger than index.maxPerPage (${maxPerPage})`,
     );
   }
+  const actions = spec.actions
+    ? spec.actions(appActions<Exclude<Auth, null | undefined>>())
+    : ([] as unknown as Actions);
+  if (!Array.isArray(actions)) throw new BlendxConfigError('app.actions must return an array');
+  validateAppActions(actions);
   return Object.freeze({
     kind: 'blendx/app',
     spec,
     index: Object.freeze({ perPage, maxPerPage }),
-  });
+    actions: Object.freeze([...actions]) as Actions,
+  }) as App<Auth, Actions>;
 }

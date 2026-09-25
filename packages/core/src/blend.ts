@@ -4,7 +4,8 @@
  * (docs/decisions.md D12). Nothing is exposed unless it is listed, and every listed
  * action needs a policy (default-deny).
  */
-import { getColumns } from 'drizzle-orm';
+import { getColumns, getTableName } from 'drizzle-orm';
+import { getTableConfig, type PgTable } from 'drizzle-orm/pg-core';
 import type { z } from 'zod';
 import { saves } from './engine.ts';
 import type {
@@ -18,6 +19,7 @@ import type {
   LoadContext,
   MemberSpec,
   RecordSpec,
+  RelatedWrites,
   ReplaceSpec,
   Reply,
   ReplyCheck,
@@ -40,7 +42,14 @@ import type {
   Row,
   SoftDeletes,
 } from './model.ts';
-import type { Policy } from './policy.ts';
+import {
+  isMemberPolicy,
+  type MemberPathHop,
+  type MemberPolicy,
+  type MemberRelated,
+  type Policy,
+  type ResolvedMemberRelated,
+} from './policy.ts';
 import { foreignKeysTo, relationsOf } from './relations.ts';
 import type { DefaultRules, EmptyRules, IncludeRules, IndexRules, ResolvedRules } from './rules.ts';
 
@@ -92,6 +101,8 @@ export interface ActionDefinition<
   readonly path: string;
   readonly builtin: boolean;
   readonly hooks: ActionHooks;
+  /** Related tables custom persistence may write; this action's resource is implicit. */
+  readonly writes: readonly string[];
   /**
    * Action options: `trashed` lets index accept ?trashed=with|only; `reveal` names the
    * hidden columns the action's reply carries (D24).
@@ -122,6 +133,7 @@ type MethodOf<Method> = HttpMethod extends Method ? 'post' : Method;
 
 /** `reveal` on an action that replies with one record: hidden columns its reply carries (D24). */
 type RevealOption<V> = { reveal?: V };
+type NoWrites = { writes?: never };
 
 /**
  * The hidden columns an action's reply still leaves out: every one, unless it reveals some.
@@ -293,7 +305,8 @@ export type ActionBuilder<
     name: N,
     spec?: MemberSpec<M, N, S, R, StillHidden<Hidden, V>> & {
       method?: Method;
-    } & ReplyOption<X> &
+    } & (MethodOf<Method> extends 'get' ? NoWrites : unknown) &
+      ReplyOption<X> &
       RevealOption<V>,
   ): Checked<
     X,
@@ -318,7 +331,10 @@ export type ActionBuilder<
     const X extends ReplySchema,
   >(
     name: N,
-    spec?: CollectionSpec<M, N, S, Result, R> & { method?: Method } & ReplyOption<X>,
+    spec?: CollectionSpec<M, N, S, Result, R> & {
+      method?: Method;
+    } & (MethodOf<Method> extends 'get' ? NoWrites : unknown) &
+      ReplyOption<X>,
   ): Checked<
     X,
     Reply<200, Result>,
@@ -498,6 +514,173 @@ const BUILTIN: ReadonlySet<string> = new Set<BuiltinAction>([
   'restore',
   'purge',
 ]);
+
+interface TableForeignKey {
+  readonly column: string;
+  readonly key: string;
+  readonly table: PgTable;
+}
+
+/** Single-column foreign keys with their actual Drizzle target tables (D36). */
+function tableForeignKeys(table: PgTable): TableForeignKey[] {
+  return getTableConfig(table).foreignKeys.flatMap((foreignKey) => {
+    const reference = foreignKey.reference();
+    const [column, ...more] = reference.columns;
+    const [target, ...others] = reference.foreignColumns;
+    if (!column || !target || more.length > 0 || others.length > 0) return [];
+    return [
+      {
+        column: column.name,
+        key: target.name,
+        table: (target as unknown as { table: PgTable }).table,
+      },
+    ];
+  });
+}
+
+/** The generated relation named `project` is its single-column `project_id` foreign key. */
+function namedRelation(table: PgTable, name: string): TableForeignKey[] {
+  return tableForeignKeys(table).filter(
+    (foreignKey) =>
+      foreignKey.column.endsWith('_id') && foreignKey.column.slice(0, -'_id'.length) === name,
+  );
+}
+
+function resolveMemberPath(
+  start: PgTable,
+  via: readonly string[],
+  fail: (message: string) => never,
+  label: string,
+): { table: PgTable; path: MemberPathHop[] } {
+  let table = start;
+  const path: MemberPathHop[] = [];
+  for (const relation of via) {
+    const matches = namedRelation(table, relation);
+    if (matches.length === 0) {
+      fail(`${label} relation "${relation}" is not a relation of ${getTableName(table)}`);
+    }
+    if (matches.length > 1) {
+      fail(`${label} relation "${relation}" is ambiguous on ${getTableName(table)}`);
+    }
+    const match = matches[0];
+    if (!match) fail(`${label} relation "${relation}" did not resolve`);
+    path.push(Object.freeze({ relation, ...match }));
+    table = match.table;
+  }
+  return { table, path };
+}
+
+const isMemberRelated = (value: unknown): value is MemberRelated => {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const rule = value as Record<string, unknown>;
+  return (
+    (Array.isArray(rule.via) && rule.member === undefined) ||
+    (rule.member === true && rule.via === undefined)
+  );
+};
+
+/** Resolves an allow.member() declaration once, while blend() can name definition errors. */
+function resolveMemberPolicy<M extends Model>(
+  policy: Policy<M>,
+  model: M,
+  fail: (message: string) => never,
+): Policy<M> {
+  if (!isMemberPolicy(policy)) return policy;
+  const rootPath = resolveMemberPath(model.table as PgTable, policy.via, fail, 'member policy');
+  const { table, path } = rootPath;
+
+  const memberColumns = getColumns(policy.through.model.table);
+  if (!(policy.through.member in memberColumns)) {
+    fail(
+      `member policy member "${policy.through.member}" is not a column of ${policy.through.model.name}`,
+    );
+  }
+  const membershipRoots = tableForeignKeys(policy.through.model.table as PgTable).filter(
+    (foreignKey) => foreignKey.table === table,
+  );
+  if (membershipRoots.length === 0) {
+    fail(`member policy ${policy.through.model.name} has no foreign key to ${getTableName(table)}`);
+  }
+  if (membershipRoots.length > 1) {
+    fail(
+      `member policy ${policy.through.model.name} has more than one foreign key to ${getTableName(table)}`,
+    );
+  }
+  const membershipRoot = membershipRoots[0];
+  if (!membershipRoot) fail('member policy membership root did not resolve');
+  const writable = new Set(
+    Object.keys(getColumns(model.table)).filter((column) => !model.meta.generated.includes(column)),
+  );
+  const memberLinks = tableForeignKeys(policy.through.model.table as PgTable).filter(
+    (foreignKey) => foreignKey.column === policy.through.member,
+  );
+  const resolvedRelated: ResolvedMemberRelated[] = [];
+  for (const [field, declaration] of Object.entries(policy.related)) {
+    if (!isMemberRelated(declaration)) {
+      fail(`member policy related "${field}" must use { via } or { member: true }`);
+    }
+    if (!writable.has(field)) {
+      fail(`member policy related "${field}" is not a writable column of ${model.name}`);
+    }
+    const links = tableForeignKeys(model.table as PgTable).filter(
+      (foreignKey) => foreignKey.column === field,
+    );
+    if (links.length === 0) {
+      fail(`member policy related "${field}" is not a single-column foreign key`);
+    }
+    if (links.length > 1) {
+      fail(`member policy related "${field}" is ambiguous on ${model.name}`);
+    }
+    const link = links[0];
+    if (!link) fail(`member policy related "${field}" did not resolve`);
+
+    if (declaration.via !== undefined) {
+      const relatedPath = resolveMemberPath(
+        link.table,
+        declaration.via,
+        fail,
+        `member policy related "${field}"`,
+      );
+      if (relatedPath.table !== table) {
+        fail(`member policy related "${field}" does not resolve to ${getTableName(table)}`);
+      }
+      resolvedRelated.push(
+        Object.freeze({
+          kind: 'via',
+          field,
+          key: link.key,
+          table: link.table,
+          path: Object.freeze(relatedPath.path),
+        }),
+      );
+      continue;
+    }
+
+    if (memberLinks.length !== 1) {
+      fail(
+        `member policy member "${policy.through.member}" must be a single-column foreign key for related member checks`,
+      );
+    }
+    const memberLink = memberLinks[0];
+    if (!memberLink) fail('member policy member relation did not resolve');
+    if (link.table !== memberLink.table || link.key !== memberLink.key) {
+      fail(
+        `member policy related "${field}" must reference the same identity as ${policy.through.member}`,
+      );
+    }
+    resolvedRelated.push(Object.freeze({ kind: 'member', field }));
+  }
+  return Object.freeze({
+    ...policy,
+    path: Object.freeze(path),
+    root: table,
+    membershipRoot: Object.freeze({
+      column: membershipRoot.column,
+      key: membershipRoot.key,
+    }),
+    resolvedRelated: Object.freeze(resolvedRelated),
+  }) as MemberPolicy<M>;
+}
 /** The hooks an action spec may hold: one per stage, and an index's scope (D22). */
 const HOOK_NAMES = [
   'rules',
@@ -517,6 +700,7 @@ type AnySpec = { [K in (typeof HOOK_NAMES)[number]]?: ActionHooks[K] } & {
   trashed?: boolean;
   reveal?: readonly string[];
   reply?: unknown;
+  writes?: RelatedWrites;
 };
 
 const isSchema = (value: unknown): value is z.ZodType =>
@@ -554,6 +738,7 @@ function define(
     path,
     builtin,
     hooks: Object.freeze(hooks) as ActionHooks,
+    writes: Object.freeze((spec.writes ?? []).map((model) => model.name)),
     options: Object.freeze({
       ...(spec.trashed ? { trashed: true } : {}),
       ...(spec.reveal ? { reveal: Object.freeze([...spec.reveal]) } : {}),
@@ -593,6 +778,20 @@ function builderFor(model: Model) {
       if (spec?.[hook] !== undefined && !saves({ on, action: name })) {
         fail(`${name} writes nothing, so it has no ${hook}`);
       }
+    }
+    if (spec?.writes !== undefined) {
+      if (method === 'get') fail(`${name} is GET, so it cannot declare writes`);
+      if (!Array.isArray(spec.writes) || spec.writes.length === 0) {
+        fail(`${name} writes must name at least one related model`);
+      }
+      const names = spec.writes.map((written) => written?.name);
+      if (names.some((written) => typeof written !== 'string')) {
+        fail(`${name} writes must name models`);
+      }
+      if (names.includes(model.name))
+        fail(`${name} writes its own table implicitly; omit ${model.name}`);
+      const duplicate = names.find((written, index) => names.indexOf(written) !== index);
+      if (duplicate) fail(`${name} writes ${duplicate} more than once`);
     }
     return define(name, on, method, path, builtin, spec, reply ?? undefined);
   };
@@ -700,11 +899,24 @@ export function blend<
   for (const action of actions) {
     const chosen = isPolicy(policy) ? policy : (policy[action.name] ?? policy.default);
     if (!chosen) fail(`action "${action.name}" has no policy; add it or a default`);
-    else policies[action.name] = chosen;
+    else policies[action.name] = resolveMemberPolicy(chosen, model, fail);
   }
   if (!isPolicy(policy)) {
     for (const key of Object.keys(policy)) {
       if (key !== 'default' && !seen.has(key)) fail(`policy for "${key}", which is not an action`);
+    }
+  }
+
+  // D36: a replacement load could omit the member policy's EXISTS predicate, and a root's own
+  // store has no membership row to check yet (a row cannot have members before it exists).
+  for (const action of actions) {
+    const actionPolicy = policies[action.name];
+    if (!actionPolicy || !isMemberPolicy(actionPolicy)) continue;
+    if ((action.name === 'index' || action.on === 'member') && action.hooks.load) {
+      fail(`${action.name} has a member policy, so it cannot replace the default load`);
+    }
+    if (action.name === 'store' && actionPolicy.via.length === 0) {
+      fail('store cannot use a member policy rooted on its own table; nothing is a member yet');
     }
   }
 

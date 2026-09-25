@@ -94,3 +94,31 @@ An enum column accepts only its values. `schema.gen.ts` exports each enum under 
 4. `bunx blendx migrate up`, or restart a server that migrates when it starts.
 
 The migrations are generated: never edit them. To undo a change, change the schema back and generate the next migration.
+
+### Expand, backfill, contract
+
+Add a required relationship in three deployable changes. For example, to give every order note an author:
+
+1. **Expand:** add a nullable `author_id int [ref: > users.id]` to `order_notes`, generate and apply its schema migration, and deploy code that writes the value for new rows. Leave the column nullable while old rows and older application instances still exist.
+2. **Backfill:** add one immutable data step whose filename is its versioned ID, then run `bunx blendx migrate up`. Schema migrations run before this step, so it can use the new column:
+
+   ```ts
+   // data-migrations/20260926_backfill_order_note_authors.ts
+   import { dataMigration } from 'blendx';
+   import { sql } from 'blendx/drizzle';
+
+   export default dataMigration({
+     id: '20260926_backfill_order_note_authors',
+     async up({ tx }) {
+       await tx.execute(sql.raw(`
+         update order_notes
+         set author_id = orders.user_id
+         from orders
+         where order_notes.order_id = orders.id and order_notes.author_id is null
+       `));
+     },
+   });
+   ```
+
+   The transaction records the ID only if the update commits. Never edit a completed step; add a higher-versioned correction if needed.
+3. **Contract:** after the backfill succeeds everywhere and all deployed writers supply `author_id`, make it `[not null]`, generate the final schema migration, and deploy it. The constraint is last so a rolling deployment cannot reject a still-old writer or an unfilled row.

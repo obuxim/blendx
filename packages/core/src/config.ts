@@ -15,6 +15,7 @@ export const CONFIG_DEFAULTS = {
   generated: './src/generated',
   review: './review',
   migrations: './drizzle',
+  dataMigrations: './data-migrations',
 } as const;
 
 type PathKey = keyof typeof CONFIG_DEFAULTS;
@@ -30,8 +31,10 @@ export interface ConfigInput {
   generated?: string;
   /** Folder for the review YAML. */
   review?: string;
-  /** Folder for migrations. */
+  /** Folder for schema migrations. */
   migrations?: string;
+  /** Folder of ordered data-migration modules. */
+  dataMigrations?: string;
   database?: { driver?: DatabaseDriver; url?: string };
   openapi?: { title?: string; version?: string };
 }

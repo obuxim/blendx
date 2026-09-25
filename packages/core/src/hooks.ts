@@ -11,6 +11,14 @@ import type { RegisteredAuth } from './app.ts';
 import type { Model, PublicRow, Row, Writes } from './model.ts';
 import type { DefaultRules, ResolvedRules } from './rules.ts';
 
+/** Related tables a non-GET action may write, beside its resource table. */
+export type RelatedWrites = readonly [Model, ...Model[]];
+
+/** Declared related writes make review and generated-client invalidation cover custom persistence. */
+export interface RelatedWritesOption {
+  writes?: RelatedWrites;
+}
+
 /** A Drizzle Postgres database or transaction handle. */
 export type Db = PgAsyncDatabase<PgQueryResultHKT>;
 
@@ -224,7 +232,8 @@ export type StoreSpec<M extends Model, S extends z.ZodType, R, Hidden extends st
   R
 > &
   SaveHook<M, undefined> &
-  CommitHooks<M, undefined, Input<M, 'store', S>>;
+  CommitHooks<M, undefined, Input<M, 'store', S>> &
+  RelatedWritesOption;
 
 export type UpdateSpec<M extends Model, S extends z.ZodType, R, Hidden extends string> = ValueHooks<
   M,
@@ -238,7 +247,8 @@ export type UpdateSpec<M extends Model, S extends z.ZodType, R, Hidden extends s
 > &
   LoadHook<Row<M>> &
   SaveHook<M, Row<M>> &
-  CommitHooks<M, Row<M>, Input<M, 'update', S>>;
+  CommitHooks<M, Row<M>, Input<M, 'update', S>> &
+  RelatedWritesOption;
 
 /** replace (D34): update's hooks, over the store rules without the key columns. */
 export type ReplaceSpec<
@@ -258,7 +268,8 @@ export type ReplaceSpec<
 > &
   LoadHook<Row<M>> &
   SaveHook<M, Row<M>> &
-  CommitHooks<M, Row<M>, Input<M, 'replace', S>>;
+  CommitHooks<M, Row<M>, Input<M, 'replace', S>> &
+  RelatedWritesOption;
 
 /** show, destroy, restore and purge take no input, so they have no rules or calculate. */
 export type RecordSpec<
@@ -285,7 +296,9 @@ export type RecordSpec<
   LoadHook<Row<M>> &
   (Action extends 'show'
     ? unknown
-    : SaveHook<M, Row<M>> & CommitHooks<M, Row<M>, Input<M, Action, z.ZodType>>);
+    : SaveHook<M, Row<M>> &
+        CommitHooks<M, Row<M>, Input<M, Action, z.ZodType>> &
+        RelatedWritesOption);
 
 export type MemberSpec<
   M extends Model,
@@ -306,7 +319,8 @@ export type MemberSpec<
   LoadHook<Row<M>> &
   SaveHook<M, Row<M>> &
   CommitHooks<M, Row<M>, Input<M, Name, S>> &
-  RouteOptions;
+  RouteOptions &
+  RelatedWritesOption;
 
 /** Collection actions load nothing and save nothing: calculate's result is the reply body. */
 export type CollectionSpec<
@@ -315,7 +329,9 @@ export type CollectionSpec<
   S extends z.ZodType,
   Result,
   R,
-> = ValueHooks<M, Name, S, undefined, Result, Reply<200, Result>, undefined, R> & RouteOptions;
+> = ValueHooks<M, Name, S, undefined, Result, Reply<200, Result>, undefined, R> &
+  RouteOptions &
+  RelatedWritesOption;
 
 export interface IndexPage<Row> {
   data: Row[];
@@ -331,7 +347,7 @@ export type Scope<M extends Model> = {
   readonly [K in keyof Row<M>]?: Row<M>[K] | null | undefined;
 };
 
-/** index: opt in to ?trashed, scope the listing, and override load or respond. */
+/** index: opt in to ?trashed, scope the listing, and override rules, load or respond. */
 export type IndexSpec<M extends Model, R, Hidden extends string, Extra = unknown> = {
   /** Accept ?trashed=with|only. Soft-delete tables only. */
   trashed?: boolean;
@@ -348,6 +364,6 @@ export type IndexSpec<M extends Model, R, Hidden extends string, Extra = unknown
     IndexPage<PublicRow<M, Extract<Hidden, keyof Row<M>>> & Extra>,
     R
   >,
-  'authorize' | 'respond'
+  'rules' | 'authorize' | 'respond'
 > &
   LoadHook<IndexPage<Row<M>>>;

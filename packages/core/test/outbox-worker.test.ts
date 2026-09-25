@@ -35,7 +35,7 @@ beforeAll(async () => {
   await database.db.insert(usersTable).values([{ email: 'ada@example.com', password: 'a' }]);
   await database.db.insert(ordersTable).values([{ user_id: 1, total: '10.00' }]);
 }, 60_000);
-afterAll(() => database.close());
+afterAll(() => database?.close());
 beforeEach(async () => {
   await database.db.delete(outbox);
 });

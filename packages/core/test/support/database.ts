@@ -16,6 +16,25 @@ import { Pool } from 'pg';
 
 const coreDir = join(import.meta.dir, '..', '..');
 
+/** Drizzle-kit accepts Windows absolute paths only when its CLI arguments use `/`. */
+export const drizzleCliPath = (path: string) => path.replaceAll('\\', '/');
+
+const removeMigrations = (out: string) => rm(out, { recursive: true, force: true });
+
+/** Cleanup from a failed setup must not hide the setup error. */
+async function removeAfterFailure(out: string, close?: () => Promise<unknown>) {
+  try {
+    await close?.();
+  } catch {
+    // The setup error is the useful one.
+  }
+  try {
+    await removeMigrations(out);
+  } catch {
+    // The setup error is the useful one.
+  }
+}
+
 export const goldenSchema = (name: 'addition' | 'shop' | 'kitchen-sink') =>
   join(coreDir, '..', 'dbml', 'test', 'golden', `${name}.schema.gen.ts`);
 
@@ -27,26 +46,34 @@ export interface TestDatabase {
   close(): Promise<void>;
 }
 
-async function generateMigrations(schemaFile: string): Promise<string> {
-  const out = await mkdtemp(join(tmpdir(), 'blendx-db-'));
-  const kit = Bun.spawnSync(
-    [
-      process.execPath,
-      'x',
-      '--bun',
-      'drizzle-kit',
-      'generate',
-      '--dialect=postgresql',
-      `--schema=${schemaFile}`,
-      `--out=${out}`,
-      '--name=init',
-    ],
-    { cwd: coreDir, stdout: 'pipe', stderr: 'pipe' },
-  );
-  if (kit.exitCode !== 0) {
-    throw new Error(`drizzle-kit generate failed:\n${kit.stdout}\n${kit.stderr}`);
+export async function generateMigrations(
+  schemaFile: string,
+  temporaryRoot = tmpdir(),
+): Promise<string> {
+  const out = await mkdtemp(join(temporaryRoot, 'blendx-db-'));
+  try {
+    const kit = Bun.spawnSync(
+      [
+        process.execPath,
+        'x',
+        '--bun',
+        'drizzle-kit',
+        'generate',
+        '--dialect=postgresql',
+        `--schema=${drizzleCliPath(schemaFile)}`,
+        `--out=${drizzleCliPath(out)}`,
+        '--name=init',
+      ],
+      { cwd: coreDir, stdout: 'pipe', stderr: 'pipe' },
+    );
+    if (kit.exitCode !== 0) {
+      throw new Error(`drizzle-kit generate failed:\n${kit.stdout}\n${kit.stderr}`);
+    }
+    return out;
+  } catch (error) {
+    await removeAfterFailure(out);
+    throw error;
   }
-  return out;
 }
 
 /** An in-process PGlite database. Pass `log` to collect every query, lowercased. */
@@ -55,20 +82,28 @@ export async function migratedDatabase(
   options: { log?: string[] } = {},
 ): Promise<TestDatabase> {
   const out = await generateMigrations(schemaFile);
-  const client = new PGlite();
-  const { log } = options;
-  const db = drizzle({
-    client,
-    ...(log ? { logger: { logQuery: (query: string) => log.push(query.toLowerCase()) } } : {}),
-  });
-  await migrate(db, { migrationsFolder: out });
-  return {
-    db: db as unknown as Db,
-    async close() {
-      await client.close();
-      await rm(out, { recursive: true, force: true });
-    },
-  };
+  let client: PGlite | undefined;
+  try {
+    client = new PGlite();
+    const openedClient = client;
+    const { log } = options;
+    const db = drizzle({
+      client: openedClient,
+      ...(log ? { logger: { logQuery: (query: string) => log.push(query.toLowerCase()) } } : {}),
+    });
+    await migrate(db, { migrationsFolder: out });
+    return {
+      db: db as unknown as Db,
+      async close() {
+        await openedClient.close();
+        await removeMigrations(out);
+      },
+    };
+  } catch (error) {
+    const failedClient = client;
+    await removeAfterFailure(out, failedClient ? () => failedClient.close() : undefined);
+    throw error;
+  }
 }
 
 /**
@@ -79,18 +114,26 @@ export async function postgresDatabase(schemaFile: string): Promise<TestDatabase
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error('BLENDX_TEST_DB=pg needs DATABASE_URL pointing at a scratch database');
   const out = await generateMigrations(schemaFile);
-  const pool = new Pool({ connectionString: url });
-  await pool.query(
-    'drop schema if exists drizzle cascade; drop schema if exists public cascade; create schema public',
-  );
-  const db = drizzlePostgres({ client: pool });
-  await migratePostgres(db, { migrationsFolder: out });
-  return {
-    db: db as unknown as Db,
-    pool,
-    async close() {
-      await pool.end();
-      await rm(out, { recursive: true, force: true });
-    },
-  };
+  let pool: Pool | undefined;
+  try {
+    pool = new Pool({ connectionString: url });
+    const openedPool = pool;
+    await openedPool.query(
+      'drop schema if exists drizzle cascade; drop schema if exists public cascade; create schema public',
+    );
+    const db = drizzlePostgres({ client: openedPool });
+    await migratePostgres(db, { migrationsFolder: out });
+    return {
+      db: db as unknown as Db,
+      pool: openedPool,
+      async close() {
+        await openedPool.end();
+        await removeMigrations(out);
+      },
+    };
+  } catch (error) {
+    const failedPool = pool;
+    await removeAfterFailure(out, failedPool ? () => failedPool.end() : undefined);
+    throw error;
+  }
 }

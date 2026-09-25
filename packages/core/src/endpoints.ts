@@ -106,6 +106,8 @@ export interface EndpointDefinition {
   readonly trashed: boolean;
   /** The action's own hooks. */
   readonly hooks: ActionHooks;
+  /** Related tables custom persistence may write; the resource table is implicit. */
+  readonly writes: readonly string[];
   /** The resource-level hooks, shared by every action of the resource. */
   readonly resourceHooks: ResourceHooks;
   /** The reply schema the action declares for OpenAPI (D14), if any. */
@@ -172,6 +174,7 @@ export function toEndpoints(resource: Resource): EndpointDefinition[] {
       ...(revealed ? { revealed } : {}),
       trashed: action.options?.trashed === true,
       hooks: action.hooks,
+      writes: action.writes,
       resourceHooks: resource.hooks as ResourceHooks,
       ...(action.reply ? { reply: action.reply } : {}),
       // D28: only index and show take ?include=.

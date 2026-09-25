@@ -186,6 +186,7 @@ $ bunx blendx migrate generate --name init
 [✓] Your SQL migration ➜ drizzle/20260913064207_init/migration.sql 🚀
 $ bunx blendx migrate up
 applied 1 migration from drizzle
+data-migrations: no pending data migrations
 ```
 
 The first command writes the SQL that brings the database to the schema, and the second applies it. After each schema change: generate, then the next migration, named after what changed.

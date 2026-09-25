@@ -61,12 +61,12 @@ describe('blendx migrate', () => {
   test('up applies the migration once', async () => {
     expect(await cli('migrate', 'up')).toEqual({
       code: 0,
-      out: 'applied 1 migration from drizzle\n',
+      out: 'applied 1 migration from drizzle\ndata-migrations: no pending data migrations\n',
       err: '',
     });
     expect(await cli('migrate', 'up')).toEqual({
       code: 0,
-      out: 'drizzle: no pending migrations\n',
+      out: 'drizzle: no pending migrations\ndata-migrations: no pending data migrations\n',
       err: '',
     });
 

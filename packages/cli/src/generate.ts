@@ -112,8 +112,8 @@ export function emitAppFiles(
   return {
     files: {
       // routes.gen.ts first: it refuses two blends of one table and two actions on one route.
-      'routes.gen.ts': emitRoutes(blends),
-      'client.gen.ts': emitClient(resources),
+      'routes.gen.ts': emitRoutes(blends, app, relativeTo(config.generated, config.app)),
+      'client.gen.ts': emitClient(resources, app),
       'outbox.gen.ts': emitOutbox(hasLaterHooks(app, resources)),
       'register.gen.ts': emitRegister(relativeTo(config.generated, config.app)),
       'drizzle.config.gen.ts': emitDrizzleConfig({

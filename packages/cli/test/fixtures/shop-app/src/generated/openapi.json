@@ -823,6 +823,16 @@
             },
             "description": "The request has no identity"
           },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The policy or an authorize hook refused it"
+          },
           "404": {
             "content": {
               "application/problem+json": {

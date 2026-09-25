@@ -12,6 +12,7 @@ export default blend(models.orders, {
   actions: (a) => [
     a.member('refund', {
       rules: () => z.object({ reason: z.string() }),
+      writes: [models.users],
     }),
     a.collection('quote', {
       method: 'get',

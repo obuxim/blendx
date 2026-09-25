@@ -1,0 +1,204 @@
+{
+  "format": 1,
+  "fixture": "shop",
+  "cases": [
+    {
+      "id": "APP-ACTION-AUTH",
+      "title": "a domain action requires identity before it reads malformed JSON (D37)",
+      "steps": [
+        {
+          "request": { "method": "POST", "path": "/invites/alpha-invite/accept", "text": "{" },
+          "expect": {
+            "status": 401,
+            "headers": { "content-type": "application/problem+json" },
+            "body": { "status": 401 }
+          }
+        }
+      ]
+    },
+    {
+      "id": "APP-ACTION-INVITE",
+      "title": "a typed app action accepts an invite transactionally through its generated route (D37)",
+      "steps": [
+        {
+          "request": {
+            "method": "POST",
+            "path": "/invites/alpha-invite/accept",
+            "headers": { "x-user-id": "2" },
+            "body": {}
+          },
+          "expect": { "status": 200, "body": { "project_id": 1, "accepted": true } }
+        },
+        {
+          "request": { "method": "GET", "path": "/tasks", "headers": { "x-user-id": "2" } },
+          "expect": {
+            "status": 200,
+            "body": { "data": [{ "id": 1 }, { "id": 2 }], "meta": { "total": 2 } }
+          }
+        },
+        {
+          "request": {
+            "method": "POST",
+            "path": "/invites/alpha-invite/accept",
+            "headers": { "x-user-id": "2" },
+            "body": {}
+          },
+          "expect": {
+            "status": 409,
+            "headers": { "content-type": "application/problem+json" },
+            "body": { "status": 409 }
+          }
+        }
+      ]
+    },
+    {
+      "id": "APP-ACTION-INPUT",
+      "title": "a domain action validates its JSON input before its handler (D37)",
+      "steps": [
+        {
+          "request": {
+            "method": "POST",
+            "path": "/invites/alpha-invite/accept",
+            "headers": { "x-user-id": "2" },
+            "body": { "extra": true }
+          },
+          "expect": {
+            "status": 422,
+            "headers": { "content-type": "application/problem+json" },
+            "body": { "status": 422, "errors": [{ "pointer": "/extra" }] }
+          }
+        }
+      ]
+    },
+    {
+      "id": "APP-ACTION-BULK-ASSIGN",
+      "title": "a domain action updates declared task rows in its transaction (D37)",
+      "steps": [
+        {
+          "request": {
+            "method": "POST",
+            "path": "/invites/alpha-invite/accept",
+            "headers": { "x-user-id": "2" },
+            "body": {}
+          },
+          "expect": { "status": 200 }
+        },
+        {
+          "request": {
+            "method": "POST",
+            "path": "/tasks/bulk-assign",
+            "headers": { "x-user-id": "2" },
+            "body": { "task_ids": [1], "assignee_id": 2 }
+          },
+          "expect": { "status": 200, "body": { "assigned": 1 } }
+        },
+        {
+          "request": { "method": "GET", "path": "/tasks/1", "headers": { "x-user-id": "2" } },
+          "expect": { "status": 200, "body": { "id": 1, "assignee_id": 2 } }
+        }
+      ]
+    },
+    {
+      "id": "APP-ACTION-RELATION-SET",
+      "title": "a domain action replaces a task's eligible assignee set and clears it (D39)",
+      "steps": [
+        {
+          "request": {
+            "method": "POST",
+            "path": "/users",
+            "body": { "email": "carol@example.com", "password": "carol-secret" }
+          },
+          "expect": { "status": 201, "body": { "id": 3 } }
+        },
+        {
+          "request": {
+            "method": "POST",
+            "path": "/invites/alpha-invite/accept",
+            "headers": { "x-user-id": "3" },
+            "body": {}
+          },
+          "expect": { "status": 200, "body": { "project_id": 1, "accepted": true } }
+        },
+        {
+          "request": {
+            "method": "PUT",
+            "path": "/tasks/1/assignees",
+            "headers": { "x-user-id": "1" },
+            "body": { "assignees": [{ "id": 1 }, { "id": 3 }] }
+          },
+          "expect": {
+            "status": 200,
+            "body": { "task_id": 1, "assignees": [{ "id": 1 }, { "id": 3 }] }
+          }
+        },
+        {
+          "request": {
+            "method": "PUT",
+            "path": "/tasks/1/assignees",
+            "headers": { "x-user-id": "1" },
+            "body": { "assignees": [{ "id": 2 }] }
+          },
+          "expect": {
+            "status": 422,
+            "headers": { "content-type": "application/problem+json" },
+            "body": { "status": 422, "errors": [{ "pointer": "/assignees/0/id" }] }
+          }
+        },
+        {
+          "request": {
+            "method": "PUT",
+            "path": "/tasks/1/assignees",
+            "headers": { "x-user-id": "1" },
+            "body": { "assignees": [{ "id": 1 }, { "id": 1 }] }
+          },
+          "expect": {
+            "status": 422,
+            "headers": { "content-type": "application/problem+json" },
+            "body": { "status": 422, "errors": [{ "pointer": "/assignees/1/id" }] }
+          }
+        },
+        {
+          "request": {
+            "method": "PUT",
+            "path": "/tasks/1/assignees",
+            "headers": { "x-user-id": "1" },
+            "body": { "assignees": [] }
+          },
+          "expect": { "status": 200, "body": { "task_id": 1, "assignees": [] } }
+        }
+      ]
+    },
+    {
+      "id": "APP-ACTION-RELATION-OWNER",
+      "title": "a non-member cannot distinguish another project's task from a missing owner (D39)",
+      "steps": [
+        {
+          "request": {
+            "method": "PUT",
+            "path": "/tasks/2/assignees",
+            "headers": { "x-user-id": "1" },
+            "body": { "assignees": [] }
+          },
+          "expect": {
+            "status": 404,
+            "headers": { "content-type": "application/problem+json" },
+            "body": { "status": 404 }
+          }
+        },
+        {
+          "request": {
+            "method": "PUT",
+            "path": "/tasks/not-an-id/assignees",
+            "headers": { "x-user-id": "1" },
+            "body": { "assignees": [] }
+          },
+          "expect": {
+            "status": 404,
+            "headers": { "content-type": "application/problem+json" },
+            "body": { "status": 404 }
+          }
+        }
+      ]
+    }
+  ]
+}

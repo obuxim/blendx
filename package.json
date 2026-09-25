@@ -13,7 +13,7 @@
     "pack": "bun scripts/pack.ts",
     "pack:test": "bun scripts/pack-test.ts",
     "version": "bun scripts/version.ts",
-    "generated": "blendx generate --check --cwd examples/addition && blendx review --check --cwd examples/addition && blendx generate --check --cwd examples/expenses && blendx review --check --cwd examples/expenses && blendx generate --check --cwd packages/conformance/fixtures/shop",
+    "generated": "blendx generate --check --cwd examples/addition && blendx review --check --cwd examples/addition && blendx generate --check --cwd examples/expenses && blendx review --check --cwd examples/expenses && blendx generate --check --cwd packages/conformance/fixtures/shop && blendx review --check --cwd packages/conformance/fixtures/shop",
     "lint": "biome check .",
     "fix": "biome check --write .",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.portable.json && tsc --noEmit -p packages/core/test/register/tsconfig.json && tsc --noEmit -p packages/cli/test/register/tsconfig.json && tsc --noEmit -p packages/cli/test/fixtures/shop-app/tsconfig.json && tsc --noEmit -p examples/addition/tsconfig.json && tsc --noEmit -p examples/expenses/tsconfig.json &&tsc --noEmit -p packages/conformance/fixtures/shop/tsconfig.json && tsc --noEmit -p packages/react/test/tsconfig.json && tsc --noEmit -p examples/addition/web/tsconfig.json",

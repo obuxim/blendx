@@ -4,7 +4,8 @@
  */
 import { describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
-import { allow, blend, type Resource } from '@blendx/core';
+import { allow, blend, defineApp, type Resource } from '@blendx/core';
+import { z } from 'blendx';
 import { models } from '../../dbml/test/golden/shop.schema.gen.ts';
 import { type BlendModule, emitRoutes } from '../src/emit-routes.ts';
 import orderNotes from './fixtures/shop/blends/order_notes.ts';
@@ -89,6 +90,75 @@ describe('emitRoutes', () => {
     });
     expect(() => emitRoutes([{ specifier: './orders.ts', resource: clashing }])).toThrow(
       'orders.estimate and orders.quote both route GET /orders/quote',
+    );
+  });
+
+  test('app actions import the app once and register their one declaration after resources', () => {
+    const app = defineApp({
+      actions: (a) => [
+        a.action('accept_invite', {
+          method: 'post',
+          path: '/invites/:token/accept',
+          policy: allow.public,
+          input: z.object({}),
+          reply: { status: 200, body: z.object({ accepted: z.literal(true) }) },
+          writes: [models.users],
+          handler: ({ tx }) => {
+            void tx;
+            return { status: 200, body: { accepted: true as const } };
+          },
+        }),
+      ],
+    });
+    const output = emitRoutes(shop, app, '../app.ts');
+    expect(output).toContain('import { router, run, runAction } from "blendx";');
+    expect(output).toContain('import app from "../app.ts";');
+    expect(output).toContain('.post("/invites/:token/accept", ...runAction(app, "accept_invite"))');
+  });
+
+  test('an app action cannot collide with a resource route', () => {
+    const app = defineApp({
+      actions: (a) => [
+        a.action('create_order', {
+          method: 'post',
+          path: '/orders',
+          policy: allow.public,
+          input: z.object({}),
+          reply: { status: 200, body: z.object({ ok: z.literal(true) }) },
+          writes: [models.orders],
+          handler: ({ tx }) => {
+            void tx;
+            return { status: 200, body: { ok: true as const } };
+          },
+        }),
+      ],
+    });
+    expect(() => emitRoutes(shop, app, '../app.ts')).toThrow(
+      'app.create_order and orders.store both route POST /orders',
+    );
+  });
+
+  test('two app actions on one method and path are refused by the shared route pass', () => {
+    const action = (name: string) =>
+      defineApp({
+        actions: (a) => [
+          a.action(name, {
+            method: 'post',
+            path: '/invites/accept',
+            policy: allow.public,
+            input: z.object({}),
+            reply: { status: 200, body: z.object({ ok: z.literal(true) }) },
+            writes: [models.users],
+            handler: ({ tx }) => {
+              void tx;
+              return { status: 200, body: { ok: true as const } };
+            },
+          }),
+        ],
+      }).actions[0];
+    const app = { ...defineApp({}), actions: [action('first'), action('second')] };
+    expect(() => emitRoutes(shop, app, '../app.ts')).toThrow(
+      'app.second and app.first both route POST /invites/accept',
     );
   });
 });

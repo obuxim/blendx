@@ -3,7 +3,7 @@
  * packages/spec/derivation-rules.md.
  */
 import { describe, expect, test } from 'bun:test';
-import { defaultRules, recordSchema, resetColumns } from '@blendx/core';
+import { defaultRules, indexSorts, recordSchema, resetColumns } from '@blendx/core';
 import type { z } from 'zod';
 import { models as addition } from '../../dbml/test/golden/addition.schema.gen.ts';
 import { models as kitchen } from '../../dbml/test/golden/kitchen-sink.schema.gen.ts';
@@ -221,6 +221,18 @@ describe('index rules', () => {
   test('DR-INDEX-SORT: the same columns sort ascending, or descending with a minus', () => {
     expect(index.parse({ sort: '-created_at' })).toEqual({ sort: '-created_at' });
     expect(ok(index, { sort: 'total' })).toBe(false);
+    expect(indexSorts(shop.orders)).toEqual([
+      'id',
+      'user_id',
+      'status',
+      'public_id',
+      'created_at',
+      '-id',
+      '-user_id',
+      '-status',
+      '-public_id',
+      '-created_at',
+    ]);
   });
 
   test('DR-INDEX-STRICT: other query parameters are rejected', () => {
@@ -232,6 +244,8 @@ describe('index rules', () => {
     expect(issues(users, { email: 'a@b.c' })).toEqual(unknownKeys);
     expect(ok(users, { sort: 'email' })).toBe(false);
     expect(ok(defaultRules(shop.users, builtin('index')), { email: 'a@b.c' })).toBe(true);
+    expect(indexSorts(shop.orders, ['status'])).not.toContain('status');
+    expect(indexSorts(shop.orders, ['status'])).not.toContain('-status');
   });
 
   test('DR-INDEX-TRASHED: ?trashed is opt-in, and only on soft-delete tables', () => {

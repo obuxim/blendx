@@ -1,6 +1,6 @@
 /** The conformance case format (packages/spec/conformance.md), as TypeScript types. */
 
-export type Method = 'GET' | 'POST' | 'PATCH' | 'DELETE';
+export type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
 export interface CaseRequest {
   method: Method;

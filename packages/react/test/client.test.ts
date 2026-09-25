@@ -17,7 +17,7 @@ import { createDatabase, createServer, type Database } from 'blendx';
 import { hc } from 'blendx/client';
 import { sql } from 'blendx/drizzle';
 import app from '../../conformance/fixtures/shop/src/app.ts';
-import { tables } from '../../conformance/fixtures/shop/src/generated/client.gen.ts';
+import { appActions, tables } from '../../conformance/fixtures/shop/src/generated/client.gen.ts';
 import { type AppType, routes } from '../../conformance/fixtures/shop/src/generated/routes.gen.ts';
 import { createBlendxClient, ProblemDetailsError } from '../src/index.ts';
 
@@ -43,7 +43,11 @@ function apiFor(userId?: number) {
   const fetch = ((input: RequestInfo | URL, init?: RequestInit) =>
     server.request(input, init)) as typeof globalThis.fetch;
   const headers: Record<string, string> = userId ? { 'x-user-id': String(userId) } : {};
-  return createBlendxClient(hc<AppType>('http://localhost', { fetch, headers }), tables);
+  return createBlendxClient(
+    hc<AppType>('http://localhost', { fetch, headers }),
+    tables,
+    appActions,
+  );
 }
 
 /** A client without retries, so a refusal fails the first time. */
@@ -61,7 +65,7 @@ const rejection = (promise: Promise<unknown>) =>
 describe('createBlendxClient', () => {
   test('every table and action of the map, a GET action as a query and any other as a mutation', () => {
     const api = apiFor();
-    expect(Object.keys(api)).toEqual(Object.keys(tables));
+    expect(Object.keys(api)).toEqual([...Object.keys(tables), 'appActions']);
     expect(Object.keys(api.orders)).toEqual(Object.keys(tables.orders.actions));
     expect(Object.keys(api.orders.index)).toEqual([
       'queryOptions',
@@ -71,6 +75,26 @@ describe('createBlendxClient', () => {
     expect(Object.keys(api.orders.quote)).toEqual(['queryOptions', 'fieldErrors']);
     expect(Object.keys(api.orders.store)).toEqual(['mutationOptions', 'fieldErrors']);
     expect(Object.keys(api.orders.refund)).toEqual(['mutationOptions', 'fieldErrors']);
+    expect(Object.keys(api.appActions)).toEqual([
+      'accept_invite',
+      'bulk_assign_tasks',
+      'replace_task_assignees',
+      'task_count',
+      'upload_avatar',
+    ]);
+    expect(Object.keys(api.appActions.bulk_assign_tasks)).toEqual([
+      'mutationOptions',
+      'fieldErrors',
+    ]);
+    expect(Object.keys(api.appActions.replace_task_assignees)).toEqual([
+      'mutationOptions',
+      'fieldErrors',
+    ]);
+    expect(appActions.replace_task_assignees).toEqual({
+      route: 'PUT /tasks/:id/assignees',
+      writes: ['tasks', 'task_assignees'],
+    });
+    expect(Object.keys(api.appActions.task_count)).toEqual(['queryOptions', 'fieldErrors']);
   });
 
   test('a query key is [table, action, input], and no input is {}', () => {
@@ -86,6 +110,19 @@ describe('createBlendxClient', () => {
 
   test('a mutation key is [table, action]', () => {
     expect(apiFor().orders.store.mutationOptions().mutationKey).toEqual(['orders', 'store']);
+  });
+
+  test('a domain action has its own mutation key', () => {
+    expect(apiFor(1).appActions.replace_task_assignees.mutationOptions().mutationKey).toEqual([
+      'appActions',
+      'replace_task_assignees',
+    ]);
+  });
+
+  test('a GET domain action has its own query key and reply', async () => {
+    const options = apiFor(1).appActions.task_count.queryOptions();
+    expect([...options.queryKey]).toEqual(['appActions', 'task_count', {}]);
+    expect(await queryClient().fetchQuery(options)).toEqual({ total: 2 });
   });
 });
 
@@ -193,6 +230,59 @@ describe('invalidation (N.2)', () => {
     }
   });
 
+  test('a domain action invalidates its declared writes and refetches active task queries', async () => {
+    const client = freshClient();
+    const api = apiFor(2);
+    await new MutationObserver(client, api.appActions.accept_invite.mutationOptions()).mutate({
+      param: { token: 'alpha-invite' },
+    });
+    const index = api.tasks.index.queryOptions();
+    await client.fetchQuery(index);
+    const observer = new QueryObserver(client, index);
+    const unsubscribe = observer.subscribe(() => {});
+    try {
+      await new MutationObserver(client, api.appActions.bulk_assign_tasks.mutationOptions()).mutate(
+        {
+          json: { task_ids: [1], assignee_id: 2 },
+        },
+      );
+      expect(
+        observer.getCurrentResult().data?.data.find((task) => task.id === 1)?.assignee_id,
+      ).toBe(2);
+    } finally {
+      unsubscribe();
+    }
+  });
+
+  test('a relation-set domain action refetches active task queries from its declared owner write', async () => {
+    const client = freshClient();
+    let taskRequests = 0;
+    const fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url.endsWith('/tasks') && (init?.method ?? 'GET') === 'GET') taskRequests += 1;
+      return server.request(input, init);
+    }) as typeof globalThis.fetch;
+    const api = createBlendxClient(
+      hc<AppType>('http://localhost', { fetch, headers: { 'x-user-id': '1' } }),
+      tables,
+      appActions,
+    );
+    const index = api.tasks.index.queryOptions();
+    await client.fetchQuery(index);
+    const observer = new QueryObserver(client, index);
+    const unsubscribe = observer.subscribe(() => {});
+    try {
+      const result = await new MutationObserver(
+        client,
+        api.appActions.replace_task_assignees.mutationOptions(),
+      ).mutate({ param: { id: '1' }, json: { assignees: [{ id: 1 }] } });
+      expect(result).toEqual({ task_id: 1, assignees: [{ id: 1 }] });
+      expect(taskRequests).toBe(2);
+    } finally {
+      unsubscribe();
+    }
+  });
+
   test('every query of its table is invalidated; other tables only when the mutation names them', async () => {
     const client = freshClient();
     const api = apiFor(1);
@@ -209,12 +299,11 @@ describe('invalidation (N.2)', () => {
     await new MutationObserver(client, api.orders.refund.mutationOptions()).mutate(refund);
     expect(invalidated(client, order.queryKey)).toBe(true);
     expect(invalidated(client, quote.queryKey)).toBe(true);
-    expect(invalidated(client, user.queryKey)).toBe(false);
-
-    const naming = api.orders.refund.mutationOptions({ invalidates: ['users'] });
-    await new MutationObserver(client, naming).mutate(refund);
     expect(invalidated(client, user.queryKey)).toBe(true);
-    expect(invalidated(client, notes.queryKey)).toBe(false);
+
+    const naming = api.orders.refund.mutationOptions({ invalidates: ['order_notes'] });
+    await new MutationObserver(client, naming).mutate(refund);
+    expect(invalidated(client, notes.queryKey)).toBe(true);
   });
 
   test('a write to an included table refetches the queries that include it, and leaves the others (N.8)', async () => {
@@ -305,20 +394,23 @@ describe('invalidation (N.2)', () => {
     }
   });
 
-  test('a table a mutation names is followed to the queries that include it too', async () => {
+  test('a declared related-table write invalidates its queries and queries that include it', async () => {
     const client = freshClient();
     const api = apiFor(1);
     const withUser = api.orders.index.queryOptions({ query: { include: 'user' } });
     const plain = api.orders.index.queryOptions();
+    const user = api.users.show.queryOptions({ param: { id: '1' } });
     await client.fetchQuery(withUser);
     await client.fetchQuery(plain);
-    // A write to order_notes says it changes users: orders including user refetch, plain orders do not.
-    await new MutationObserver(
-      client,
-      api.order_notes.store.mutationOptions({ invalidates: ['users'] }),
-    ).mutate({ json: { order_id: 1, body: 'ring twice' } });
+    await client.fetchQuery(user);
+    // refund declares users in its blend, so no per-call invalidates list is needed.
+    await new MutationObserver(client, api.orders.refund.mutationOptions()).mutate({
+      param: { id: '1' },
+      json: { reason: 'damaged' },
+    });
     expect(invalidated(client, withUser.queryKey)).toBe(true);
-    expect(invalidated(client, plain.queryKey)).toBe(false);
+    expect(invalidated(client, user.queryKey)).toBe(true);
+    expect(invalidated(client, plain.queryKey)).toBe(true);
   });
 
   test('a failed mutation invalidates nothing', async () => {

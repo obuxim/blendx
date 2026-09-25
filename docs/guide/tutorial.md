@@ -459,7 +459,14 @@ writes [`review/expenses.yaml`](../../examples/expenses/review/expenses.yaml) an
     stages:
       rules: nothing (an empty object)
       load: the row by id, not soft-deleted, locked for update
-      authorize: an approver # from: schema, action
+      authorize:
+        default: an approver
+        limitation: Custom hooks can change this policy decision.
+        hooks:
+          action:
+            file: blends/expenses.ts
+            source: |-
+              ({ prev, auth, record }) => prev && reviewable(record, auth)
       calculate: the input's writable columns # from: schema, action
       save: update the row, touching updated_at, when there is something to write
       respond: 200 with the saved record

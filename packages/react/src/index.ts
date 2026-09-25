@@ -1,9 +1,9 @@
 /**
- * @blendx/react: TanStack Query options for every action of a blendx app, reached by table
- * and action name (D25). The map comes from the app's generated client.gen.ts and the calls
- * go through the app's hc client, whose types give each action its input and data:
+ * @blendx/react: TanStack Query options for every resource and app-owned action, reached by
+ * table/action name or `appActions` (D25, D37). The maps come from generated client.gen.ts
+ * and the calls go through the app's hc client, whose types give each action its input and data:
  *
- *   const api = createBlendxClient(hc<AppType>('/api'), tables);
+ *   const api = createBlendxClient(hc<AppType>('/api'), tables, appActions);
  *   useQuery(api.orders.show.queryOptions({ param: { id: '1' } }));
  *   useMutation(api.orders.store.mutationOptions());
  *
@@ -26,15 +26,30 @@ import type { ProblemDetails } from 'blendx';
 import type { InferResponseType } from 'blendx/client';
 
 /**
- * The shape of client.gen.ts's `tables`: each table's actions, as `METHOD /path`, its
- * includes, each the table the relation points to (N.8), and the columns of its primary key
+ * The shape of client.gen.ts's `tables`: each table's actions, with their route and declared
+ * related writes, its includes, each the table the relation points to (N.8), and the columns of its primary key
  * in the key's order, one for most tables and several for a composite key (D30, D33).
  */
 export type Tables = {
   readonly [table: string]: {
-    readonly actions: { readonly [action: string]: string };
+    readonly actions: {
+      readonly [action: string]: {
+        readonly route: string;
+        readonly writes: readonly string[];
+        /** Exact default-schema sort strings for index, omitted when rules override it. */
+        readonly sorts?: readonly string[];
+      };
+    };
     readonly includes: { readonly [name: string]: string };
     readonly key: readonly { readonly column: string; readonly type: 'number' | 'string' }[];
+  };
+};
+
+/** The shape of client.gen.ts's appActions: routes with their declared affected tables. */
+export type AppActions = {
+  readonly [action: string]: {
+    readonly route: string;
+    readonly writes: readonly string[];
   };
 };
 
@@ -65,12 +80,17 @@ type At<Node, Path extends string> = Path extends `${infer Head}/${infer Rest}`
     ? Node[Path]
     : never;
 
-/** The hc function of a route: `POST /orders/:id/refund` is client.orders[':id'].refund.$post. */
-type Call<Client, Route> = Route extends `${infer Method} /${infer Path}`
-  ? At<Client, Path> extends infer Node
-    ? Node[`$${Lowercase<Method>}` & keyof Node]
-    : never
+type RouteOf<Action> = Action extends { readonly route: infer Route extends string }
+  ? Route
   : never;
+
+/** The hc function of a route: `POST /orders/:id/refund` is client.orders[':id'].refund.$post. */
+type Call<Client, Action> =
+  RouteOf<Action> extends `${infer Method} /${infer Path}`
+    ? At<Client, Path> extends infer Node
+      ? Node[`$${Lowercase<Method>}` & keyof Node]
+      : never
+    : never;
 
 /** True when a part of an input (its query, json or param) has no key that must be given. */
 type Optional<Part> = Record<never, never> extends Part ? true : false;
@@ -125,6 +145,25 @@ type Data<F> = InferResponseType<F, SuccessStatus>;
 /** The action's input, when it takes one. */
 type Input<F> = InputArgs<F> extends [(infer A)?] ? NonNullable<A> : never;
 
+/** An index input with `query.sort` narrowed to the generated default-schema values. */
+type WithSorts<I, Sorts extends string> = string extends Sorts
+  ? I
+  : I extends { query: infer Query }
+    ? Omit<I, 'query'> & { query: Query & { sort?: Sorts } }
+    : I extends { query?: infer Query }
+      ? Omit<I, 'query'> & { query?: NonNullable<Query> & { sort?: Sorts } }
+      : I;
+
+/** The literal sort union of an index descriptor, or Hono's broad string when it has none. */
+type SortsOf<Action> = Action extends { readonly sorts: readonly (infer Sort extends string)[] }
+  ? Sort
+  : string;
+
+type IndexInputArgs<F, Sorts extends string> =
+  NothingRequired<WithSorts<Input<F>, Sorts>> extends true
+    ? [input?: Loosened<WithSorts<Input<F>, Sorts>>]
+    : [input: Loosened<WithSorts<Input<F>, Sorts>>];
+
 /** A body's field names, and the paths below a field that holds an object or an array. */
 type Paths<J> = {
   [K in keyof J & string]: K | (NonNullable<J[K]> extends object ? `${K}.${string}` : never);
@@ -153,6 +192,13 @@ type InfiniteKey<T extends string> = readonly [
   mode: 'infinite',
 ];
 
+/** App-owned action query keys cannot overlap resource table keys. */
+type AppKey<A extends string> = readonly [
+  namespace: 'appActions',
+  action: A,
+  input: Record<string, unknown>,
+];
+
 /** What every index page carries, which decides whether there is a next one. */
 interface IndexPage {
   meta: { page: number; per_page: number; total: number };
@@ -167,7 +213,9 @@ type Unpaged<A> = A extends { query?: infer Q }
     : never
   : A;
 
-type UnpagedArgs<F> = InputArgs<F> extends [(infer A)?] ? [input?: Unpaged<NonNullable<A>>] : [];
+type UnpagedArgs<F, Sorts extends string> = [Input<F>] extends [never]
+  ? []
+  : [input?: WithSorts<Unpaged<Input<F>>, Sorts>];
 
 const toQueryOptions = <K extends QueryKey, D>(
   queryKey: K,
@@ -243,10 +291,13 @@ export interface QueryAction<K extends QueryKey, F> {
 }
 
 /** index: a query, and the same listing page by page for infinite scroll (N.9). */
-export interface IndexAction<K extends QueryKey, IK extends QueryKey, F> extends QueryAction<K, F> {
+export interface IndexAction<K extends QueryKey, IK extends QueryKey, F, Sorts extends string> {
+  queryOptions(...input: IndexInputArgs<F, Sorts>): ReturnType<typeof toQueryOptions<K, Data<F>>>;
+  /** The first problem with each field of a refused input; `{}` for any other error. */
+  fieldErrors(error: unknown): FieldErrors<F>;
   /** `page` is left out of the input: `fetchNextPage` asks for the next while there is one. */
   infiniteQueryOptions(
-    ...input: UnpagedArgs<F>
+    ...input: UnpagedArgs<F, Sorts>
   ): ReturnType<typeof toInfiniteQueryOptions<IK, Data<F> extends IndexPage ? Data<F> : never>>;
 }
 
@@ -259,18 +310,54 @@ export interface MutationAction<F, Tables extends string, Optimistic = never> {
   fieldErrors(error: unknown): FieldErrors<F>;
 }
 
+/** Settings for a domain action: it has no row or implicit table for optimistic updates. */
+export interface AppMutationSettings<Table extends string> {
+  /** Additional generated tables whose queries this domain action changes. */
+  invalidates?: readonly Table[];
+}
+
+/** A non-GET domain action. Its generated writes invalidate tables after a successful reply. */
+export interface AppMutationAction<F, Tables extends string> {
+  mutationOptions(
+    options?: AppMutationSettings<Tables>,
+  ): ReturnType<typeof toMutationOptions<Variables<F>, Data<F>>>;
+  /** The first problem with each field of a refused input; `{}` for any other error. */
+  fieldErrors(error: unknown): FieldErrors<F>;
+}
+
 /** Every action of the map, by table and name, typed by the hc client's route for it. */
-export type Api<Client, E extends Tables> = {
+export type Api<Client, E extends Tables, A extends AppActions = AppActions> = {
   readonly [T in keyof E & string]: {
-    readonly [A in keyof E[T]['actions'] & string]: E[T]['actions'][A] extends `GET ${string}`
+    readonly [A in keyof E[T]['actions'] & string]: RouteOf<
+      E[T]['actions'][A]
+    > extends `GET ${string}`
       ? A extends 'index'
-        ? IndexAction<Key<T, A>, InfiniteKey<T>, Call<Client, E[T]['actions'][A]>>
+        ? IndexAction<
+            Key<T, A>,
+            InfiniteKey<T>,
+            Call<Client, E[T]['actions'][A]>,
+            SortsOf<E[T]['actions'][A]>
+          >
         : QueryAction<Key<T, A>, Call<Client, E[T]['actions'][A]>>
       : MutationAction<
           Call<Client, E[T]['actions'][A]>,
           keyof E & string,
-          OptimisticOf<Client, E, T, A, E[T]['actions'][A], Call<Client, E[T]['actions'][A]>>
+          OptimisticOf<
+            Client,
+            E,
+            T,
+            A,
+            RouteOf<E[T]['actions'][A]>,
+            Call<Client, E[T]['actions'][A]>
+          >
         >;
+  };
+} & {
+  /** Typed actions registered by defineApp({ actions }). */
+  readonly appActions: {
+    readonly [Name in keyof A & string]: RouteOf<A[Name]> extends `GET ${string}`
+      ? QueryAction<AppKey<Name>, Call<Client, A[Name]>>
+      : AppMutationAction<Call<Client, A[Name]>, keyof E & string>;
   };
 };
 
@@ -518,15 +605,17 @@ async function invalidate(client: QueryClient, tables: Tables, written: Iterable
   await Promise.all([...own, ...including]);
 }
 
-/** TanStack Query options for every action in `tables`, called through `client`. */
-export function createBlendxClient<Client, E extends Tables>(
+/** TanStack Query options for every resource and app-owned action, called through `client`. */
+export function createBlendxClient<Client, E extends Tables, A extends AppActions = AppActions>(
   client: Client,
   tables: E,
-): Api<Client, E> {
+  appActions: A = {} as A,
+): Api<Client, E, A> {
   const api: Record<string, Record<string, object>> = {};
   for (const [table, { actions, key }] of Object.entries(tables)) {
     api[table] = {};
-    for (const [action, route] of Object.entries(actions)) {
+    for (const [action, definition] of Object.entries(actions)) {
+      const { route, writes } = definition;
       const [method = '', path = ''] = route.split(' ');
       const call = (input: unknown, signal?: AbortSignal) =>
         request(client, method, path, input, signal);
@@ -594,14 +683,43 @@ export function createBlendxClient<Client, E extends Tables>(
                     const saved = data;
                     await changeRows(queryClient, table, added, () => saved);
                   }
-                  await invalidate(queryClient, tables, [table, ...(options?.invalidates ?? [])]);
+                  await invalidate(queryClient, tables, [
+                    table,
+                    ...writes,
+                    ...(options?.invalidates ?? []),
+                  ]);
                   return data;
                 }),
               fieldErrors,
             };
     }
   }
-  return api as Api<Client, E>;
+  api.appActions = {};
+  for (const [action, definition] of Object.entries(appActions)) {
+    const { route, writes } = definition;
+    const [method = '', path = ''] = route.split(' ');
+    const call = (input: unknown, signal?: AbortSignal) =>
+      request(client, method, path, input, signal);
+    api.appActions[action] =
+      method === 'GET'
+        ? {
+            queryOptions: (input?: Record<string, unknown>) =>
+              toQueryOptions(['appActions', action, input ?? {}], ({ signal }) =>
+                call(input, signal),
+              ),
+            fieldErrors,
+          }
+        : {
+            mutationOptions: (options?: AppMutationSettings<string>) =>
+              toMutationOptions(['appActions', action], async (input, { client: queryClient }) => {
+                const data = await call(input);
+                await invalidate(queryClient, tables, [...writes, ...(options?.invalidates ?? [])]);
+                return data;
+              }),
+            fieldErrors,
+          };
+  }
+  return api as Api<Client, E, A>;
 }
 
 type HcCall = (input: unknown, options?: { init: RequestInit }) => Promise<Response>;

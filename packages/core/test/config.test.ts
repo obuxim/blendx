@@ -10,6 +10,7 @@ describe('defineConfig', () => {
       generated: './src/generated',
       review: './review',
       migrations: './drizzle',
+      dataMigrations: './data-migrations',
       database: { driver: 'pg', url: undefined },
       openapi: { title: 'blendx API', version: '0.1.0' },
     });

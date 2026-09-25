@@ -7,7 +7,11 @@ export default blend(models.orders, {
     a.index({ trashed: true }),
     a.store(),
     a.show(),
-    a.update(),
+    a.update({
+      authorize: ({ prev }) => prev,
+      save: async ({ runDefault }) => runDefault(),
+      writes: [models.users],
+    }),
     a.destroy(),
     a.restore(),
     a.collection('quote', {

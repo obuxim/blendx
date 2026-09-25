@@ -17,7 +17,19 @@ import { type ConformanceResult, runConformance } from '../src/run.ts';
 
 const root = join(import.meta.dirname, '..');
 const fixture = join(root, 'fixtures', 'shop');
-const TABLES = ['order_items', 'order_notes', 'orders', 'users'];
+const TABLES = [
+  'order_items',
+  'order_notes',
+  'orders',
+  'task_assignees',
+  'tasks',
+  'uploads',
+  'sections',
+  'invites',
+  'project_members',
+  'projects',
+  'users',
+];
 
 export interface Shop {
   fetch(request: Request): Response | Promise<Response>;

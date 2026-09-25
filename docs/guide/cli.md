@@ -8,7 +8,7 @@ blendx <command> [options]
 Commands:
   generate  Write the generated files from schema.dbml and the blends
   review    Write review/<resource>.yaml: what each action does, for a human to check
-  migrate   generate: write the next migration; up: apply the pending ones
+  migrate   generate: write the next schema migration; up: apply pending schema and data steps
 ```
 
 Every command accepts `--cwd <dir>` (run in that app folder) and `-h`, `--help`. Without a command, `-v`, `--version` prints the version.
@@ -27,7 +27,7 @@ Run it after every change to `schema.dbml`, a blend or `src/app.ts`. It works in
 | File | What it is |
 |---|---|
 | `routes.gen.ts` | the routes of every listed action, and `AppType` for the typed client |
-| `client.gen.ts` | every table's actions, each as its method and path, the tables its includes point to, and its primary key, for clients that call actions by name ([The React client](react.md)); it imports nothing, so a web app can load it |
+| `client.gen.ts` | every table's action descriptors (route, related writes, and default index sort values), the tables its includes point to, and its primary key, for clients that call actions by name ([The React client](react.md)); it imports nothing, so a web app can load it |
 | `register.gen.ts` | registers the app's type, so hooks and policies see the identity's type |
 | `outbox.gen.ts` | the outbox table, once any hook is a `later` hook, so the next migration creates it; otherwise nothing |
 | `drizzle.config.gen.ts` | the drizzle-kit config that `blendx migrate generate` uses: `schema.gen.ts` and `outbox.gen.ts` |
@@ -47,8 +47,10 @@ Writes `review/<table>.yaml` for every blend ([Review](review.md)).
 
 `blendx migrate generate [--name <name>]` writes the next migration into `drizzle/`, by comparing `schema.gen.ts` with the migrations already there. It runs the drizzle-kit version `@blendx/cli` pins, and refuses to run while `schema.gen.ts` is out of date, so a migration never comes from a stale schema: run `blendx generate` first. On a terminal, drizzle-kit may ask whether a column was renamed or replaced.
 
-`blendx migrate up` applies the pending migrations, through the driver in `blendx.config.ts` and its own migrator. It prints `applied 1 migration from drizzle`, or `drizzle: no pending migrations`.
+`blendx migrate up` applies pending schema migrations first, then loads top-level `.ts` modules from `data-migrations/` (or `dataMigrations` in the config). Each module default-exports one `dataMigration(...)` whose ID equals its filename. It prints `applied 1 migration from drizzle` and one `applied data migration <id>` line for every newly completed data step. A run with no pending data steps prints `data-migrations: no pending data migrations`.
+
+A data-step failure names both its ID and the reason, such as `data migration 20260926_backfill_order_placed_on failed: orders need a date`. The step rolls back and remains pending; fix it with a new, higher-versioned step rather than editing an ID that production may already have recorded.
 
 Migrations use drizzle-kit 1.0's layout: one `<timestamp>_<name>/` folder per migration, holding `migration.sql` and `snapshot.json`. `migrate up` refuses the older 0.x layout (`meta/_journal.json`) and says how to convert it.
 
-A server can also apply migrations itself when it starts, with `database.migrate(folder)` ([Deployment](deployment.md#migrations-in-production)), so production needs no CLI.
+A server can also apply migrations itself when it starts, with `database.migrate(folder, steps)` ([Deployment](deployment.md#migrations-in-production)). The CLI is what discovers the directory; a server imports and supplies its own explicit `steps` array.

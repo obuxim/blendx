@@ -4,5 +4,33 @@
  * the exact drizzle-orm that blendx is built against.
  */
 export { outbox } from '@blendx/core';
-export { sql } from 'drizzle-orm';
+export {
+  and,
+  arrayContained,
+  arrayContains,
+  arrayOverlaps,
+  asc,
+  between,
+  desc,
+  eq,
+  exists,
+  gt,
+  gte,
+  ilike,
+  inArray,
+  isNotNull,
+  isNull,
+  like,
+  lt,
+  lte,
+  ne,
+  not,
+  notBetween,
+  notExists,
+  notIlike,
+  notInArray,
+  notLike,
+  or,
+  sql,
+} from 'drizzle-orm';
 export * from 'drizzle-orm/pg-core';

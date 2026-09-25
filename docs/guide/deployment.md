@@ -21,6 +21,7 @@ export default defineConfig({
 | `generated` | `./src/generated` | where `blendx generate` writes |
 | `review` | `./review` | where `blendx review` writes, and where the examples are |
 | `migrations` | `./drizzle` | the migrations |
+| `dataMigrations` | `./data-migrations` | versioned application data steps, loaded by `blendx migrate up` |
 | `database.driver` | `'pg'` | `'pg'`, `'postgres-js'`, `'bun-sql'` or `'pglite'` |
 | `database.url` | `DATABASE_URL` | where the database is |
 | `openapi.title`, `openapi.version` | `'blendx API'`, `'0.1.0'` | the OpenAPI document's `info` |
@@ -50,7 +51,7 @@ import config from './blendx.config.ts';
 
 const database = await createDatabase(config);
 database.db;            // the Drizzle database, for createServer and for scripts
-await database.migrate('./drizzle'); // applies pending migrations; resolves to how many ran
+await database.migrate('./drizzle'); // resolves to { schema, data }
 await database.close();
 ```
 
@@ -61,7 +62,15 @@ Two ways to apply migrations when you deploy:
 - At start-up, as the examples' `server.ts` does: `await database.migrate(join(import.meta.dir, 'drizzle'))` before serving. The production image then needs the `drizzle/` folder, and not the CLI.
 - As a release step: `bunx blendx migrate up`, which needs `@blendx/cli` installed.
 
-Either way, migrations are written during development (`blendx migrate generate`) and committed; production never generates them.
+Use the release step for data migrations: it discovers the configured `data-migrations/` folder after applying schema migrations. A startup caller can run data steps too, but imports the immutable list explicitly:
+
+```ts
+import backfillOrderNoteAuthors from './data-migrations/20260926_backfill_order_note_authors.ts';
+
+await database.migrate(join(import.meta.dir, 'drizzle'), [backfillOrderNoteAuthors]);
+```
+
+Either way, migrations are written during development (`blendx migrate generate`) and committed; production never generates them. A completed data-step ID is permanent: ship a new, higher ID for a correction.
 
 ## Serving on Bun
 

@@ -1,0 +1,106 @@
+{
+  "format": 1,
+  "fixture": "shop",
+  "cases": [
+    {
+      "id": "MEMBER-READ",
+      "title": "a project member sees only that project's tasks and inaccessible task reads are 404 (D36)",
+      "steps": [
+        {
+          "request": { "method": "GET", "path": "/tasks", "headers": { "x-user-id": "1" } },
+          "expect": {
+            "status": 200,
+            "body": { "data": [{ "id": 1, "title": "Ada task" }], "meta": { "total": 1 } }
+          }
+        },
+        {
+          "request": { "method": "GET", "path": "/tasks/2", "headers": { "x-user-id": "1" } },
+          "expect": {
+            "status": 404,
+            "headers": { "content-type": "application/problem+json" },
+            "body": { "status": 404 }
+          }
+        }
+      ]
+    },
+    {
+      "id": "MEMBER-WRITE",
+      "title": "store and update validate the project root and related IDs in their transaction (D36)",
+      "steps": [
+        {
+          "request": {
+            "method": "POST",
+            "path": "/tasks",
+            "headers": { "x-user-id": "1" },
+            "body": { "project_id": 1, "section_id": 1, "assignee_id": 1, "title": "New task" }
+          },
+          "expect": {
+            "status": 201,
+            "body": { "project_id": 1, "section_id": 1, "assignee_id": 1, "title": "New task" }
+          }
+        },
+        {
+          "request": {
+            "method": "PATCH",
+            "path": "/tasks/1",
+            "headers": { "x-user-id": "1" },
+            "body": { "title": "Renamed" }
+          },
+          "expect": { "status": 200, "body": { "id": 1, "title": "Renamed" } }
+        },
+        {
+          "request": {
+            "method": "PATCH",
+            "path": "/tasks/1",
+            "headers": { "x-user-id": "1" },
+            "body": { "project_id": 2 }
+          },
+          "expect": {
+            "status": 403,
+            "headers": { "content-type": "application/problem+json" },
+            "body": { "status": 403 }
+          }
+        },
+        {
+          "request": {
+            "method": "PATCH",
+            "path": "/tasks/1",
+            "headers": { "x-user-id": "1" },
+            "body": { "section_id": 2 }
+          },
+          "expect": {
+            "status": 422,
+            "headers": { "content-type": "application/problem+json" },
+            "body": { "status": 422, "errors": [{ "pointer": "/section_id" }] }
+          }
+        },
+        {
+          "request": {
+            "method": "PATCH",
+            "path": "/tasks/1",
+            "headers": { "x-user-id": "1" },
+            "body": { "assignee_id": 2 }
+          },
+          "expect": {
+            "status": 422,
+            "headers": { "content-type": "application/problem+json" },
+            "body": { "status": 422, "errors": [{ "pointer": "/assignee_id" }] }
+          }
+        },
+        {
+          "request": { "method": "GET", "path": "/tasks/1", "headers": { "x-user-id": "1" } },
+          "expect": {
+            "status": 200,
+            "body": {
+              "id": 1,
+              "project_id": 1,
+              "section_id": 1,
+              "assignee_id": 1,
+              "title": "Renamed"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

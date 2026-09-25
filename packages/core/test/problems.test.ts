@@ -17,13 +17,14 @@ function zodError(schema: z.ZodType, value: unknown): z.ZodError {
 describe('problem()', () => {
   test('each status has its title, and the type is about:blank by default', () => {
     expect(problem(404)).toEqual({ type: 'about:blank', title: 'Not Found', status: 404 });
-    const statuses: ProblemStatus[] = [400, 401, 403, 404, 409, 422, 500];
+    const statuses: ProblemStatus[] = [400, 401, 403, 404, 409, 413, 422, 500];
     expect(statuses.map((status) => problem(status).title)).toEqual([
       'Bad Request',
       'Unauthorized',
       'Forbidden',
       'Not Found',
       'Conflict',
+      'Content Too Large',
       'Unprocessable Content',
       'Internal Server Error',
     ]);

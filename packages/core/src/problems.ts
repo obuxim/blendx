@@ -7,7 +7,7 @@ import type { z } from 'zod';
 
 export const PROBLEM_CONTENT_TYPE = 'application/problem+json';
 
-export type ProblemStatus = 400 | 401 | 403 | 404 | 409 | 422 | 500;
+export type ProblemStatus = 400 | 401 | 403 | 404 | 409 | 413 | 422 | 500;
 
 export interface ProblemError {
   /** What is wrong with this field, in plain words. */
@@ -39,6 +39,7 @@ const PROBLEMS: Record<ProblemStatus, { title: string; slug: string }> = {
   403: { title: 'Forbidden', slug: 'forbidden' },
   404: { title: 'Not Found', slug: 'not-found' },
   409: { title: 'Conflict', slug: 'conflict' },
+  413: { title: 'Content Too Large', slug: 'content-too-large' },
   422: { title: 'Unprocessable Content', slug: 'validation-error' },
   500: { title: 'Internal Server Error', slug: 'internal-error' },
 };

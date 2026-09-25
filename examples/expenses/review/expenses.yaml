@@ -56,7 +56,14 @@ actions:
       load: nothing
       authorize: authenticated
       calculate: the input's writable columns # from: schema, action
-      save: insert, setting created_at and updated_at # from: schema, action
+      save:
+        default: insert, setting created_at and updated_at
+        limitation: A custom save hook controls persistence and may not call this default.
+        hooks:
+          action:
+            file: blends/expenses.ts
+            source: |-
+              ({ runDefault, writes, auth }) => runDefault({ ...writes, user_id: auth?.id })
       respond: 201 with the saved record
     calculate:
       source: |-
@@ -111,7 +118,14 @@ actions:
     stages:
       rules: the insert columns, all optional # from: schema, action
       load: the row by id, not soft-deleted, locked for update
-      authorize: owner (user_id = auth.id) # from: schema, action
+      authorize:
+        default: owner (user_id = auth.id)
+        limitation: Custom hooks can change this policy decision.
+        hooks:
+          action:
+            file: blends/expenses.ts
+            source: |-
+              ({ prev, record }) => prev && record.status === 'draft'
       calculate: the input's writable columns # from: schema, action
       save: update the row, touching updated_at, when there is something to write
       respond: 200 with the saved record
@@ -131,7 +145,14 @@ actions:
     stages:
       rules: nothing (an empty object)
       load: the row by id, not soft-deleted, locked for update
-      authorize: owner (user_id = auth.id) # from: schema, action
+      authorize:
+        default: owner (user_id = auth.id)
+        limitation: Custom hooks can change this policy decision.
+        hooks:
+          action:
+            file: blends/expenses.ts
+            source: |-
+              ({ prev, record }) => prev && record.status === 'draft'
       calculate: nothing
       save: "soft delete: set deleted_at, touching updated_at"
       respond: 204 with no body
@@ -157,7 +178,14 @@ actions:
     stages:
       rules: nothing (an empty object)
       load: the row by id, not soft-deleted, locked for update
-      authorize: an approver # from: schema, action
+      authorize:
+        default: an approver
+        limitation: Custom hooks can change this policy decision.
+        hooks:
+          action:
+            file: blends/expenses.ts
+            source: |-
+              ({ prev, auth, record }) => prev && reviewable(record, auth)
       calculate: the input's writable columns # from: schema, action
       save: update the row, touching updated_at, when there is something to write
       respond: 200 with the saved record
@@ -176,7 +204,14 @@ actions:
     stages:
       rules: nothing (an empty object) # from: schema, action
       load: the row by id, not soft-deleted, locked for update
-      authorize: an approver # from: schema, action
+      authorize:
+        default: an approver
+        limitation: Custom hooks can change this policy decision.
+        hooks:
+          action:
+            file: blends/expenses.ts
+            source: |-
+              ({ prev, auth, record }) => prev && reviewable(record, auth)
       calculate: the input's writable columns # from: schema, action
       save: update the row, touching updated_at, when there is something to write
       respond: 200 with the saved record
@@ -193,7 +228,14 @@ actions:
     stages:
       rules: nothing (an empty object)
       load: the row by id, not soft-deleted, locked for update
-      authorize: owner (user_id = auth.id) # from: schema, action
+      authorize:
+        default: owner (user_id = auth.id)
+        limitation: Custom hooks can change this policy decision.
+        hooks:
+          action:
+            file: blends/expenses.ts
+            source: |-
+              ({ prev, record }) => prev && record.status === 'draft'
       calculate: the input's writable columns # from: schema, action
       save: update the row, touching updated_at, when there is something to write
       respond: 200 with the saved record

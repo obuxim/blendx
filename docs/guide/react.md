@@ -16,13 +16,14 @@ One file creates the client. From [`src/api.ts`](../../examples/addition/web/src
 import { createBlendxClient } from '@blendx/react';
 import { hc } from 'blendx/client';
 import type { AppType } from '../../server.ts';
-import { tables } from '../../src/generated/client.gen.ts';
+import { appActions, tables } from '../../src/generated/client.gen.ts';
 
-export const api = createBlendxClient(hc<AppType>('/api'), tables);
+export const api = createBlendxClient(hc<AppType>('/api'), tables, appActions);
 ```
 
 - `hc<AppType>` is the typed client of [the HTTP API](http.md#the-typed-client). It carries the base URL, and whatever else every request needs, such as `headers: { authorization: ... }`.
-- `tables` comes from `src/generated/client.gen.ts`, which `blendx generate` writes ([The CLI](cli.md#blendx-generate)): every table's actions, each as its method and path, and what the table includes. It imports nothing.
+- `tables` comes from `src/generated/client.gen.ts`, which `blendx generate` writes ([The CLI](cli.md#blendx-generate)): every table's actions with their route, declared related writes and default index sort values, its includes, and its key. It imports nothing.
+- `appActions` is the same generated file's app-owned route metadata. Passing it adds typed domain actions under `api.appActions`; applications without them may omit this third argument.
 - `AppType` is a type-only import, so no server code reaches the page's bundle.
 
 The page provides a QueryClient, as any TanStack Query app does. From [`src/main.tsx`](../../examples/addition/web/src/main.tsx):
@@ -63,10 +64,23 @@ add.mutate({ json: { a: numberIn(form, 'a'), b: numberIn(form, 'b') } });
 ```
 
 - **Input** is what `hc` takes: `json` for a body, `param` for a member action's id, `query` for a GET action's input. A part with nothing required may be left out, where `hc` itself would take `query: {}`: the whole input for index, as above, or show's `query` when its blend declares includes. Show needs its id: `api.orders.show.queryOptions({ param: { id: '1' } })`, or with an include, `{ param: { id: '1' }, query: { include: 'user' } }`. On a table with a composite primary key, `param` has one entry per key column: `api.order_items.show.queryOptions({ param: { order_id: '1', line: '2' } })`.
+- **Index sort** is a literal union of the visible primary-key, unique, foreign-key and indexed columns, in either direction, when the index keeps its default rules. So `sort: 'status'` and `sort: '-status'` compile when `status` is indexed, while `sort: 'position'` does not. An app, resource or index action that overrides `rules` keeps Hono's broad string type, because its runtime allowlist is application-defined.
 - **Data** is the body of the action's success reply, typed as `hc` types it: a page for index (the example lists `results.data.data`), the record for store, show, update, restore and member actions, what calculate returns for a collection action, and `null` for the 204 of destroy and purge.
 - The options are plain objects, so they work wherever TanStack Query takes options: `useQuery`, `useSuspenseQuery`, `queryClient.fetchQuery`, `prefetchQuery`, `ensureQueryData`, a router's loader. The adapter wraps none of them.
 - A query hands TanStack's abort signal to its request, so a query that TanStack cancels (its component unmounted, or the page called `cancelQueries`) aborts its request too. The signal goes in the call's `init`, which `hc` merges into the client's own `init` key by key. So give the client no `init.signal` of its own: an AbortSignal does not survive that merge.
 - Only the actions the blends list are on `api`; any other is a type error.
+
+### Domain actions
+
+Actions declared in `defineApp({ actions })` appear under `api.appActions`. GET actions expose `queryOptions`, and every other method exposes `mutationOptions`. Their input and success reply remain the generated Hono types:
+
+```ts
+const assign = useMutation(api.appActions.replace_task_assignees.mutationOptions());
+
+assign.mutate({ param: { id: '42' }, json: { assignees: [{ id: 3 }, { id: 7 }] } });
+```
+
+Domain actions have no owning resource row, so they do not offer `optimistic` updates. Their declared `writes` drive invalidation instead.
 
 ## Keys and invalidation
 
@@ -79,13 +93,21 @@ expect(apiFor().orders.store.mutationOptions().mutationKey).toEqual(['orders', '
 
 When a mutation succeeds, it invalidates every query of its table, and it resolves once the queries on screen have refetched. That is how the example's list shows a new result without a reload. A failed mutation invalidates nothing: the server rolled its transaction back.
 
-A reply holds only rows of its own table, so an action changes another table only through a hook, which the client cannot see. Such a mutation names the other tables, and `invalidates` takes only table names of the API:
+A reply holds only rows of its own table, so a hook that changes another table declares it in the blend. `writes: [models.users]` puts that table in generated metadata, and every successful mutation invalidates it automatically:
 
 ```ts
-const naming = api.orders.refund.mutationOptions({ invalidates: ['users'] });
+a.member('refund', { writes: [models.users], save: async ({ runDefault }) => runDefault() });
 ```
 
-A query with `?include=` holds rows of another table ([Blends](blends.md#includes)), so a write to that table follows the include: after `users.update`, an orders query that asked for `include: 'user'` refetches, and one that did not keeps its data. A has-many include is followed the same way: after `order_notes.store`, an orders query that asked for `include: 'notes'` refetches. So is a path: an orders query that asked for `include: 'notes.author'` holds notes and users, and a write to either refetches it, while one that asked for `notes` alone refetches only after a write to notes. The generated `tables` says which tables each table includes, and the adapter walks each path through it; the tables a mutation names are followed the same way. From the tests:
+`mutationOptions({ invalidates })` remains available for call-specific extra tables; it takes only table names of the API.
+
+An app-owned mutation has no implicit table. Its generated `writes` are the full automatic invalidation set, with the same additive `invalidates` option:
+
+```ts
+api.appActions.replace_task_assignees.mutationOptions({ invalidates: ['users'] });
+```
+
+A query with `?include=` holds rows of another table ([Blends](blends.md#includes)), so a write to that table follows the include: after `users.update`, an orders query that asked for `include: 'user'` refetches, and one that did not keeps its data. A has-many include is followed the same way: after `order_notes.store`, an orders query that asked for `include: 'notes'` refetches. So is a path: an orders query that asked for `include: 'notes.author'` holds notes and users, and a write to either refetches it, while one that asked for `notes` alone refetches only after a write to notes. The generated `tables` says which tables each table includes, and the adapter walks each path through it; declared and call-specific related writes are followed the same way. From the tests:
 
 ```ts
 const withUser = api.orders.index.queryOptions({ query: { include: 'user' } });

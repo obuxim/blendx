@@ -14,6 +14,69 @@ export const users = pgTable("users", {
   updated_at: timestamp({ mode: "string", withTimezone: true }).notNull().defaultNow(),
 });
 
+export const projects = pgTable("projects", {
+  id: integer().primaryKey().generatedAlwaysAsIdentity(),
+  name: varchar({ length: 80 }).notNull(),
+});
+
+export const invites = pgTable("invites", {
+  token: varchar({ length: 80 }).primaryKey(),
+  project_id: integer().notNull(),
+  accepted_by: integer(),
+  accepted_at: timestamp({ mode: "string", withTimezone: true }),
+}, (t) => [
+  foreignKey({ name: "invites_project_id_fkey", columns: [t.project_id], foreignColumns: [projects.id] }),
+  foreignKey({ name: "invites_accepted_by_fkey", columns: [t.accepted_by], foreignColumns: [users.id] }),
+]);
+
+export const uploads = pgTable("uploads", {
+  id: integer().primaryKey().generatedAlwaysAsIdentity(),
+  user_id: integer().notNull(),
+  filename: varchar({ length: 255 }).notNull(),
+  content_type: varchar({ length: 120 }).notNull(),
+  byte_length: integer().notNull(),
+}, (t) => [
+  foreignKey({ name: "uploads_user_id_fkey", columns: [t.user_id], foreignColumns: [users.id] }),
+]);
+
+export const project_members = pgTable("project_members", {
+  project_id: integer().notNull(),
+  user_id: integer().notNull(),
+}, (t) => [
+  primaryKey({ name: "project_members_pkey", columns: [t.project_id, t.user_id] }),
+  foreignKey({ name: "project_members_project_id_fkey", columns: [t.project_id], foreignColumns: [projects.id] }),
+  foreignKey({ name: "project_members_user_id_fkey", columns: [t.user_id], foreignColumns: [users.id] }),
+]);
+
+export const sections = pgTable("sections", {
+  id: integer().primaryKey().generatedAlwaysAsIdentity(),
+  project_id: integer().notNull(),
+  name: varchar({ length: 80 }).notNull(),
+}, (t) => [
+  foreignKey({ name: "sections_project_id_fkey", columns: [t.project_id], foreignColumns: [projects.id] }),
+]);
+
+export const tasks = pgTable("tasks", {
+  id: integer().primaryKey().generatedAlwaysAsIdentity(),
+  project_id: integer().notNull(),
+  section_id: integer().notNull(),
+  assignee_id: integer().notNull(),
+  title: varchar({ length: 120 }).notNull(),
+}, (t) => [
+  foreignKey({ name: "tasks_project_id_fkey", columns: [t.project_id], foreignColumns: [projects.id] }),
+  foreignKey({ name: "tasks_section_id_fkey", columns: [t.section_id], foreignColumns: [sections.id] }),
+  foreignKey({ name: "tasks_assignee_id_fkey", columns: [t.assignee_id], foreignColumns: [users.id] }),
+]);
+
+export const task_assignees = pgTable("task_assignees", {
+  task_id: integer().notNull(),
+  user_id: integer().notNull(),
+}, (t) => [
+  primaryKey({ name: "task_assignees_pkey", columns: [t.task_id, t.user_id] }),
+  foreignKey({ name: "task_assignees_task_id_fkey", columns: [t.task_id], foreignColumns: [tasks.id] }),
+  foreignKey({ name: "task_assignees_user_id_fkey", columns: [t.user_id], foreignColumns: [users.id] }),
+]);
+
 export const orders = pgTable("orders", {
   id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
   user_id: integer().notNull(),
@@ -67,6 +130,108 @@ export const models = {
       constraints: {
         "users_pkey": { kind: "primaryKey", columns: ["id"] },
         "users_email_key": { kind: "unique", columns: ["email"] },
+      },
+    },
+  },
+  projects: {
+    name: "projects",
+    table: projects,
+    meta: {
+      primaryKey: ["id"],
+      timestamps: { createdAt: null, updatedAt: null },
+      softDelete: null,
+      generated: ["id"],
+      constraints: {
+        "projects_pkey": { kind: "primaryKey", columns: ["id"] },
+      },
+    },
+  },
+  invites: {
+    name: "invites",
+    table: invites,
+    meta: {
+      primaryKey: ["token"],
+      timestamps: { createdAt: null, updatedAt: null },
+      softDelete: null,
+      generated: [],
+      constraints: {
+        "invites_pkey": { kind: "primaryKey", columns: ["token"] },
+        "invites_project_id_fkey": { kind: "foreignKey", columns: ["project_id"], references: { table: "projects", columns: ["id"] } },
+        "invites_accepted_by_fkey": { kind: "foreignKey", columns: ["accepted_by"], references: { table: "users", columns: ["id"] } },
+      },
+    },
+  },
+  uploads: {
+    name: "uploads",
+    table: uploads,
+    meta: {
+      primaryKey: ["id"],
+      timestamps: { createdAt: null, updatedAt: null },
+      softDelete: null,
+      generated: ["id"],
+      constraints: {
+        "uploads_pkey": { kind: "primaryKey", columns: ["id"] },
+        "uploads_user_id_fkey": { kind: "foreignKey", columns: ["user_id"], references: { table: "users", columns: ["id"] } },
+      },
+    },
+  },
+  project_members: {
+    name: "project_members",
+    table: project_members,
+    meta: {
+      primaryKey: ["project_id", "user_id"],
+      timestamps: { createdAt: null, updatedAt: null },
+      softDelete: null,
+      generated: [],
+      constraints: {
+        "project_members_pkey": { kind: "primaryKey", columns: ["project_id", "user_id"] },
+        "project_members_project_id_fkey": { kind: "foreignKey", columns: ["project_id"], references: { table: "projects", columns: ["id"] } },
+        "project_members_user_id_fkey": { kind: "foreignKey", columns: ["user_id"], references: { table: "users", columns: ["id"] } },
+      },
+    },
+  },
+  sections: {
+    name: "sections",
+    table: sections,
+    meta: {
+      primaryKey: ["id"],
+      timestamps: { createdAt: null, updatedAt: null },
+      softDelete: null,
+      generated: ["id"],
+      constraints: {
+        "sections_pkey": { kind: "primaryKey", columns: ["id"] },
+        "sections_project_id_fkey": { kind: "foreignKey", columns: ["project_id"], references: { table: "projects", columns: ["id"] } },
+      },
+    },
+  },
+  tasks: {
+    name: "tasks",
+    table: tasks,
+    meta: {
+      primaryKey: ["id"],
+      timestamps: { createdAt: null, updatedAt: null },
+      softDelete: null,
+      generated: ["id"],
+      constraints: {
+        "tasks_pkey": { kind: "primaryKey", columns: ["id"] },
+        "tasks_project_id_fkey": { kind: "foreignKey", columns: ["project_id"], references: { table: "projects", columns: ["id"] } },
+        "tasks_section_id_fkey": { kind: "foreignKey", columns: ["section_id"], references: { table: "sections", columns: ["id"] } },
+        "tasks_assignee_id_fkey": { kind: "foreignKey", columns: ["assignee_id"], references: { table: "users", columns: ["id"] } },
+      },
+    },
+  },
+  task_assignees: {
+    name: "task_assignees",
+    table: task_assignees,
+    meta: {
+      primaryKey: ["task_id", "user_id"],
+      timestamps: { createdAt: null, updatedAt: null },
+      softDelete: null,
+      generated: [],
+      constraints: {
+        "task_assignees_pkey": { kind: "primaryKey", columns: ["task_id", "user_id"] },
+        "task_assignees_task_id_fkey": { kind: "foreignKey", columns: ["task_id"], references: { table: "tasks", columns: ["id"] } },
+        "task_assignees_user_id_fkey": { kind: "foreignKey", columns: ["user_id"], references: { table: "users", columns: ["id"] } },
       },
     },
   },

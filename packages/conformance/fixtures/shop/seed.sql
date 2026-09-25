@@ -5,6 +5,20 @@ insert into users (email, password, display_name) values
   ('ada@example.com', 'ada-secret', 'Ada'),
   ('bob@example.com', 'bob-secret', 'Bob');
 
+insert into projects (name) values ('Alpha'), ('Beta');
+
+insert into invites (token, project_id) values ('alpha-invite', 1);
+
+insert into project_members (project_id, user_id) values (1, 1), (2, 2);
+
+insert into sections (project_id, name) values (1, 'Alpha work'), (2, 'Beta work');
+
+insert into tasks (project_id, section_id, assignee_id, title) values
+  (1, 1, 1, 'Ada task'),
+  (2, 2, 2, 'Bob task');
+
+insert into task_assignees (task_id, user_id) values (1, 1), (2, 2);
+
 insert into orders (user_id, total, quantity, status) values (1, '19.00', 2, 'paid');
 
 insert into order_notes (order_id, author_id, body) values

@@ -10,6 +10,22 @@ export {
   type Register,
   type RegisteredAuth,
 } from './app.ts';
+export {
+  type AppActionBuilder,
+  type AppActionContext,
+  type AppActionDefinition,
+  AppActionDefinitionError,
+  type AppActionHandler,
+  type AppActionMethod,
+  type AppActionReply,
+  type AppActionResult,
+  appActionHasJsonBody,
+  appActionProblemStatuses,
+  appActions,
+  type MultipartInput,
+  multipart,
+  validateAppActions,
+} from './app-action.ts';
 export type { HasManySpec, IncludesSpec, IncludeTarget } from './blend.ts';
 export {
   type ActionBuilder,
@@ -45,7 +61,8 @@ export {
   type DatabaseDriver,
   defineConfig,
 } from './config.ts';
-export { type DeriveOptions, defaultRules, recordSchema } from './derive-rules.ts';
+export { type DataMigration, dataMigration } from './data-migration.ts';
+export { type DeriveOptions, defaultRules, indexSorts, recordSchema } from './derive-rules.ts';
 export {
   defaultStatus,
   type EndpointDefinition,
@@ -55,6 +72,7 @@ export {
 } from './endpoints.ts';
 export {
   type DefaultEffectOptions,
+  databaseError,
   defaultEffects,
   defaultPrev,
   type ExecuteDeps,
@@ -116,9 +134,19 @@ export { enqueueLater, type OutboxPayload, outbox } from './outbox.ts';
 export {
   allow,
   deny,
+  isMemberPolicy,
+  type MemberPathHop,
+  type MemberPolicy,
+  type MemberPolicyOptions,
+  type MemberRelated,
+  type MemberRelatedMember,
+  type MemberRelatedPath,
+  type MembershipRoot,
+  type MembershipThrough,
   type Policy,
   type PolicyContext,
   type PolicyKind,
+  type ResolvedMemberRelated,
 } from './policy.ts';
 export {
   jsonPointer,
@@ -130,12 +158,23 @@ export {
   problem,
   validationProblem,
 } from './problems.ts';
+export {
+  type RelationColumnMap,
+  type RelationKey,
+  type RelationKeyColumnMap,
+  RelationWriteDefinitionError,
+  type ReplaceRelationOptions,
+  replaceRelation,
+} from './relation-write.ts';
 export { type BelongsTo, foreignKeysTo, relationsOf } from './relations.ts';
 export {
   type ActionReview,
+  type AppActionReview,
+  type AppReview,
   type CalculateReview,
   type ReplyReview,
   type ResourceReview,
+  reviewAppActions,
   reviewResource,
   type StageReview,
 } from './review.ts';

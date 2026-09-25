@@ -53,7 +53,7 @@ describe.skipIf(!realPostgres)('blendx migrate on PostgreSQL', () => {
     expect((await cli('migrate', 'generate', '--name', 'init')).code).toBe(0);
     expect(await cli('migrate', 'up')).toEqual({
       code: 0,
-      out: 'applied 1 migration from drizzle\n',
+      out: 'applied 1 migration from drizzle\ndata-migrations: no pending data migrations\n',
       err: '',
     });
 

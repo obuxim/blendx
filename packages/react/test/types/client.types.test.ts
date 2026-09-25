@@ -14,12 +14,12 @@ import {
   useSuspenseQuery,
 } from '@tanstack/react-query';
 import { hc, type InferRequestType, type InferResponseType } from 'blendx/client';
-import { tables } from '../../../conformance/fixtures/shop/src/generated/client.gen.ts';
+import { appActions, tables } from '../../../conformance/fixtures/shop/src/generated/client.gen.ts';
 import type { AppType } from '../../../conformance/fixtures/shop/src/generated/routes.gen.ts';
 import { createBlendxClient } from '../../src/index.ts';
 
 const client = hc<AppType>('http://localhost');
-const api = createBlendxClient(client, tables);
+const api = createBlendxClient(client, tables, appActions);
 
 type Client = typeof client;
 type Index = Client['orders']['$get'];
@@ -27,6 +27,9 @@ type Show = Client['orders'][':id']['$get'];
 type Store = Client['orders']['$post'];
 type Destroy = Client['orders'][':id']['$delete'];
 type Quote = Client['orders']['quote']['$get'];
+type BulkAssign = Client['tasks']['bulk-assign']['$post'];
+type ReplaceTaskAssignees = Client['tasks'][':id']['assignees']['$put'];
+type TaskCount = Client['reports']['task-count']['$get'];
 
 function useTypesOnly() {
   const page = useQuery(api.orders.index.queryOptions());
@@ -42,6 +45,21 @@ function useTypesOnly() {
   const destroy = useMutation(api.orders.destroy.mutationOptions());
   expectTypeOf(destroy.data).toEqualTypeOf<InferResponseType<Destroy, 204> | undefined>();
   expectTypeOf(destroy.data).toEqualTypeOf<null | undefined>();
+
+  const bulk = useMutation(api.appActions.bulk_assign_tasks.mutationOptions());
+  expectTypeOf(bulk.data).toEqualTypeOf<InferResponseType<BulkAssign, 200> | undefined>();
+  expectTypeOf(bulk.variables).toEqualTypeOf<InferRequestType<BulkAssign> | undefined>();
+
+  const assignees = useMutation(api.appActions.replace_task_assignees.mutationOptions());
+  expectTypeOf(assignees.data).toEqualTypeOf<
+    InferResponseType<ReplaceTaskAssignees, 200> | undefined
+  >();
+  expectTypeOf(assignees.variables).toEqualTypeOf<
+    InferRequestType<ReplaceTaskAssignees> | undefined
+  >();
+
+  const taskCount = useQuery(api.appActions.task_count.queryOptions());
+  expectTypeOf(taskCount.data).toEqualTypeOf<InferResponseType<TaskCount, 200> | undefined>();
 
   // N.9: an infinite index holds pages of what index replies. The hooks type the page params
   // as unknown, whatever the options say; fetchInfiniteQuery keeps them as numbers.
@@ -80,9 +98,10 @@ describe('@blendx/react types', () => {
     expectTypeOf(api.users.show.queryOptions).parameters.toEqualTypeOf<
       [input: InferRequestType<Client['users'][':id']['$get']>]
     >();
-    expectTypeOf(api.orders.index.queryOptions).parameters.toEqualTypeOf<
-      [input?: { query?: InferRequestType<Index>['query'] }]
-    >();
+    api.orders.index.queryOptions({ query: { sort: 'id' } });
+    api.orders.index.queryOptions({ query: { sort: '-id' } });
+    // @ts-expect-error position is not an indexed orders column
+    api.orders.index.queryOptions({ query: { sort: 'position' } });
     // @ts-expect-error show needs the id
     api.orders.show.queryOptions();
     // @ts-expect-error users has no includes, so its show takes no query
@@ -105,6 +124,9 @@ describe('@blendx/react types', () => {
     api.orders.index.infiniteQueryOptions({
       query: { per_page: '20', sort: '-id', status: 'paid' },
     });
+    api.orders.index.infiniteQueryOptions({ query: { sort: 'id' } });
+    // @ts-expect-error position is not an indexed orders column
+    api.orders.index.infiniteQueryOptions({ query: { sort: 'position' } });
     // @ts-expect-error the pages come from fetchNextPage
     api.orders.index.infiniteQueryOptions({ query: { page: '2' } });
   });
@@ -114,12 +136,29 @@ describe('@blendx/react types', () => {
     expectTypeOf(api.orders.quote).not.toHaveProperty('mutationOptions');
     expectTypeOf(api.orders.store).not.toHaveProperty('queryOptions');
     expectTypeOf(api.orders.refund).not.toHaveProperty('queryOptions');
+    expectTypeOf(api.appActions.bulk_assign_tasks).toHaveProperty('mutationOptions');
+    expectTypeOf(api.appActions.bulk_assign_tasks).not.toHaveProperty('queryOptions');
+    expectTypeOf(api.appActions.task_count).toHaveProperty('queryOptions');
+    expectTypeOf(api.appActions.task_count).not.toHaveProperty('mutationOptions');
+    expectTypeOf(api.appActions.replace_task_assignees).toHaveProperty('mutationOptions');
+    expectTypeOf(api.appActions.replace_task_assignees).not.toHaveProperty('queryOptions');
+  });
+
+  test('domain actions preserve Hono input and reply types and invalidate declared tables', () => {
+    api.appActions.bulk_assign_tasks.mutationOptions({ invalidates: ['users'] });
+    // @ts-expect-error invalidation only names generated tables
+    api.appActions.bulk_assign_tasks.mutationOptions({ invalidates: ['payments'] });
+    // @ts-expect-error app actions do not derive a row for optimistic updates
+    api.appActions.bulk_assign_tasks.mutationOptions({ optimistic: true });
+    api.appActions.replace_task_assignees.mutationOptions({ invalidates: ['users'] });
+    // @ts-expect-error app actions do not derive a row for optimistic updates
+    api.appActions.replace_task_assignees.mutationOptions({ optimistic: true });
   });
 
   test('a mutation may name the other tables it changes, by their names in the map', () => {
     type Options = NonNullable<Parameters<typeof api.orders.refund.mutationOptions>[0]>;
     expectTypeOf<Options['invalidates']>().toEqualTypeOf<
-      readonly ('order_items' | 'order_notes' | 'orders' | 'users')[] | undefined
+      readonly ('order_items' | 'order_notes' | 'orders' | 'tasks' | 'users')[] | undefined
     >();
     // @ts-expect-error not a table of the app
     api.orders.refund.mutationOptions({ invalidates: ['payments'] });

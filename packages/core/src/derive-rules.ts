@@ -136,8 +136,9 @@ function includeRule(paths: readonly string[]): z.ZodType {
     .describe(`comma-separated, of: ${paths.join(', ')}`);
 }
 
-function indexRules(model: Model, options: DeriveOptions): z.ZodObject {
-  const hidden = new Set(options.hidden ?? []);
+/** The exact sort strings the default index rule accepts, in its deterministic order. */
+export function indexSorts(model: Model, hidden: readonly string[] = []): string[] {
+  const hiddenColumns = new Set(hidden);
   const keyed = new Set<string>([
     ...Object.values(model.meta.constraints).flatMap((constraint) => constraint.columns),
     ...getTableConfig(model.table).indexes.flatMap((index) =>
@@ -145,16 +146,23 @@ function indexRules(model: Model, options: DeriveOptions): z.ZodObject {
     ),
   ]);
   const all = getColumns(model.table);
-  const columns = Object.keys(all).filter((name) => keyed.has(name) && !hidden.has(name));
+  const columns = Object.keys(all).filter((name) => keyed.has(name) && !hiddenColumns.has(name));
+  return [...columns, ...columns.map((column) => `-${column}`)];
+}
+
+function indexRules(model: Model, options: DeriveOptions): z.ZodObject {
+  const sorts = indexSorts(model, options.hidden);
+  const all = getColumns(model.table);
 
   const shape: Record<string, z.ZodType> = {
     page: count(),
     per_page: count(options.maxPerPage ?? 100),
   };
-  const [first, ...rest] = columns;
+  const [first, ...rest] = sorts;
   if (first !== undefined) {
-    shape.sort = z.enum([first, ...rest, ...columns.map((column) => `-${column}`)]).optional();
+    shape.sort = z.enum([first, ...rest]).optional();
   }
+  const columns = sorts.filter((sort) => !sort.startsWith('-'));
   for (const column of columns) {
     const definition = all[column];
     const rule = definition ? dateTimeRule(definition) : undefined;

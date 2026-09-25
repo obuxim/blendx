@@ -3,17 +3,41 @@
  * driver package is an optional peer, imported only when chosen, so an app installs just
  * its own. It lives in the facade because drivers are runtime-specific; core stays portable.
  */
-import { BlendxConfigError, type Config, type DatabaseDriver, type Db } from '@blendx/core';
+import {
+  BlendxConfigError,
+  type Config,
+  type DatabaseDriver,
+  type DataMigration,
+  type Db,
+} from '@blendx/core';
 import { sql } from 'drizzle-orm';
+
+export interface MigrationResult {
+  /** Drizzle schema migrations applied during this call. */
+  readonly schema: number;
+  /** Data-migration IDs applied during this call, in version order. */
+  readonly data: readonly string[];
+}
+
+/** A data migration failed and its transaction was rolled back. */
+export class DataMigrationError extends Error {
+  constructor(
+    readonly id: string,
+    options: ErrorOptions,
+  ) {
+    super(`data migration ${id} failed`, options);
+    this.name = 'DataMigrationError';
+  }
+}
 
 export interface Database {
   readonly driver: DatabaseDriver;
   readonly db: Db;
   /**
-   * Applies the pending migrations in `folder` (drizzle-kit's format) with the driver's own
-   * migrator. Resolves to how many ran.
+   * Applies pending Drizzle schema migrations in `folder`, then pending data migrations. Each
+   * data migration runs transactionally and is recorded in Blendx's completion ledger.
    */
-  migrate(folder: string): Promise<number>;
+  migrate(folder: string, dataMigrations?: readonly DataMigration[]): Promise<MigrationResult>;
   /** Ends the connection pool, or closes the PGlite instance. */
   close(): Promise<void>;
 }
@@ -57,6 +81,55 @@ async function appliedCount(db: Db): Promise<number> {
   }
 }
 
+const DATA_MIGRATION_LOCK = 20_260_925;
+const DATA_MIGRATION_LEDGER = 'blendx.__blendx_data_migrations';
+
+function rows(result: unknown): unknown[] {
+  return Array.isArray(result) ? result : (result as { rows: unknown[] }).rows;
+}
+
+function orderedDataMigrations(dataMigrations: readonly DataMigration[]): readonly DataMigration[] {
+  const ordered = [...dataMigrations].sort((left, right) =>
+    left.id < right.id ? -1 : left.id > right.id ? 1 : 0,
+  );
+  for (let index = 1; index < ordered.length; index += 1) {
+    const current = ordered[index];
+    if (current && ordered[index - 1]?.id === current.id) {
+      throw new Error(`duplicate data migration id "${current.id}"`);
+    }
+  }
+  return ordered;
+}
+
+async function applyDataMigration(db: Db, migration: DataMigration): Promise<boolean> {
+  try {
+    return await db.transaction(async (tx) => {
+      await tx.execute(sql.raw(`select pg_advisory_xact_lock(${DATA_MIGRATION_LOCK})`));
+      await tx.execute(sql.raw('create schema if not exists blendx'));
+      await tx.execute(
+        sql.raw(
+          `create table if not exists ${DATA_MIGRATION_LEDGER} (
+            id text primary key,
+            applied_at timestamp with time zone not null default current_timestamp
+          )`,
+        ),
+      );
+      const completed: unknown = await tx.execute(
+        sql`select id from blendx.__blendx_data_migrations where id = ${migration.id}`,
+      );
+      if (rows(completed).length > 0) return false;
+
+      await migration.up({ tx: tx as unknown as Db });
+      await tx.execute(
+        sql`insert into blendx.__blendx_data_migrations (id) values (${migration.id})`,
+      );
+      return true;
+    });
+  } catch (cause) {
+    throw new DataMigrationError(migration.id, { cause });
+  }
+}
+
 function opened(
   driver: DatabaseDriver,
   db: unknown,
@@ -66,10 +139,16 @@ function opened(
   return {
     driver,
     db: db as Db,
-    async migrate(folder) {
+    async migrate(folder, dataMigrations = []) {
+      const ordered = orderedDataMigrations(dataMigrations);
       const before = await appliedCount(db as Db);
       await runMigrations(folder);
-      return (await appliedCount(db as Db)) - before;
+      const schema = (await appliedCount(db as Db)) - before;
+      const data: string[] = [];
+      for (const migration of ordered) {
+        if (await applyDataMigration(db as Db, migration)) data.push(migration.id);
+      }
+      return { schema, data };
     },
     async close() {
       await close();

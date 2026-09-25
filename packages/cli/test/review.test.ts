@@ -51,6 +51,7 @@ describe('blendx review', () => {
       const orders = await readFile(reviewFile('orders.yaml'), 'utf8');
       expect(orders).toContain('\nsource: blends/orders.ts\n');
       expect(orders).toContain('\n  quote:\n');
+      expect(orders).toContain('        writes: [users]\n');
     },
     TIMEOUT,
   );
@@ -105,6 +106,90 @@ describe('blendx review', () => {
         'users.yaml',
       ]);
       expect(await readFile(reviewFile('orders.examples.yaml'), 'utf8')).toBe('store: []\n');
+    },
+    TIMEOUT,
+  );
+
+  test(
+    'a custom authorization hook changes the readable source in the review diff',
+    async () => {
+      const orders = join(app, 'blends', 'orders.ts');
+      const original = await readFile(orders, 'utf8');
+      const changed = original.replace(
+        'authorize: ({ prev }) => prev,',
+        'authorize: ({ prev }) => !prev,',
+      );
+      expect(changed).not.toBe(original);
+      await writeFile(orders, changed);
+      try {
+        const { code, out, err } = await cli('review', '--check');
+        expect(code).toBe(1);
+        expect(out).toContain('--- review/orders.yaml\n+++ review/orders.yaml (generated)\n');
+        expect(out).toContain('+              ({ prev }) => !prev\n');
+        expect(err).toBe('review/orders.yaml is out of date; run `blendx review`\n');
+      } finally {
+        await writeFile(orders, original);
+      }
+    },
+    TIMEOUT,
+  );
+
+  test(
+    'a custom save hook changes the readable source in the review diff',
+    async () => {
+      const orders = join(app, 'blends', 'orders.ts');
+      const original = await readFile(orders, 'utf8');
+      const changed = original.replace(
+        'save: async ({ runDefault }) => runDefault(),',
+        'save: async ({ runDefault }) => runDefault({}),',
+      );
+      expect(changed).not.toBe(original);
+      await writeFile(orders, changed);
+      try {
+        const { code, out, err } = await cli('review', '--check');
+        expect(code).toBe(1);
+        expect(out).toContain('+              async ({ runDefault }) => runDefault({})\n');
+        expect(err).toBe('review/orders.yaml is out of date; run `blendx review`\n');
+      } finally {
+        await writeFile(orders, original);
+      }
+    },
+    TIMEOUT,
+  );
+
+  test(
+    'tab-indented hook source produces a clean review that --check accepts',
+    async () => {
+      const orders = join(app, 'blends', 'orders.ts');
+      const review = reviewFile('orders.yaml');
+      const originalSource = await readFile(orders, 'utf8');
+      const originalReview = await readFile(review, 'utf8');
+      const changed = originalSource.replace(
+        'save: async ({ runDefault }) => runDefault(),',
+        'save: async ({ runDefault }) => {\n\tconst saved = await runDefault();\n\treturn saved;\n},',
+      );
+      expect(changed).not.toBe(originalSource);
+      await writeFile(orders, changed);
+      try {
+        expect(await cli('review')).toEqual({
+          code: 0,
+          out: 'wrote review/orders.yaml\n',
+          err: '',
+        });
+        const generated = await readFile(review, 'utf8');
+        expect(generated).not.toContain('\t');
+        expect(generated).toContain(
+          '              async ({ runDefault }) => {\n                const saved = await runDefault();\n                return saved;\n',
+        );
+        expect(await cli('review', '--check')).toEqual({
+          code: 0,
+          out: 'review is up to date\n',
+          err: '',
+        });
+      } finally {
+        await writeFile(orders, originalSource);
+        await writeFile(review, originalReview);
+      }
     },
     TIMEOUT,
   );

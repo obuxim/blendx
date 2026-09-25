@@ -5,19 +5,22 @@
  * writes the later hooks' outbox entries (D27). after (D26) runs once a write has committed,
  * and what it throws is reported, not answered.
  */
+
+import type { SQL } from 'drizzle-orm';
 import {
   and,
   asc,
   count,
   desc,
   eq,
+  exists,
   getColumns,
   inArray,
   isNotNull,
   isNull,
   sql,
 } from 'drizzle-orm';
-import type { PgColumn } from 'drizzle-orm/pg-core';
+import { alias, type PgColumn, type PgTable } from 'drizzle-orm/pg-core';
 import type { RegisteredAuth } from './app.ts';
 import type { EffectDefaults, IncludedTarget, ResolvedEndpoint } from './cascade.ts';
 import { isDateText, isTimestampText } from './datetime.ts';
@@ -25,6 +28,12 @@ import type { EndpointDefinition } from './endpoints.ts';
 import type { Db, Reply } from './hooks.ts';
 import type { Model } from './model.ts';
 import { enqueueLater } from './outbox.ts';
+import {
+  isMemberPolicy,
+  type MemberPathHop,
+  type MemberPolicy,
+  type ResolvedMemberRelated,
+} from './policy.ts';
 import {
   jsonPointer,
   PROBLEM_CONTENT_TYPE,
@@ -73,6 +82,9 @@ export const saves = (endpoint: Pick<EndpointDefinition, 'on' | 'action'>) =>
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const readField = (value: unknown, key: string): unknown =>
+  typeof value === 'object' && value !== null ? (value as Record<string, unknown>)[key] : undefined;
 
 /** Columns a write may set: every column except generated ones. */
 export function writableColumns(model: Model): Set<string> {
@@ -162,6 +174,15 @@ const includesOf = (input: unknown): string[] =>
 type Row = Record<string, unknown>;
 
 /**
+ * D36: an included target's rows are as visible as its show makes them, so a member policy's
+ * EXISTS predicate scopes them too; the policy's check alone only asks for an identity.
+ */
+const memberScope = (db: Db, show: EndpointDefinition, auth: unknown): SQL | undefined =>
+  isMemberPolicy(show.policy)
+    ? memberPredicate(db, show.policy, show.model.table, auth)
+    : undefined;
+
+/**
  * One relation's rows, by key (D28): a single query for every key the rows hold, live rows
  * only, each through the target's show as GET /<table>/:id decides it; a refused row is null.
  * The rows come back raw: hidden columns leave once the level below has taken its keys (D32).
@@ -188,7 +209,9 @@ async function includedRows(
   const targets = (await db
     .select()
     .from(model.table as never)
-    .where(deletedAt ? and(byKey, isNull(deletedAt)) : byKey)) as Row[];
+    .where(
+      and(byKey, deletedAt ? isNull(deletedAt) : undefined, memberScope(db, show, auth)),
+    )) as Row[];
   for (const target of targets) {
     const allowed = await show.authorize({ auth, record: target, input: {} });
     found.set(target[key], allowed ? target : null);
@@ -234,7 +257,7 @@ async function hasManyRows(
       ),
     })
     .from(model.table as never)
-    .where(deletedAt ? and(byKey, isNull(deletedAt)) : byKey)
+    .where(and(byKey, deletedAt ? isNull(deletedAt) : undefined, memberScope(db, show, auth)))
     .as('ranked');
   const targets = (await db
     .select()
@@ -359,7 +382,7 @@ const SQLSTATE = /^[0-9A-Z]{5}$/;
  * SQLSTATE is in `code` for node-postgres and PGlite, and in `errno` for bun-sql, whose
  * `code` is its own name (D16).
  */
-function databaseError(error: unknown): DatabaseErrorFields | undefined {
+export function databaseError(error: unknown): DatabaseErrorFields | undefined {
   for (let e: unknown = error; e instanceof Object; e = (e as { cause?: unknown }).cause) {
     const { code, errno, constraint, column } = e as DatabaseErrorFields & { errno?: unknown };
     const state = [code, errno].find(
@@ -492,7 +515,14 @@ export async function execute(
   let writes: unknown;
   try {
     // authenticate: an identity-requiring policy answers 401 before anything else runs
-    if (endpoint.requiresAuth && (auth === null || auth === undefined)) {
+    if (
+      endpoint.requiresAuth &&
+      (auth === null ||
+        auth === undefined ||
+        (isMemberPolicy(endpoint.policy) &&
+          (readField(auth, endpoint.policy.authKey) === undefined ||
+            readField(auth, endpoint.policy.authKey) === null)))
+    ) {
       throw new HttpProblem(problem(401, { typeBase }));
     }
 
@@ -603,6 +633,197 @@ export interface DefaultEffectOptions {
 /** Index query keys that are not column filters. */
 const INDEX_CONTROLS = new Set(['page', 'per_page', 'sort', 'trashed', 'include']);
 
+interface MembershipSelect {
+  innerJoin(table: PgTable, on: SQL): MembershipSelect;
+  where(condition: SQL | undefined): unknown;
+}
+
+/**
+ * D36: correlate the resource row with a membership row through its resolved forward path.
+ * Every path table gets an alias, so a self-reference never collides with the outer resource.
+ */
+function memberPredicate(db: Db, policy: MemberPolicy, resourceTable: PgTable, auth: unknown): SQL {
+  const identity = readField(auth, policy.authKey);
+  if (identity === undefined || identity === null) return sql`false`;
+  const { path, root, membershipRoot } = policy;
+  if (!path || !root || !membershipRoot) {
+    throw new Error('member policy was not resolved by blend()');
+  }
+  const membership = alias(policy.through.model.table, '__blendx_membership');
+  const pathTables = path.map((hop, index) => alias(hop.table, `__blendx_member_path_${index}`));
+  const rootTable = pathTables[pathTables.length - 1];
+  const membershipColumns = getColumns(membership);
+  const membershipRootColumn = membershipColumns[membershipRoot.column];
+  const member = membershipColumns[policy.through.member];
+  if (!membershipRootColumn || !member) {
+    throw new Error('member policy resolved to missing columns');
+  }
+
+  const conditions: SQL[] = [eq(member as never, identity)];
+  let select = db.select({ one: sql`1` }).from(membership as never) as unknown as MembershipSelect;
+  if (rootTable) {
+    const rootKey = getColumns(rootTable)[membershipRoot.key];
+    if (!rootKey) throw new Error('member policy root resolved to a missing column');
+    select = select.innerJoin(rootTable, eq(membershipRootColumn as never, rootKey as never));
+    for (let index = path.length - 1; index >= 1; index--) {
+      const source = pathTables[index - 1];
+      const target = pathTables[index];
+      const hop = path[index];
+      if (!source || !target || !hop) throw new Error('member policy path did not resolve');
+      const sourceColumn = getColumns(source)[hop.column];
+      const targetKey = getColumns(target)[hop.key];
+      if (!sourceColumn || !targetKey)
+        throw new Error('member policy path resolved to missing columns');
+      select = select.innerJoin(source, eq(sourceColumn as never, targetKey as never));
+    }
+  } else {
+    const resourceKey = getColumns(resourceTable)[membershipRoot.key];
+    if (!resourceKey) throw new Error('member policy root resolved to a missing column');
+    conditions.push(eq(membershipRootColumn as never, resourceKey as never));
+  }
+
+  const first = path[0];
+  const firstTable = pathTables[0];
+  if (first && firstTable) {
+    const resourceColumn = getColumns(resourceTable)[first.column];
+    const firstKey = getColumns(firstTable)[first.key];
+    if (!resourceColumn || !firstKey)
+      throw new Error('member policy path resolved to missing columns');
+    conditions.push(eq(resourceColumn as never, firstKey as never));
+  }
+  return exists(select.where(and(...conditions)) as never);
+}
+
+const finalField = (writes: Record<string, unknown>, record: unknown, field: string): unknown =>
+  Object.hasOwn(writes, field) ? writes[field] : readField(record, field);
+
+async function rowAt(
+  tx: Db,
+  table: PgTable,
+  key: string,
+  value: unknown,
+): Promise<Record<string, unknown> | undefined> {
+  if (value === undefined || value === null) return undefined;
+  const column = getColumns(table)[key];
+  if (!column) throw new Error(`member policy key "${key}" did not resolve`);
+  const rows: unknown[] = await tx
+    .select()
+    .from(table as never)
+    .where(eq(column as never, value))
+    .limit(1);
+  const row = rows[0];
+  return isObject(row) ? row : undefined;
+}
+
+/** Follow an already-resolved forward path, returning the root's membership key value. */
+async function rootAt(
+  tx: Db,
+  table: PgTable,
+  key: string,
+  value: unknown,
+  path: readonly MemberPathHop[],
+  rootKey: string,
+): Promise<unknown> {
+  let row = await rowAt(tx, table, key, value);
+  if (!row) return undefined;
+  for (const hop of path) {
+    row = await rowAt(tx, hop.table, hop.key, row[hop.column]);
+    if (!row) return undefined;
+  }
+  return row[rootKey];
+}
+
+async function mutationRoot(
+  tx: Db,
+  policy: MemberPolicy,
+  writes: Record<string, unknown>,
+  record: unknown,
+): Promise<unknown> {
+  const { path, membershipRoot } = policy;
+  if (!path || !membershipRoot) throw new Error('member policy was not resolved by blend()');
+  if (path.length === 0) return finalField(writes, record, membershipRoot.key);
+  const [first, ...rest] = path;
+  if (!first) throw new Error('member policy path did not resolve');
+  return rootAt(
+    tx,
+    first.table,
+    first.key,
+    finalField(writes, record, first.column),
+    rest,
+    membershipRoot.key,
+  );
+}
+
+async function hasMembership(
+  tx: Db,
+  policy: MemberPolicy,
+  root: unknown,
+  member: unknown,
+): Promise<boolean> {
+  if (root === undefined || root === null || member === undefined || member === null) return false;
+  const { membershipRoot } = policy;
+  if (!membershipRoot) throw new Error('member policy was not resolved by blend()');
+  const columns = getColumns(policy.through.model.table);
+  const rootColumn = columns[membershipRoot.column];
+  const memberColumn = columns[policy.through.member];
+  if (!rootColumn || !memberColumn) throw new Error('member policy resolved to missing columns');
+  const rows: unknown[] = await tx
+    .select({ one: sql`1` })
+    .from(policy.through.model.table as never)
+    .where(and(eq(rootColumn as never, root), eq(memberColumn as never, member)))
+    .limit(1);
+  return rows.length > 0;
+}
+
+async function relatedRoot(
+  tx: Db,
+  related: Extract<ResolvedMemberRelated, { kind: 'via' }>,
+  rootKey: string,
+  value: unknown,
+): Promise<unknown> {
+  return rootAt(tx, related.table, related.key, value, related.path, rootKey);
+}
+
+/** D36: re-check the final root and declared IDs in the default write's transaction. */
+async function validateMemberMutation(
+  tx: Db,
+  policy: MemberPolicy,
+  writes: Record<string, unknown>,
+  record: unknown,
+  auth: unknown,
+): Promise<void> {
+  const root = await mutationRoot(tx, policy, writes, record);
+  const identity = readField(auth, policy.authKey);
+  if (!(await hasMembership(tx, policy, root, identity))) {
+    throw new HttpProblem(
+      problem(403, { detail: 'The identity cannot access this membership root.' }),
+    );
+  }
+  const rootKey = policy.membershipRoot?.key;
+  if (!rootKey) throw new Error('member policy was not resolved by blend()');
+  for (const related of policy.resolvedRelated ?? []) {
+    const value = finalField(writes, record, related.field);
+    if (value === undefined || value === null) continue;
+    const valid =
+      related.kind === 'member'
+        ? await hasMembership(tx, policy, root, value)
+        : (await relatedRoot(tx, related, rootKey, value)) === root;
+    if (!valid) {
+      throw new HttpProblem(
+        problem(422, {
+          detail: 'The request refers to a record outside the membership root.',
+          errors: [
+            {
+              pointer: jsonPointer([related.field]),
+              detail: 'does not belong to the membership root',
+            },
+          ],
+        }),
+      );
+    }
+  }
+}
+
 /**
  * The schema-level load and save for an endpoint.
  * Load: a member by primary key, never a soft-deleted one (restore loads only those, purge
@@ -645,6 +866,7 @@ export function defaultEffects(
   async function loadMember(
     db: Db,
     params: Readonly<Record<string, string>>,
+    auth: unknown,
     lock: boolean,
   ): Promise<unknown> {
     const scope = trashScope(
@@ -653,7 +875,15 @@ export function defaultEffects(
     const select = db
       .select()
       .from(table)
-      .where(and(...byPath(params), scope))
+      .where(
+        and(
+          ...byPath(params),
+          scope,
+          isMemberPolicy(endpoint.policy)
+            ? memberPredicate(db, endpoint.policy, model.table, auth)
+            : undefined,
+        ),
+      )
       .limit(1);
     const rows: unknown[] = await (lock ? select.for('update') : select);
     return rows[0];
@@ -672,7 +902,14 @@ export function defaultEffects(
       if (!column) throw new Error(`${model.name}.${action}: scope names "${key}", not a column`);
       return value === undefined || value === null ? sql`false` : eq(column as never, value);
     });
-    const where = and(...filters, ...scope, trashScope(query.trashed));
+    const where = and(
+      ...filters,
+      ...scope,
+      trashScope(query.trashed),
+      isMemberPolicy(endpoint.policy)
+        ? memberPredicate(db, endpoint.policy, model.table, auth)
+        : undefined,
+    );
     // The order: the sort column, then every key column not already sorted on, ascending (D33).
     const key = keyColumns();
     const sort = query.sort ?? '';
@@ -752,7 +989,12 @@ export function defaultEffects(
 
   return {
     load: ({ db, params, input, lock, auth }) =>
-      action === 'index' ? loadPage(db, input, auth) : loadMember(db, params, lock === true),
-    save: ({ tx, writes, record }) => saveRow(tx, writes, record),
+      action === 'index' ? loadPage(db, input, auth) : loadMember(db, params, auth, lock === true),
+    save: async ({ tx, writes, record, auth }) => {
+      if (isMemberPolicy(endpoint.policy)) {
+        await validateMemberMutation(tx, endpoint.policy, writes, record, auth);
+      }
+      return saveRow(tx, writes, record);
+    },
   };
 }

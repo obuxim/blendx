@@ -7,13 +7,13 @@
  */
 import { existsSync } from 'node:fs';
 import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
-import { join, relative, resolve } from 'node:path';
-import { reviewResource } from '@blendx/core';
-import { extractHooks } from './calculates.ts';
+import { join, relative, resolve, sep } from 'node:path';
+import { reviewAppActions, reviewResource } from '@blendx/core';
+import { extractHooks, extractStageHooks, reviewProgram } from './calculates.ts';
 import { CliError, type Command } from './command.ts';
 import { loadConfig } from './config.ts';
 import { unifiedDiff } from './diff.ts';
-import { emitReview } from './emit-review.ts';
+import { emitAppReview, emitReview } from './emit-review.ts';
 import { runExampleFiles } from './examples.ts';
 import { loadApp, loadBlends } from './generate.ts';
 
@@ -34,7 +34,7 @@ export const review: Command = {
   async run({ values, cwd, io }) {
     const config = await loadConfig(cwd);
     const check = values.check === true;
-    const shown = (path: string) => relative(config.root, path) || '.';
+    const shown = (path: string) => (relative(config.root, path) || '.').split(sep).join('/');
 
     if (!existsSync(config.blends))
       throw new CliError(`no blends folder at ${shown(config.blends)}`);
@@ -53,22 +53,40 @@ export const review: Command = {
       file: resolve(config.generated, blend.specifier),
     }));
     const app = await loadApp(config);
-    // One TypeScript 6 program reads every calculate, and every index's scope (D22).
-    const hooks = extractHooks(
-      blends.map((blend) => blend.file),
-      ['calculate', 'scope'],
-    );
-    const wanted = new Map(
-      blends.map((blend) => [
-        `${blend.resource.model.name}.yaml`,
-        emitReview({
-          review: reviewResource(blend.resource, app),
-          calculates: hooks.get(blend.file)?.get('calculate'),
-          scopes: hooks.get(blend.file)?.get('scope'),
-          source: shown(blend.file),
-        }),
-      ]),
-    );
+    // One TypeScript 6 program reads every calculate, every index's scope (D22), and the
+    // authorize and save hooks of the app and the blends.
+    const files = blends.map((blend) => blend.file);
+    const program = reviewProgram([config.app, ...files]);
+    const hooks = extractHooks(files, ['calculate', 'scope'], program);
+    const stageHooks = extractStageHooks(config.app, files, ['authorize', 'save'], program);
+    const wanted = new Map<string, string>([
+      ...blends.map(
+        (blend) =>
+          [
+            `${blend.resource.model.name}.yaml`,
+            emitReview({
+              review: reviewResource(blend.resource, app),
+              calculates: hooks.get(blend.file)?.get('calculate'),
+              scopes: hooks.get(blend.file)?.get('scope'),
+              source: shown(blend.file),
+              appSource: shown(config.app),
+              stageHooks: {
+                app: stageHooks.app,
+                resource: stageHooks.resource.get(blend.file),
+                action: stageHooks.action.get(blend.file),
+              },
+            }),
+          ] as const,
+      ),
+      ...(app.actions.length > 0
+        ? [
+            [
+              'app-actions.yaml',
+              emitAppReview({ review: reviewAppActions(app), source: shown(config.app) }),
+            ] as const,
+          ]
+        : []),
+    ]);
 
     const stale: string[] = [];
     const report: string[] = [];

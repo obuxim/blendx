@@ -7,7 +7,7 @@
  * update find the row. The file imports nothing, so a web app loads it without loading the
  * server. Order follows routes.gen.ts.
  */
-import { type Resource, resolveIncludes, toEndpoints } from '@blendx/core';
+import { type App, indexSorts, type Resource, resolveIncludes, toEndpoints } from '@blendx/core';
 import { byCodeUnit, HEADER, routeOf } from './emit-routes.ts';
 
 const str = (value: string) => JSON.stringify(value);
@@ -39,13 +39,31 @@ function object(entries: readonly (readonly [string, string])[], depth: number):
 }
 
 /** Emits client.gen.ts for the app's blends. Output is deterministic. */
-export function emitClient(resources: readonly Resource[]): string {
+export function emitClient(resources: readonly Resource[], app: App): string {
   const tables = [...resources]
     .sort((a, b) => byCodeUnit(a.model.name, b.model.name))
     .map((resource) => {
-      const actions = toEndpoints(resource).map(
-        (endpoint) => [endpoint.action, str(routeOf(endpoint))] as const,
-      );
+      const actions = toEndpoints(resource).map((endpoint) => {
+        const defaultIndex =
+          endpoint.builtin &&
+          endpoint.action === 'index' &&
+          !app.spec.hooks?.rules &&
+          !endpoint.resourceHooks.rules &&
+          !endpoint.hooks.rules;
+        return [
+          endpoint.action,
+          object(
+            [
+              ['route', str(routeOf(endpoint))],
+              ['writes', JSON.stringify(endpoint.writes)],
+              ...(defaultIndex
+                ? [['sorts', JSON.stringify(indexSorts(endpoint.model, endpoint.hidden))] as const]
+                : []),
+            ],
+            3,
+          ),
+        ] as const;
+      });
       const includes = Object.entries(resolveIncludes(resource))
         .map(([name, { target }]) => [name, str(target.model.name)] as const)
         .sort(([a], [b]) => byCodeUnit(a, b));
@@ -60,7 +78,22 @@ export function emitClient(resources: readonly Resource[]): string {
       return [resource.model.name, table] as const;
     });
   const note =
-    '// Each table: its actions as "METHOD /path", the tables its includes point to, and the\n' +
-    '// columns of its primary key. Imports nothing, so a web app can load it.';
-  return `${HEADER}\n${note}\n\nexport const tables = ${object(tables, 0)} as const;\n`;
+    '// Each table: its actions with their route, declared related writes and default index sort values, the tables its includes point to, and the\n' +
+    '// columns of its primary key. appActions describes app-owned domain actions. Imports nothing, so a web app can load it.';
+  const appActions = [...app.actions]
+    .sort((a, b) => byCodeUnit(a.name, b.name))
+    .map(
+      (action) =>
+        [
+          action.name,
+          object(
+            [
+              ['route', str(`${action.method.toUpperCase()} ${action.path}`)],
+              ['writes', JSON.stringify(action.writes)],
+            ],
+            1,
+          ),
+        ] as const,
+    );
+  return `${HEADER}\n${note}\n\nexport const tables = ${object(tables, 0)} as const;\n\nexport const appActions = ${object(appActions, 0)} as const;\n`;
 }
