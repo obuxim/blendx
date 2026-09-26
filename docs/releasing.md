@@ -28,9 +28,18 @@ Six packages, always together and at one version: `blendx`, `@blendx/core`, `@bl
    git push origin v0.2.0
    ```
 
-The `release` workflow then runs `bun run check`, fails unless the tag names the version of every package (`bun run version --check v0.2.0`), packs the six, and publishes them in dependency order (dbml, core, hono, blendx, cli, react) with `npm publish --provenance --access public`. A package already on npm at that version is skipped, so rerunning the workflow after a partial failure publishes only what is missing, and a tag for a version that was published by hand runs green. Publishing uses npm's trusted publishing: the workflow proves its identity to npm with a GitHub OIDC token, so no npm token is stored in the repository, and every version carries provenance linking it to the commit and the workflow run.
+The `release` workflow then runs `bun run check`, fails unless the tag names the version of every package (`bun run version --check v0.2.0`), packs the six, and stages them in dependency order (dbml, core, hono, blendx, cli, react) with `npm stage publish --provenance --access public`. A package already on npm at that version is skipped, so rerunning the workflow after a partial failure stages only what is missing, and a tag for a version that was published by hand runs green. Staging uses npm's trusted publishing: the workflow proves its identity to npm with a GitHub OIDC token, so no npm token is stored in the repository, and every version carries provenance linking it to the commit and the workflow run.
 
-To rehearse without publishing, run the workflow by hand from the Actions tab with `dry_run` on: it does everything but the publish itself, and `npm publish --dry-run` still validates every tarball.
+4. Nothing is live yet: a staged version is not installable. Approve the six, in the same dependency order, with your 2FA, logged in to npm on your machine (`npm login`, npm 11.15 or later):
+
+   ```sh
+   npm stage list @blendx/dbml      # one line per staged version, with its stage id
+   npm stage approve <stage-id>     # asks for the one-time password
+   ```
+
+   Repeat for `@blendx/core`, `@blendx/hono`, `blendx`, `@blendx/cli` and `@blendx/react`, or approve them on npmjs.com under each package's Staged Packages tab. A staged version that should not go live is dropped with `npm stage reject <stage-id>`.
+
+To rehearse without staging, run the workflow by hand from the Actions tab with `dry_run` on: it does everything but the staging itself, and `npm stage publish --dry-run` still validates every tarball.
 
 ## Setting up npm, once
 
@@ -45,7 +54,7 @@ To rehearse without publishing, run the workflow by hand from the Actions tab wi
   done
   ```
 
-- Then, on npmjs.com, open each of the six packages, Settings, Trusted publishing, and add a GitHub Actions publisher: repository `obuxim/blendx`, workflow `release.yml`, no environment. Under Allowed actions, tick direct `npm publish`: a publisher is only allowed `npm stage publish` by default, and the workflow publishes directly, which the registry otherwise refuses with `403 OIDC permission denied for this action`. A publisher cannot be edited afterwards; delete it and add it again. Every later release goes through the workflow.
+- Then, on npmjs.com, open each of the six packages, Settings, Trusted publishing, and add a GitHub Actions publisher: repository `obuxim/blendx`, workflow `release.yml`, no environment. A publisher is allowed `npm stage publish`, which is all the workflow uses; direct `npm publish` is a separate box under Allowed actions that stays off, and the registry refuses it with `403 OIDC permission denied for this action`. A publisher cannot be edited afterwards; delete it and add it again. Every later release goes through the workflow.
 - Keep the version in `docs/guide/getting-started.md` in step with the latest release.
 
 This was done for 0.1.0 on 2026-09-14: the six were published by hand from this machine, the trusted publisher was added to each, and the `v0.1.0` tag was pushed afterwards, so the first workflow run published nothing and only proved the setup.

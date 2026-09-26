@@ -1,8 +1,9 @@
 name: release
 
 # A release is a tag v<version> (docs/decisions.md D35): the whole check, the tag against every
-# package's version, then the six tarballs published in dependency order through npm's trusted
-# publishing, with provenance and no token. Run by hand with dry_run to rehearse without publishing.
+# package's version, then the six tarballs staged on npm in dependency order through npm's trusted
+# publishing, with provenance and no token. Nothing goes live here: the maintainer approves each
+# staged package with 2FA (docs/releasing.md). Run by hand with dry_run to rehearse without staging.
 on:
   push:
     tags: ['v*']
@@ -34,11 +35,13 @@ jobs:
       - if: github.ref_type == 'tag'
         run: bun run version --check "$GITHUB_REF_NAME"
       - run: bun run pack tarballs
+      # npm stage needs npm 11.15 or later; Node's bundled npm is not pinned, so this one is.
+      - run: npm install -g npm@12.1.0
       # A package already on npm at this version is skipped, so a rerun after a partial failure
-      # publishes only what is missing, and a tag for a version published by hand runs green.
+      # stages only what is missing, and a tag for a version published by hand runs green.
       # DRY_RUN is 'true' or empty: a boolean expression would give the string "false", which
       # ${DRY_RUN:+--dry-run} treats as set.
-      - name: Publish in dependency order
+      - name: Stage in dependency order
         env:
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && 'true' || '' }}
         run: |
@@ -49,5 +52,6 @@ jobs:
               echo "$package@$version is already on npm, skipping"
               continue
             fi
-            npm publish "./tarballs/$name-$version.tgz" --provenance --access public ${DRY_RUN:+--dry-run}
+            npm stage publish "./tarballs/$name-$version.tgz" --provenance --access public ${DRY_RUN:+--dry-run}
           done
+          echo "Staged $version; approve each package with 2FA: npm stage list, then npm stage approve <id> (docs/releasing.md)"
