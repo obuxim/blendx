@@ -45,7 +45,7 @@ To rehearse without publishing, run the workflow by hand from the Actions tab wi
   done
   ```
 
-- Then, on npmjs.com, open each of the six packages, Settings, Trusted publishing, and add a GitHub Actions publisher: repository `obuxim/blendx`, workflow `release.yml`. Every later release goes through the workflow.
+- Then, on npmjs.com, open each of the six packages, Settings, Trusted publishing, and add a GitHub Actions publisher: repository `obuxim/blendx`, workflow `release.yml`, no environment. Under Allowed actions, tick direct `npm publish`: a publisher is only allowed `npm stage publish` by default, and the workflow publishes directly, which the registry otherwise refuses with `403 OIDC permission denied for this action`. A publisher cannot be edited afterwards; delete it and add it again. Every later release goes through the workflow.
 - Keep the version in `docs/guide/getting-started.md` in step with the latest release.
 
 This was done for 0.1.0 on 2026-09-14: the six were published by hand from this machine, the trusted publisher was added to each, and the `v0.1.0` tag was pushed afterwards, so the first workflow run published nothing and only proved the setup.
