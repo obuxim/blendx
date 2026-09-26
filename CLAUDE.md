@@ -94,6 +94,10 @@ When `blendx review --check` fails, a human has asked for a change (`packages/sp
 - Dependency versions are exact pins. Changing one needs a `docs/decisions.md` entry.
 - Record design decisions in `docs/decisions.md`.
 
+## Releasing
+
+A release follows `docs/releasing.md`, and its gate is not optional: nothing is tagged until CI is green on GitHub for that exact commit, the public API diff since the previous tag has been read, the previous release's addition example has been upgraded through the new packages and run (generate, review, tsc, tests), and `docs/changelog.md` has the version's entry with what a user must change. A local `bun run check` does not count: on Windows the path-separator tests fail and hide real failures, and the Node-only checks run only on CI. A claim that tests pass is verified by reading the run, never taken from a summary.
+
 ## Todo loop
 
 1. Take the first unchecked item in `docs/todo.md`. Triage Inbox items into a phase before working on them.

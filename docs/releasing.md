@@ -10,9 +10,18 @@ Six packages, always together and at one version: `blendx`, `@blendx/core`, `@bl
 - `bun run pack <folder>`: the six tarballs, from a built tree.
 - `bun run pack:test`: builds, packs, installs the tarballs into a fresh app made from `examples/addition`, and runs it on Bun and Node. CI runs it as the `pack` job.
 
+## Before tagging: the release gate
+
+Nothing is tagged until all four hold. 0.2.0 went out with the first two missed, and the second release commit needed two CI fixes before the tag; this gate is the rule since.
+
+1. **CI is green on GitHub for the exact commit that will be tagged.** A local `bun run check` is not a substitute: on Windows the path-separator tests fail and hide real failures behind them, and the Node-only checks (`smoke:node`, `conformance:node`) run only on CI. `gh run list --branch main --limit 1` shows the run; every job must pass.
+2. **The public API diff since the previous tag has been read.** `git diff v<previous> HEAD -- packages/*/src` for removed or renamed exports, changed signatures, changed return types and narrowed types. Each is either reverted or written into the changelog with what a user must change. The generated files' formats and the review YAML format count too: a change there means "run `blendx generate` and `blendx review` after upgrading" in the changelog.
+3. **The upgrade check has run.** The addition example as committed at the previous tag, with its generated files and review, has its dependencies moved to the new packages (the tarballs before publishing, npm afterwards), then a user's steps: `blendx generate`, `blendx review`, `tsc --noEmit`, its tests. What the user had to change goes into the changelog. Until this is a CI job (see the todo), it is run by hand from a scratch folder; the packing test (`bun run pack:test`) covers a fresh app only, not an upgrade.
+4. **`docs/changelog.md` has the version's entry**: what changed, what a user must do to upgrade, what breaks and how it shows. Written before the tag, from steps 2 and 3, not from memory.
+
 ## Cutting a release
 
-1. Make sure `main` is green.
+1. The release gate above holds.
 2. Set the version everywhere and commit it:
 
    ```sh
