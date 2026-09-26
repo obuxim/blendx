@@ -9,6 +9,7 @@ Six packages, always together and at one version: `blendx`, `@blendx/core`, `@bl
 - `bun run build`: `dist/` for every package, in dependency order. `bun run check` runs it, since declaration emit can fail where a plain typecheck passes.
 - `bun run pack <folder>`: the six tarballs, from a built tree.
 - `bun run pack:test`: builds, packs, installs the tarballs into a fresh app made from `examples/addition`, and runs it on Bun and Node. CI runs it as the `pack` job.
+- `bun run upgrade:check [v<previous>]`: builds, packs, and upgrades the addition example as committed at the previous release to the tarballs, then generate, review, tsc and its tests, printing what the upgrade rewrote. CI runs it as the `upgrade` job. It is step 3 of the gate below.
 
 ## Before tagging: the release gate
 
@@ -16,7 +17,7 @@ Nothing is tagged until all four hold. 0.2.0 went out with the first two missed,
 
 1. **CI is green on GitHub for the exact commit that will be tagged.** A local `bun run check` is not a substitute: on Windows the path-separator tests fail and hide real failures behind them, and the Node-only checks (`smoke:node`, `conformance:node`) run only on CI. `gh run list --branch main --limit 1` shows the run; every job must pass.
 2. **The public API diff since the previous tag has been read.** `git diff v<previous> HEAD -- packages/*/src` for removed or renamed exports, changed signatures, changed return types and narrowed types. Each is either reverted or written into the changelog with what a user must change. The generated files' formats and the review YAML format count too: a change there means "run `blendx generate` and `blendx review` after upgrading" in the changelog.
-3. **The upgrade check has run.** The addition example as committed at the previous tag, with its generated files and review, has its dependencies moved to the new packages (the tarballs before publishing, npm afterwards), then a user's steps: `blendx generate`, `blendx review`, `tsc --noEmit`, its tests. What the user had to change goes into the changelog. Until this is a CI job (see the todo), it is run by hand from a scratch folder; the packing test (`bun run pack:test`) covers a fresh app only, not an upgrade.
+3. **The upgrade check is green.** `bun run upgrade:check` takes the addition example as committed at the previous release tag, with its generated files and review, moves its blendx dependencies to the six freshly packed tarballs, then runs a user's steps: `blendx generate`, `blendx review`, `tsc --noEmit`, its tests. It prints which generated and review files the upgrade rewrote; that list, and anything the user would have to change by hand, go into the changelog. CI runs it as the `upgrade` job on every push, so read that job's output for the commit being tagged. The packing test (`bun run pack:test`) covers a fresh app only, not an upgrade. The previous release defaults to the highest `v*` tag below the current version; `bun run upgrade:check v0.1.0` names another.
 4. **`docs/changelog.md` has the version's entry**: what changed, what a user must do to upgrade, what breaks and how it shows. Written before the tag, from steps 2 and 3, not from memory.
 
 ## Cutting a release

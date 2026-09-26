@@ -12,6 +12,7 @@
     "build": "bun scripts/build.ts",
     "pack": "bun scripts/pack.ts",
     "pack:test": "bun scripts/pack-test.ts",
+    "upgrade:check": "bun scripts/upgrade-check.ts",
     "version": "bun scripts/version.ts",
     "generated": "blendx generate --check --cwd examples/addition && blendx review --check --cwd examples/addition && blendx generate --check --cwd examples/expenses && blendx review --check --cwd examples/expenses && blendx generate --check --cwd packages/conformance/fixtures/shop && blendx review --check --cwd packages/conformance/fixtures/shop",
     "lint": "biome check .",

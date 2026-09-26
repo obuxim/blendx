@@ -63,6 +63,21 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run pack:test
 
+  upgrade:
+    # The upgrade check of the release gate (docs/releasing.md): the addition example as the
+    # previous release committed it, moved to the six tarballs, then generate, review, tsc and
+    # its tests. Needs the release tags, so the checkout is not shallow.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
+      - run: bun run upgrade:check
+
   e2e-web:
     # examples/addition/web in Chromium, through Playwright (Node) against Vite and the API (Bun).
     runs-on: ubuntu-latest
